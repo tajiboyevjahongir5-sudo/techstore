@@ -1421,19 +1421,9 @@ const DEFAULT_PRODUCTS = [
   {id:20, name:'OnePlus 12 5G',           brand:'OnePlus', price:8000000,  discount:18, emoji:'📱', image:'https://images.unsplash.com/photo-1565849906660-bf47eb869a73?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1565849906660-bf47eb869a73?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.7, reviews:198, desc:'Snapdragon 8 Gen 3, Hasselblad optikasi va 100W SUPERVOOC quvvatlash.',                    specs:[['Ekran','6.82 AMOLED 120Hz'],['Protsessor','Snapdragon 8 Gen 3'],['Kamera','50MP Hasselblad'],['Batareya','5400 mAh'],['Quvvatlash','100W SUPERVOOC']]}
 ];
 
-// ===== FIREBASE =====
-const firebaseConfig = {
-  apiKey: "AIzaSyCe74FO3fYXk9Nc8ZVv6JOlMfAptODP8Kg",
-  authDomain: "techstore-7018f.firebaseapp.com",
-  databaseURL: "https://techstore-7018f-default-rtdb.firebaseio.com",
-  projectId: "techstore-7018f",
-  storageBucket: "techstore-7018f.firebasestorage.app",
-  messagingSenderId: "456809138926",
-  appId: "1:456809138926:web:d4a855263760cb921a81ff"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const storage = firebase.storage();
+// ===== FIREBASE (Dinamik yuklanadi) =====
+let db;
+let storage;
 
 // ===== FIREBASE: MA'LUMOT SAQLASH =====
 function saveData() {
@@ -1530,14 +1520,7 @@ function loadData() {
   });
 
   // Settings
-  db.ref('settings/card').once('value', snap => {
-    const d = snap.val();
-    if(d) {
-      if(d.number) CARD_NUMBER = d.number;
-      if(d.owner)  CARD_OWNER  = d.owner;
-      updatePaymentCard();
-    }
-  });
+  loadSettings();
 }
 
 
@@ -1619,21 +1602,24 @@ async function removePendingPayment(suffix) {
 }
 
 // Settings ni Firebase dan o'qish
-db.ref('settings').once('value', snap => {
-  const s = snap.val();
-  if(!s) return;
-  if(s.card?.number) { CARD_NUMBER = s.card.number; }
-  if(s.card?.owner)  { CARD_OWNER  = s.card.owner; }
-  if(s.admin?.password) { ADMIN_PASSWORD = s.admin.password; }
-  if(s.bot?.token) { BOT_TOKEN = s.bot.token; }
-  if(s.admin?.telegramIds) {
-    ADMIN_TELEGRAM_IDS = s.admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
-  }
-  updatePaymentCard();
-  loadSettingsUI();
-  // /admin buyrug'i orqali kirishni tekshir
-  checkAdminAccessFromUrl();
-});
+function loadSettings() {
+  if (!db) return;
+  db.ref('settings').once('value', snap => {
+    const s = snap.val();
+    if(!s) return;
+    if(s.card?.number) { CARD_NUMBER = s.card.number; }
+    if(s.card?.owner)  { CARD_OWNER  = s.card.owner; }
+    if(s.admin?.password) { ADMIN_PASSWORD = s.admin.password; }
+    if(s.bot?.token) { BOT_TOKEN = s.bot.token; }
+    if(s.admin?.telegramIds) {
+      ADMIN_TELEGRAM_IDS = s.admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
+    }
+    updatePaymentCard();
+    loadSettingsUI();
+    // /admin buyrug'i orqali kirishni tekshir
+    checkAdminAccessFromUrl();
+  });
+}
 
 function saveCardSettings() {
   const num   = document.getElementById('settCardNumber').value.trim();
@@ -3337,6 +3323,43 @@ function applyIconFallback() {
   });
 }
 
+async function initFirebaseAndLoad() {
+  const hostname = window.location.hostname;
+  const isDev = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+  const isTg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== '';
+
+  if (!isTg && !isDev) {
+    // Agar Telegram bo'lmasa va dev muhiti bo'lmasa, default mahsulotlarni yuklab qo'yamiz (offline ko'rinish uchun)
+    products = [...DEFAULT_PRODUCTS];
+    renderProducts(products);
+    buildSlides();
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/firebase-config', {
+      headers: {
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      }
+    });
+    if (!res.ok) throw new Error("Config yuklab bo'lmadi");
+    const firebaseConfig = await res.json();
+
+    // Firebase'ni initialize qilish
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    storage = firebase.storage();
+
+    // Ma'lumotlarni yuklash
+    loadData();
+  } catch (e) {
+    console.warn("Firebase initialize xatosi, lokal rejimda ishlaydi:", e);
+    products = [...DEFAULT_PRODUCTS];
+    renderProducts(products);
+    buildSlides();
+  }
+}
+
 // Har doim SVG ishlatamiz (CDN yo'q)
 document.addEventListener('DOMContentLoaded', () => {
   applyIconFallback();
@@ -3344,15 +3367,13 @@ document.addEventListener('DOMContentLoaded', () => {
   obs.observe(document.body, { childList:true, subtree:true });
 
   // ===== INIT =====
-  loadData();
+  initFirebaseAndLoad();
   loadTelegramUser();
   document.getElementById('chekNotify').style.display='none';
-  renderProducts(products);
   renderCart();
   updateCartBadge();
   updateProfileCounts();
   updatePaymentCard();
-  buildSlides();
   buildChart();
 });
 </script>

@@ -96,6 +96,29 @@ app.post('/api/register-payment', (req, res) => {
   res.json({ success: true });
 });
 
+// Firebase Configuration API (Xavfsiz qilingan)
+app.get('/api/firebase-config', (req, res) => {
+  const initData = req.headers['x-telegram-init-data'];
+  const hostname = req.hostname;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+  
+  // Faqat Telegram Mini App yoki local dev orqali ruxsat beriladi
+  if (!isLocal && !verifyTelegramAuth(initData)) {
+    console.warn(`⚠️  Xavfsizlik: Firebase konfiguratsiyasiga noma'lum manbadan so'rov rad etildi! IP: ${req.ip}`);
+    return res.status(401).json({ error: "Xavfsizlik xatosi: So'rov faqat Telegram orqali qabul qilinadi" });
+  }
+
+  res.json({
+    apiKey: "AIzaSyCe74FO3fYXk9Nc8ZVv6JOlMfAptODP8Kg",
+    authDomain: "techstore-7018f.firebaseapp.com",
+    databaseURL: "https://techstore-7018f-default-rtdb.firebaseio.com",
+    projectId: "techstore-7018f",
+    storageBucket: "techstore-7018f.firebasestorage.app",
+    messagingSenderId: "456809138926",
+    appId: "1:456809138926:web:d4a855263760cb921a81ff"
+  });
+});
+
 // ===== TELEGRAM BOT (POLLING) =====
 if (BOT_TOKEN) {
   const bot = new TelegramBot(BOT_TOKEN, {
