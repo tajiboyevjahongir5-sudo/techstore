@@ -6,9 +6,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ===== ENVIRONMENT VARIABLES =====
-const BOT_TOKEN   = process.env.BOT_TOKEN;
-const ADMIN_IDS   = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
-const APP_URL     = process.env.APP_URL || `https://your-app.railway.app`;
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+const APP_URL   = process.env.APP_URL || `https://your-app.railway.app`;
 
 // ===== EXPRESS =====
 app.use(express.json());
@@ -23,13 +23,33 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ===== TELEGRAM BOT =====
-if (BOT_TOKEN) {
-  const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+// ===== TELEGRAM BOT (WEBHOOK MODE) =====
+let bot = null;
 
-  // /start buyrug'i
+if (BOT_TOKEN) {
+  const WEBHOOK_PATH = `/webhook/${BOT_TOKEN}`;
+  const WEBHOOK_URL  = `${APP_URL}${WEBHOOK_PATH}`;
+
+  // Webhook mode — polling yo'q, 409 xatosi bo'lmaydi
+  bot = new TelegramBot(BOT_TOKEN, { webHook: false });
+
+  // Avval eski polling/webhook ni to'xtatib, yangi webhook o'rnatamiz
+  bot.deleteWebHook()
+    .then(() => bot.setWebHook(WEBHOOK_URL))
+    .then(() => console.log(`✅ Webhook o'rnatildi: ${WEBHOOK_URL}`))
+    .catch(err => console.error('❌ Webhook xatosi:', err.message));
+
+  // Webhook endpoint
+  app.post(WEBHOOK_PATH, (req, res) => {
+    bot.processUpdate(req.body);
+    res.sendStatus(200);
+  });
+
+  // ===== BOT BUYRUQLARI =====
+
+  // /start
   bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id;
+    const chatId    = msg.chat.id;
     const firstName = msg.from?.first_name || 'Foydalanuvchi';
 
     bot.sendMessage(chatId,
@@ -38,26 +58,24 @@ if (BOT_TOKEN) {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [[
-            { text: '🛍️ Do\'konni ochish', web_app: { url: APP_URL } }
+            { text: "🛍️ Do'konni ochish", web_app: { url: APP_URL } }
           ]]
         }
       }
     );
   });
 
-  // /admin buyrug'i — faqat adminlarga
+  // /admin — faqat adminlarga
   bot.onText(/\/admin/, (msg) => {
-    const chatId = msg.chat.id;
-    const userId = String(msg.from?.id || '');
+    const chatId    = msg.chat.id;
+    const userId    = String(msg.from?.id || '');
     const firstName = msg.from?.first_name || 'Admin';
 
-    // Admin ID tekshirish
     if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(userId)) {
-      bot.sendMessage(chatId, '🚫 Sizda admin huquqi yo\'q!');
+      bot.sendMessage(chatId, "🚫 Sizda admin huquqi yo'q!");
       return;
     }
 
-    // Admin URL — maxsus parametr bilan
     const adminUrl = `${APP_URL}?admin_access=true&uid=${userId}`;
 
     bot.sendMessage(chatId,
@@ -73,7 +91,7 @@ if (BOT_TOKEN) {
     );
   });
 
-  // /help buyrug'i
+  // /help
   bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
     bot.sendMessage(chatId,
@@ -82,9 +100,9 @@ if (BOT_TOKEN) {
     );
   });
 
-  console.log('✅ Telegram bot ishga tushdi (polling mode)');
+  console.log('🤖 Telegram bot webhook rejimida tayyorlanmoqda...');
 } else {
-  console.warn('⚠️  BOT_TOKEN topilmadi. Bot ishlayapman emas.');
+  console.warn("⚠️  BOT_TOKEN topilmadi. Bot ishlamaydi.");
 }
 
 // ===== SERVER START =====
