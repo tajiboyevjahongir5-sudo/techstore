@@ -759,12 +759,12 @@ body{
   <div id="success" class="screen">
     <div class="success-wrap">
       <div class="success-icon"><i class="ti ti-check" style="font-size:40px;color:var(--green)"></i></div>
-      <div class="success-title">Chek yuborildi!</div>
-      <div class="success-sub">Chekingiz adminga yuborildi. Buyurtmangiz tez orada tasdiqlanadi.</div>
+      <div class="success-title">Buyurtma qabul qilindi!</div>
+      <div class="success-sub">Bot to'lovingizni avtomatik ravishda tekshirmoqda. To'lov tasdiqlangandan so'ng sizga Telegram orqali xabar boradi.</div>
       <div class="success-order" id="successOrderCard"></div>
       <div style="width:100%;background:rgba(34,216,126,0.08);border:1px solid rgba(34,216,126,0.2);border-radius:14px;padding:14px;text-align:center">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Holat</div>
-        <div style="font-size:14px;font-weight:700;color:var(--green)">Chek tekshirilmoqda...</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Holati</div>
+        <div style="font-size:14px;font-weight:700;color:var(--green)">To'lov kutilmoqda (Avto-tekshirish)</div>
       </div>
       <button class="home-btn" onclick="goHomeAfterOrder()">Bosh sahifaga qaytish</button>
     </div>
@@ -2332,8 +2332,6 @@ async function sendPayment() {
   btn.innerHTML = '<i class="ti ti-loader" style="font-size:18px"></i> Yuborilmoqda...';
   btn.disabled = true;
 
-  const chekImgSrc = document.getElementById('previewImg').src || null;
-  const chekImg = chekImgSrc && chekImgSrc.startsWith('data:') ? chekImgSrc : null;
   const tgUser  = tg?.initDataUnsafe?.user || null;
   const phone   = document.getElementById('addrPhone').value.trim();
 
@@ -2346,6 +2344,24 @@ async function sendPayment() {
   const addrHouse    = document.getElementById('addrHouse').value.trim();
   const addr = [addrCity, addrDistrict, addrStreet, addrHouse].filter(Boolean).join(', ');
   const uName = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'Foydalanuvchi';
+
+  // Backend ga to'lovni ro'yxatga olish (Avtomatik tekshirish uchun)
+  try {
+    await fetch('/api/register-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: uniqueAmt,
+        userId: tgUser?.id || 'anon_' + Date.now(),
+        userName: uName,
+        orderNum: orderNum,
+        phone: phone,
+        addr: addr
+      })
+    });
+  } catch (e) {
+    console.warn('Backend payment registration failed:', e);
+  }
 
   // Firebase ga pending to'lovni yoz — bot shu orqali tekshiradi
   const suffix = window._currentSuffix || 0;
@@ -2367,7 +2383,7 @@ async function sendPayment() {
     date: new Date(), addr, status: 'Tekshirilmoqda',
     userId: tgUser?.id||null, userName: uName,
     userUsername: tgUser?.username||null, userPhoto: tgUser?.photo_url||null,
-    chekImg, uniqueAmount: uniqueAmt, suffix
+    chekImg: null, uniqueAmount: uniqueAmt, suffix
   });
   updateProfileCounts();
 
@@ -2404,18 +2420,16 @@ async function sendPayment() {
     <div class="sorder-row"><span>Buyurtma raqami</span><span style="color:var(--accent);font-weight:700">${orderNum}</span></div>
     <div class="sorder-row"><span>Manzil</span><span style="font-size:11px">${addr}</span></div>
     ${rows}
-    <div class="sorder-row"><span>To'langan summa</span><span style="color:var(--accent);font-weight:700">${uniqueAmt.toLocaleString('uz')} so'm</span></div>
+    <div class="sorder-row"><span>To'lanishi kerak</span><span style="color:var(--accent);font-weight:700">${uniqueAmt.toLocaleString('uz')} so'm</span></div>
     <div style="margin-top:8px;padding:10px;background:rgba(34,216,126,0.08);border-radius:12px;border:1px solid rgba(34,216,126,0.2);font-size:11px;color:var(--green);text-align:center">🤖 Bot to'lovni avtomatik tekshirmoqda...</div>`;
 
   document.getElementById('chekNotify').style.display = 'block';
-  addAdminOrder(orderNum, orderItems, uniqueAmt, tgUser, chekImg, phone);
+  addAdminOrder(orderNum, orderItems, uniqueAmt, tgUser, null, phone);
 
-  // Bot Firebase da kanal xabarlarini kuzatadi va `orders/{id}/status` ni yangilaydi
-  // Shu listener orqali admin panel avtomatik yangilanadi
   listenOrderStatus(orderNum.replace('#',''), tgUser);
 
   showTab('success');
-  btn.innerHTML = '<i class="ti ti-send" style="font-size:18px"></i> Chekni yuborish';
+  btn.innerHTML = '<i class="ti ti-circle-check" style="font-size:18px"></i> To\'lovni qildim, buyurtmani tasdiqlash';
   currentUniqueAmount = 0;
   window._currentSuffix = 0;
 }
@@ -2424,12 +2438,7 @@ function goHomeAfterOrder() {
   cart = [];
   renderCart();
   updateCartBadge();
-  // reset payment
-  document.getElementById('uploadArea').classList.remove('has-file');
-  document.getElementById('uploadArea').querySelector('.upload-title').textContent = 'Chekni yuklang';
-  document.getElementById('uploadArea').querySelector('.upload-sub').innerHTML = 'To\'lov cheki rasmini tanlang<br>JPG, PNG, PDF qabul qilinadi';
-  document.getElementById('previewImg').style.display = 'none';
-  document.getElementById('sendPayBtn').disabled = true;
+  document.getElementById('sendPayBtn').disabled = false;
   document.getElementById('addrDistrict').value = '';
   document.getElementById('addrStreet').value = '';
   document.getElementById('addrHouse').value = '';

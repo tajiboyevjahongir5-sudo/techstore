@@ -30,6 +30,38 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// ===== IN-MEMORY PENDING PAYMENTS =====
+const pendingPayments = []; // array of { amount, userId, userName, orderNum, phone, addr, ts }
+
+// To'lovni ro'yxatga olish API
+app.post('/api/register-payment', (req, res) => {
+  const { amount, userId, userName, orderNum, phone, addr } = req.body;
+  if (!amount || !userId) {
+    return res.status(400).json({ error: "Noto'g'ri ma'lumotlar" });
+  }
+
+  // Eski bir xil summadagi to'lovlarni o'chirib tashlaymiz (faqat oxirgisi qolishi uchun)
+  const cleanAmount = Number(amount);
+  for (let i = pendingPayments.length - 1; i >= 0; i--) {
+    if (pendingPayments[i].amount === cleanAmount) {
+      pendingPayments.splice(i, 1);
+    }
+  }
+
+  pendingPayments.push({
+    amount: cleanAmount,
+    userId: String(userId),
+    userName: userName || 'Foydalanuvchi',
+    orderNum: orderNum || 'Nomalum',
+    phone: phone || '',
+    addr: addr || '',
+    ts: Date.now()
+  });
+
+  console.log(`📝 Yangi to'lov kutilmoqda: Order ${orderNum}, Summa: ${cleanAmount} so'm, User: ${userName} (${userId})`);
+  res.json({ success: true });
+});
+
 // ===== TELEGRAM BOT (POLLING) =====
 if (BOT_TOKEN) {
   const bot = new TelegramBot(BOT_TOKEN, {
@@ -99,7 +131,79 @@ if (BOT_TOKEN) {
     );
   });
 
-  console.log('✅ Telegram bot ishga tushdi (polling mode)');
+  // ===== TO'LOV XABARLARINI AVTOMATIK KUZATISH TIZIMI =====
+  function handlePaymentMessage(msg) {
+    const text = msg.text || msg.caption;
+    if (!text) return;
+
+    // Har qanday kiruvchi xabardagi raqamlarni tozalab olamiz
+    // Masalan: "Humo Kirim: +30 000 010.00 UZS" -> "3000001000" (tiyinlar) yoki "30000010"
+    const cleanText = text.replace(/[^0-9]/g, '');
+    if (!cleanText) return;
+
+    console.log(`📩 Kuzatilayotgan xabar: "${text.replace(/\n/g, ' ')}"`);
+
+    // Pending to'lovlar bilan taqqoslaymiz
+    for (let i = pendingPayments.length - 1; i >= 0; i--) {
+      const p = pendingPayments[i];
+      const amountStr = String(p.amount);
+
+      // Agar xabardagi raqamlar ketma-ketligida kutilayotgan noyob summa mavjud bo'lsa
+      if (cleanText.includes(amountStr)) {
+        console.log(`🎯 TO'LOV MOS KELDI! Summa: ${p.amount} so'm, Buyurtma: ${p.orderNum}`);
+
+        // Foydalanuvchiga tasdiqlash xabari (Chiroyli shaklda)
+        const userMsg = `🎉 <b>To'lov qabul qilindi!</b>\n\n` +
+          `Salom, <b>${p.userName}</b>!\n` +
+          `Sizning <b>${p.amount.toLocaleString('uz')} so'm</b> to'lovingiz avtomatik ravishda tasdiqlandi. ✅\n\n` +
+          `📦 Buyurtma raqami: <b>${p.orderNum}</b>\n\n` +
+          `📞 Admin bilan bog'lanib buyurtmangizni olishingiz mumkin:\n` +
+          `👉 <b>@Jahongir_1220</b>\n\n` +
+          `Siz bilan hamkorlikdan mamnunmiz! ⚡`;
+
+        bot.sendMessage(p.userId, userMsg, { parse_mode: 'HTML' })
+          .then(() => console.log(`✉️ Foydalanuvchiga tasdiqlash xabari yuborildi: ${p.userId}`))
+          .catch(err => console.error(`❌ Foydalanuvchiga xabar yuborishda xato:`, err.message));
+
+        // Adminga xabar yuboramiz (barcha adminlarga)
+        ADMIN_IDS.forEach(adminId => {
+          const adminMsg = `✅ <b>AVTOMATIK TO'LOV TASDIQLANDI</b>\n\n` +
+            `👤 Foydalanuvchi: <b>${p.userName}</b> (ID: ${p.userId})\n` +
+            `📦 Buyurtma: <b>${p.orderNum}</b>\n` +
+            `💰 Summa: <b>${p.amount.toLocaleString('uz')} so'm</b>\n` +
+            `📞 Tel: ${p.phone}\n` +
+            `📍 Manzil: ${p.addr}`;
+
+          bot.sendMessage(adminId, adminMsg, { parse_mode: 'HTML' })
+            .catch(err => console.error(`❌ Adminga xabar yuborishda xato:`, err.message));
+        });
+
+        // Firebase da order statusini 'paid' ga o'zgartirishga harakat qilamiz (REST orqali)
+        // Agar Firebase ruxsat bersa, status o'zgaradi, bo'lmasa xatolik tutib ketiladi (hech narsa bo'lmaydi)
+        fetch(`https://techstore-7018f-default-rtdb.firebaseio.com/orders/${p.orderNum.replace('#','')}/status.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify('paid')
+        }).catch(()=>{});
+
+        // Ro'yxatdan o'chirib tashlaymiz
+        pendingPayments.splice(i, 1);
+      }
+    }
+  }
+
+  // To'lov kanali yoki guruhdagi barcha xabarlarni tinglash
+  bot.on('channel_post', (msg) => {
+    handlePaymentMessage(msg);
+  });
+
+  bot.on('message', (msg) => {
+    // Slash buyruqlarni tekshirmaymiz
+    if (msg.text && msg.text.startsWith('/')) return;
+    handlePaymentMessage(msg);
+  });
+
+  console.log('✅ Telegram bot ishga tushdi (polling mode & automatic payment verification active)');
 } else {
   console.warn('⚠️  BOT_TOKEN topilmadi!');
 }
