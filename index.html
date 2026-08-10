@@ -1708,6 +1708,16 @@ function showTab(id) {
     if(id === 'home') tg.BackButton.hide();
     else tg.BackButton.show();
   }
+
+  // Admin panelda pastki nav-bar (tab-nav) yashirilsin
+  const nav = document.querySelector('.tab-nav');
+  if(nav) {
+    if(id === 'admin') {
+      nav.style.display = 'none';
+    } else {
+      nav.style.display = '';
+    }
+  }
 }
 
 // ===== ADMIN AUTH =====
