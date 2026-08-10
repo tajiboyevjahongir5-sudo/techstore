@@ -1501,23 +1501,35 @@ function loadData() {
     if(f)  favorites    = new Set(JSON.parse(f));
   } catch(e) {}
 
-  // Firebase dan mahsulotlar (real-time)
-  db.ref('products').on('value', snap => {
-    const data = snap.val();
-    if(data && Array.isArray(data) && data.length) {
-      products = data;
-    } else if(data && typeof data === 'object') {
-      products = Object.values(data);
-    } else {
+  // Dastlabki ko'rinish uchun default mahsulotlarni render qilib turamiz (Firebase javob berguncha bo'sh turmasligi uchun)
+  products = [...DEFAULT_PRODUCTS];
+  renderProducts(products);
+  buildSlides();
+
+  if (db) {
+    // Firebase dan mahsulotlar (real-time)
+    db.ref('products').on('value', snap => {
+      const data = snap.val();
+      if(data && Array.isArray(data) && data.length) {
+        products = data;
+      } else if(data && typeof data === 'object') {
+        products = Object.values(data);
+      } else {
+        products = [...DEFAULT_PRODUCTS];
+        // Default mahsulotlarni Firebase ga yozish
+        saveData();
+      }
+      renderProducts(products);
+      buildSlides();
+      renderAdminProducts && renderAdminProducts();
+      updateProfileCounts();
+    }, err => {
+      console.warn("Firebase products read failed, using offline fallback:", err);
       products = [...DEFAULT_PRODUCTS];
-      // Default mahsulotlarni Firebase ga yozish
-      saveData();
-    }
-    renderProducts(products);
-    buildSlides();
-    renderAdminProducts && renderAdminProducts();
-    updateProfileCounts();
-  });
+      renderProducts(products);
+      buildSlides();
+    });
+  }
 
   // Settings
   loadSettings();
@@ -1618,6 +1630,8 @@ function loadSettings() {
     loadSettingsUI();
     // /admin buyrug'i orqali kirishni tekshir
     checkAdminAccessFromUrl();
+  }, err => {
+    console.warn("Firebase settings read failed:", err);
   });
 }
 
