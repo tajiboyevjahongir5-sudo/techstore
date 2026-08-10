@@ -1350,7 +1350,7 @@ function saveData() {
     };
   });
   db.ref('products').set(prodsToSave).catch(e => console.warn('FB save products', e));
-  db.ref('settings/card').set({number: CARD_NUMBER, owner: CARD_OWNER}).catch(()=>{});
+  // Eslatma: settings/card faqat saveCardSettings() da saqlanadi
 
   // Cart, orders — localStorage ga (foydalanuvchiga xos)
   try {
