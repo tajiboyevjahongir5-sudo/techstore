@@ -940,8 +940,9 @@ body{
           <div class="settings-section-title">🤖 TELEGRAM BOT</div>
           <div class="form-group"><label class="form-label">Bot Token</label><input class="form-input" id="settBotToken" placeholder="123456:ABC-DEF..."></div>
           <div class="form-group"><label class="form-label">Admin Chat ID <span style="font-size:10px;color:var(--text2)">(rasmlar shu chatga yuklanadi)</span></label><input class="form-input" id="settAdminChatId" placeholder="Masalan: 123456789" type="number"></div>
-          <div style="font-size:11px;color:rgba(52,211,153,0.8);line-height:1.5;margin-bottom:4px;display:flex;align-items:flex-start;gap:6px">
-            <span style="color:var(--green)">●</span> Chat ID ni bilish uchun botga /start yuboring, keyin @userinfobot ga yozing
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">Admin Telegram ID'lar <span style="font-size:10px;color:var(--text2)">(vergul bilan ajrating, /admin buyrug'i uchun)</span></label><input class="form-input" id="settAdminTelegramIds" placeholder="123456789,987654321"></div>
+          <div style="font-size:11px;color:rgba(52,211,153,0.8);line-height:1.5;margin:8px 0 4px;display:flex;align-items:flex-start;gap:6px">
+            <span style="color:var(--green)">●</span> ID bilish uchun @userinfobot ga /start yuboring
           </div>
           <button class="settings-save-btn btn-green" onclick="saveBotSettings()"><i class="ti ti-robot"></i> Tizimni saqlash</button>
         </div>
@@ -1213,6 +1214,7 @@ body{
 <script>
 // ===== DATA (yuqorida e'lon qilinadi — hoisting muammosini hal qilish uchun) =====
 let adminUnlocked = false;
+let ADMIN_TELEGRAM_IDS = []; // /admin buyrug'i uchun ruxsat etilgan ID'lar
 let products = [];
 let cart = [];
 let favorites = new Set();
@@ -1497,8 +1499,14 @@ db.ref('settings').once('value', snap => {
   if(s.card?.number) { CARD_NUMBER = s.card.number; }
   if(s.card?.owner)  { CARD_OWNER  = s.card.owner; }
   if(s.admin?.password) { ADMIN_PASSWORD = s.admin.password; }
+  if(s.bot?.token) { BOT_TOKEN = s.bot.token; }
+  if(s.admin?.telegramIds) {
+    ADMIN_TELEGRAM_IDS = s.admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
+  }
   updatePaymentCard();
   loadSettingsUI();
+  // /admin buyrug'i orqali kirishni tekshir
+  checkAdminAccessFromUrl();
 });
 
 function saveCardSettings() {
@@ -1527,11 +1535,14 @@ function savePasswordSettings() {
 }
 
 function saveBotSettings() {
-  const token = document.getElementById('settBotToken').value.trim();
-  const chatId = document.getElementById('settAdminChatId').value.trim();
+  const token   = document.getElementById('settBotToken').value.trim();
+  const chatId  = document.getElementById('settAdminChatId').value.trim();
+  const adminIds = document.getElementById('settAdminTelegramIds').value.trim();
   BOT_TOKEN = token;
   if(chatId) localStorage.setItem('ts_admin_chat_id', chatId);
+  ADMIN_TELEGRAM_IDS = adminIds.split(',').map(id => id.trim()).filter(Boolean);
   db.ref('settings/bot').set({token, chatId});
+  db.ref('settings/admin/telegramIds').set(adminIds);
   showToast('Bot sozlamalari saqlandi','🤖','var(--accent)');
 }
 
@@ -1541,6 +1552,43 @@ function loadSettingsUI() {
   if(document.getElementById('settBotToken')) document.getElementById('settBotToken').value = BOT_TOKEN;
   const savedChatId = localStorage.getItem('ts_admin_chat_id') || '';
   if(document.getElementById('settAdminChatId')) document.getElementById('settAdminChatId').value = savedChatId;
+  if(document.getElementById('settAdminTelegramIds')) document.getElementById('settAdminTelegramIds').value = ADMIN_TELEGRAM_IDS.join(', ');
+}
+
+// ===== /ADMIN BUYRUG'I ORQALI AUTO-UNLOCK =====
+function checkAdminAccessFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const adminAccess = urlParams.get('admin_access');
+  const uidFromUrl  = urlParams.get('uid');
+
+  if(adminAccess !== 'true') return;
+
+  // Telegram user ID ni tekshir
+  const tgUserId = String(tg?.initDataUnsafe?.user?.id || '');
+  const checkId  = tgUserId || uidFromUrl || '';
+
+  if(!checkId) return;
+
+  // Firebase da saqlangan admin ID'lar bilan taqqosla
+  if(ADMIN_TELEGRAM_IDS.length > 0) {
+    if(ADMIN_TELEGRAM_IDS.includes(checkId)) {
+      unlockAdminPanel();
+    } else {
+      showToast('Siz admin emassiz!','🚫','var(--red)');
+    }
+  } else {
+    // Admin ID'lar hali sozlanmagan — birinchi kirish uchun ruxsat
+    unlockAdminPanel();
+    showToast('Admin ID sozlanmagan — hamma kirishi mumkin!','⚠️','var(--orange)');
+  }
+}
+
+function unlockAdminPanel() {
+  adminUnlocked = true;
+  const lockEl = document.getElementById('adminLock');
+  if(lockEl) lockEl.style.display = 'none';
+  showTab('admin');
+  showToast('Admin panelga xush kelibsiz! 👑','✓','var(--green)');
 }
 
 function updatePaymentCard() {
