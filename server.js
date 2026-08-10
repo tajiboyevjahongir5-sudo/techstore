@@ -2,6 +2,14 @@ const express = require('express');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 
+// ===== SERVER CRASH BO'LMASIN =====
+process.on('uncaughtException', (err) => {
+  console.error('⚠️ uncaughtException:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ unhandledRejection:', reason);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
