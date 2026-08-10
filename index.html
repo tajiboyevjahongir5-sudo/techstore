@@ -68,7 +68,7 @@ body{
 .tab-btn:not(.active) .ti{color:rgba(255,255,255,0.38)}
 .tab-btn.active .ti{color:#00e5b0;filter:drop-shadow(0 0 6px rgba(0,229,176,0.7))}
 .tab-btn#adminTabBtn{display:flex}
-.screen{display:none}.screen.active{display:block;overflow-y:auto;height:100vh}
+.screen{display:none}.screen.active{display:block;overflow-y:auto;height:100vh;box-sizing:border-box;padding-top:max(env(safe-area-inset-top,0px), var(--tg-content-safe-area-inset-top,0px), var(--tg-safe-area-inset-top,0px))}
 
 /* HOME */
 .home-header{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between}
@@ -1705,7 +1705,7 @@ function showTab(id) {
   if(actionsFixed) actionsFixed.classList.toggle('visible', id==='detail');
   // Telegram BackButton
   if(tg?.BackButton) {
-    if(id === 'home') tg.BackButton.hide();
+    if(id === 'home' || id === 'admin') tg.BackButton.hide();
     else tg.BackButton.show();
   }
 
