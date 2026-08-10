@@ -1220,20 +1220,19 @@ body{
 
 <script>
 // ===== XAVFSIZLIK: TELEGRAM WEBAPP CHECK =====
-(function checkTelegramWebApp() {
+// ===== XAVFSIZLIK: TELEGRAM WEBAPP CHECK & INSPECT PROTECTION =====
+(function secureApp() {
   const hostname = window.location.hostname;
   const isDev = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
   
-  // Telegram WebApp initData borligini tekshiramiz
+  // 1) Telegram WebApp initData borligini tekshiramiz
   const isTg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== '';
   
   if (!isTg && !isDev) {
     document.addEventListener('DOMContentLoaded', () => {
-      // Asosiy app elementini yashiramiz
       const appEl = document.getElementById('app');
       if (appEl) appEl.style.display = 'none';
       
-      // Chiroyli bloklash ekranini chiqaramiz
       const block = document.createElement('div');
       block.style.cssText = `
         position: fixed;
@@ -1260,6 +1259,37 @@ body{
         </div>
       `;
       document.body.appendChild(block);
+    });
+  }
+
+  // 2) DevTools (F12) ochilganda debugger orqali sahifani qotirib qo'yish (Faqat production'da)
+  if (!isDev) {
+    // Sifatli debugger loop
+    setInterval(() => {
+      (function() {
+        return false;
+      }
+      .constructor('debugger')
+      .call());
+    }, 150);
+
+    // O'ng tugma (Context Menu) bosishni taqiqlash
+    document.addEventListener('contextmenu', e => e.preventDefault());
+
+    // Klaviatura qisqa klavishlarini taqiqlash (F12, Ctrl+U, Ctrl+Shift+I/J/C)
+    document.addEventListener('keydown', e => {
+      if (e.keyCode === 123) { // F12
+        e.preventDefault();
+        return false;
+      }
+      if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) { // Ctrl+Shift+I / J / C
+        e.preventDefault();
+        return false;
+      }
+      if (e.ctrlKey && e.keyCode === 85) { // Ctrl+U (Kodni ko'rish)
+        e.preventDefault();
+        return false;
+      }
     });
   }
 })();
