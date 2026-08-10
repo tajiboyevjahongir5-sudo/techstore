@@ -18,48 +18,32 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// ===== HEALTH CHECK =====
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok' });
 });
 
-// ===== TELEGRAM BOT (WEBHOOK MODE) =====
-let bot = null;
-
+// ===== TELEGRAM BOT (POLLING) =====
 if (BOT_TOKEN) {
-  const WEBHOOK_PATH = `/webhook`;
-  const WEBHOOK_URL  = `${APP_URL}${WEBHOOK_PATH}`;
-
-  // Webhook mode — polling yo'q, 409 xatosi bo'lmaydi
-  bot = new TelegramBot(BOT_TOKEN, { webHook: false });
-
-  // Avval eski polling/webhook ni to'xtatib, yangi webhook o'rnatamiz
-  bot.deleteWebHook()
-    .then(() => bot.setWebHook(WEBHOOK_URL))
-    .then(() => console.log(`✅ Webhook o'rnatildi: ${WEBHOOK_URL}`))
-    .catch(err => console.error('❌ Webhook xatosi:', err.message));
-
-  // Webhook endpoint
-  app.post(WEBHOOK_PATH, (req, res) => {
-    console.log('📨 Webhook update keldi:', JSON.stringify(req.body).slice(0, 200));
-    try {
-      bot.processUpdate(req.body);
-      res.sendStatus(200);
-    } catch(e) {
-      console.error('❌ processUpdate xatosi:', e.message);
-      res.sendStatus(500);
+  const bot = new TelegramBot(BOT_TOKEN, {
+    polling: {
+      interval: 300,
+      autoStart: true,
+      params: { timeout: 10 }
     }
   });
 
-  // ===== BOT BUYRUQLARI =====
+  bot.on('polling_error', (err) => {
+    console.error('Polling xatosi:', err.code, err.message);
+  });
 
   // /start
   bot.onText(/\/start/, (msg) => {
     const chatId    = msg.chat.id;
     const firstName = msg.from?.first_name || 'Foydalanuvchi';
+    console.log(`/start - ${firstName} (${chatId})`);
 
     bot.sendMessage(chatId,
-      `👋 Salom, <b>${firstName}</b>!\n\n🛒 <b>TechStore</b>ga xush kelibsiz!\nYangi texnologiyalar va gadjetlar do'koni.\n\nQuyidagi tugma orqali do'konni oching:`,
+      `👋 Salom, <b>${firstName}</b>!\n\n🛒 <b>TechStore</b>ga xush kelibsiz!\n\nQuyidagi tugma orqali do'konni oching:`,
       {
         parse_mode: 'HTML',
         reply_markup: {
@@ -71,11 +55,12 @@ if (BOT_TOKEN) {
     );
   });
 
-  // /admin — faqat adminlarga
+  // /admin
   bot.onText(/\/admin/, (msg) => {
     const chatId    = msg.chat.id;
     const userId    = String(msg.from?.id || '');
     const firstName = msg.from?.first_name || 'Admin';
+    console.log(`/admin - ${firstName} (${userId})`);
 
     if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(userId)) {
       bot.sendMessage(chatId, "🚫 Sizda admin huquqi yo'q!");
@@ -85,7 +70,7 @@ if (BOT_TOKEN) {
     const adminUrl = `${APP_URL}?admin_access=true&uid=${userId}`;
 
     bot.sendMessage(chatId,
-      `🔐 <b>Admin Panel</b>\n\nSalom, <b>${firstName}</b>!\nAdmin panelga kirish uchun quyidagi tugmani bosing.\n\n⚡ Parol so'ralmaydi — avtomatik kirish.`,
+      `🔐 <b>Admin Panel</b>\n\nSalom, <b>${firstName}</b>!\n⚡ Parol so'ralmaydi — avtomatik kirish.`,
       {
         parse_mode: 'HTML',
         reply_markup: {
@@ -101,19 +86,19 @@ if (BOT_TOKEN) {
   bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
     bot.sendMessage(chatId,
-      `📋 <b>Buyruqlar ro'yxati:</b>\n\n/start — Do'konni ochish\n/admin — Admin panel (faqat adminlar)\n/help — Yordam`,
+      `📋 <b>Buyruqlar:</b>\n\n/start — Do'konni ochish\n/admin — Admin panel\n/help — Yordam`,
       { parse_mode: 'HTML' }
     );
   });
 
-  console.log('🤖 Telegram bot webhook rejimida tayyorlanmoqda...');
+  console.log('✅ Telegram bot ishga tushdi (polling mode)');
 } else {
-  console.warn("⚠️  BOT_TOKEN topilmadi. Bot ishlamaydi.");
+  console.warn('⚠️  BOT_TOKEN topilmadi!');
 }
 
-// ===== SERVER START =====
+// ===== SERVER =====
 app.listen(PORT, () => {
-  console.log(`🚀 Server ishga tushdi: http://localhost:${PORT}`);
+  console.log(`🚀 Server: http://localhost:${PORT}`);
   console.log(`📱 APP_URL: ${APP_URL}`);
   console.log(`👑 Admin IDs: ${ADMIN_IDS.join(', ') || 'belgilanmagan'}`);
 });
