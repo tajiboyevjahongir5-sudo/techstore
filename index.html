@@ -1483,46 +1483,64 @@ async function getUniqueSuffix(basePrice) {
   return new Promise(resolve => {
     const ref = db.ref('settings/pending_suffixes');
     ref.once('value', snap => {
-      const used = snap.val() || {};
-      // Eskirgan (30 daqiqadan eski) yozuvlarni tozala
-      const now = Date.now();
-      const toDelete = {};
-      Object.entries(used).forEach(([k, v]) => {
-        if(now - (v.ts||0) > 30 * 60 * 1000) toDelete[k] = null;
-      });
-      if(Object.keys(toDelete).length) ref.update(toDelete);
+      try {
+        const used = snap.val() || {};
+        // Eskirgan (30 daqiqadan eski) yozuvlarni tozala
+        const now = Date.now();
+        const toDelete = {};
+        Object.entries(used).forEach(([k, v]) => {
+          if(now - (v.ts||0) > 30 * 60 * 1000) toDelete[k] = null;
+        });
+        if(Object.keys(toDelete).length) ref.update(toDelete).catch(()=>{});
 
-      const usedSet = new Set(
-        Object.keys(used).filter(k => !toDelete[k]).map(Number)
-      );
+        const usedSet = new Set(
+          Object.keys(used).filter(k => !toDelete[k]).map(Number)
+        );
 
-      // localStorage counter ni ham tekshir
-      let last = parseInt(localStorage.getItem('ts_suffix_last') || '0');
-      let suffix = last;
-      let tries = 0;
-      do {
-        suffix = (suffix % 100) + 1;
-        tries++;
-      } while(usedSet.has(suffix) && tries < 100);
+        // localStorage counter ni ham tekshir
+        let last = parseInt(localStorage.getItem('ts_suffix_last') || '0');
+        let suffix = last;
+        let tries = 0;
+        do {
+          suffix = (suffix % 100) + 1;
+          tries++;
+        } while(usedSet.has(suffix) && tries < 100);
 
-      localStorage.setItem('ts_suffix_last', suffix);
-      resolve({ suffix, amount: basePrice + suffix });
+        localStorage.setItem('ts_suffix_last', suffix);
+        resolve({ suffix, amount: basePrice + suffix });
+      } catch(e) {
+        console.warn('Suffix parsing failed, using fallback:', e);
+        const fallbackSuffix = Math.floor(Math.random() * 100) + 1;
+        resolve({ suffix: fallbackSuffix, amount: basePrice + fallbackSuffix });
+      }
+    }, err => {
+      console.warn('Firebase permission denied, using random suffix fallback:', err);
+      const fallbackSuffix = Math.floor(Math.random() * 100) + 1;
+      resolve({ suffix: fallbackSuffix, amount: basePrice + fallbackSuffix });
     });
   });
 }
 
 async function registerPendingPayment(amount, suffix, orderNum, tgUser) {
   const key = String(suffix);
-  await db.ref(`settings/pending_suffixes/${key}`).set({
-    orderNum,
-    userId: tgUser?.id || null,
-    userName: tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'Foydalanuvchi',
-    ts: Date.now()
-  });
+  try {
+    await db.ref(`settings/pending_suffixes/${key}`).set({
+      orderNum,
+      userId: tgUser?.id || null,
+      userName: tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'Foydalanuvchi',
+      ts: Date.now()
+    });
+  } catch(e) {
+    console.warn('Failed to register pending payment in Firebase:', e.message);
+  }
 }
 
 async function removePendingPayment(suffix) {
-  await db.ref(`settings/pending_suffixes/${String(suffix)}`).remove();
+  try {
+    await db.ref(`settings/pending_suffixes/${String(suffix)}`).remove();
+  } catch(e) {
+    console.warn('Failed to remove pending payment from Firebase:', e.message);
+  }
 }
 
 // Settings ni Firebase dan o'qish
