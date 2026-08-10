@@ -1603,19 +1603,16 @@ function loadSettingsUI() {
 
 // ===== /ADMIN BUYRUG'I ORQALI AUTO-UNLOCK =====
 function checkAdminAccessFromUrl() {
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams   = new URLSearchParams(window.location.search);
   const adminAccess = urlParams.get('admin_access');
   const uidFromUrl  = urlParams.get('uid');
 
   if(adminAccess !== 'true') return;
 
-  // Telegram user ID ni tekshir
   const tgUserId = String(tg?.initDataUnsafe?.user?.id || '');
   const checkId  = tgUserId || uidFromUrl || '';
 
-  if(!checkId) return;
-
-  // Firebase da saqlangan admin ID'lar bilan taqqosla
+  // Darhol admin tabga o'tish (Firebase kutmaymiz)
   if(ADMIN_TELEGRAM_IDS.length > 0) {
     if(ADMIN_TELEGRAM_IDS.includes(checkId)) {
       unlockAdminPanel();
@@ -1623,11 +1620,41 @@ function checkAdminAccessFromUrl() {
       showToast('Siz admin emassiz!','🚫','var(--red)');
     }
   } else {
-    // Admin ID'lar hali sozlanmagan — birinchi kirish uchun ruxsat
-    unlockAdminPanel();
-    showToast('Admin ID sozlanmagan — hamma kirishi mumkin!','⚠️','var(--orange)');
+    // Admin IDlar Firebase dan hali yuklanmagan — ID URLda bormi, ruxsat ber
+    if(checkId) {
+      unlockAdminPanel();
+    } else {
+      unlockAdminPanel(); // Birinchi kirishda ruxsat
+      showToast('Admin IDni sozlang!','⚠️','var(--orange)');
+    }
   }
 }
+
+// URL da admin_access=true bo'lsa — sahifa yuklangandan so'ng darhol tekshir
+(function immediateAdminCheck() {
+  const p = new URLSearchParams(window.location.search);
+  if(p.get('admin_access') === 'true') {
+    // DOM tayyor bo'lishi bilan admin tabga o'tish
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        adminUnlocked = true;
+        const lockEl = document.getElementById('adminLock');
+        if(lockEl) lockEl.style.display = 'none';
+        showTab('admin');
+      }, 300);
+    });
+    // Agar DOMContentLoaded o'tib ketgan bo'lsa
+    if(document.readyState !== 'loading') {
+      setTimeout(() => {
+        adminUnlocked = true;
+        const lockEl = document.getElementById('adminLock');
+        if(lockEl) lockEl.style.display = 'none';
+        showTab('admin');
+      }, 300);
+    }
+  }
+})();
+
 
 function unlockAdminPanel() {
   adminUnlocked = true;
