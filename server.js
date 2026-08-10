@@ -41,8 +41,14 @@ if (BOT_TOKEN) {
 
   // Webhook endpoint
   app.post(WEBHOOK_PATH, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
+    console.log('📨 Webhook update keldi:', JSON.stringify(req.body).slice(0, 200));
+    try {
+      bot.processUpdate(req.body);
+      res.sendStatus(200);
+    } catch(e) {
+      console.error('❌ processUpdate xatosi:', e.message);
+      res.sendStatus(500);
+    }
   });
 
   // ===== BOT BUYRUQLARI =====
