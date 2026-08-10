@@ -27,7 +27,7 @@ app.get('/health', (req, res) => {
 let bot = null;
 
 if (BOT_TOKEN) {
-  const WEBHOOK_PATH = `/webhook/${BOT_TOKEN}`;
+  const WEBHOOK_PATH = `/webhook`;
   const WEBHOOK_URL  = `${APP_URL}${WEBHOOK_PATH}`;
 
   // Webhook mode — polling yo'q, 409 xatosi bo'lmaydi
