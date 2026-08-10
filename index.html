@@ -1241,6 +1241,16 @@ if(tg) {
   tg.expand();
   tg.setHeaderColor('#0A0A14');
   tg.setBackgroundColor('#0A0A14');
+
+  // Pastga scroll qilganda yopilmasin
+  if(tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+
+  // Tasodifan yopilmasin
+  if(tg.enableClosingConfirmation) tg.enableClosingConfirmation();
+
+  // To'liq ekran rejimi
+  if(tg.requestFullscreen) tg.requestFullscreen();
+
   tg.BackButton.onClick(() => {
     const active = document.querySelector('.screen.active');
     if(active && active.id !== 'home') {
