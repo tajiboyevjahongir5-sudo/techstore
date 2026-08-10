@@ -31,6 +31,34 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// ===== RATE LIMITER MIDDLEWARE (DDoS & Spamdan himoya) =====
+const requestTracker = new Map(); // IP -> Array of timestamps
+
+function apiRateLimiter(req, res, next) {
+  const ip = req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress;
+  const now = Date.now();
+  const limit = 20; // 1 daqiqada maksimal 20 ta so'rov
+  const windowMs = 60 * 1000; // 1 daqiqa (60000 ms)
+
+  if (!requestTracker.has(ip)) {
+    requestTracker.set(ip, []);
+  }
+
+  const timestamps = requestTracker.get(ip);
+  // 1 daqiqadan eski vaqtlarni tozalash
+  while (timestamps.length > 0 && timestamps[0] < now - windowMs) {
+    timestamps.shift();
+  }
+
+  if (timestamps.length >= limit) {
+    console.warn(`🚫 Spam aniqlandi! IP blocked: ${ip}`);
+    return res.status(429).json({ error: "Ko'p so'rov yuborildi. Iltimos 1 daqiqa kuting." });
+  }
+
+  timestamps.push(now);
+  next();
+}
+
 // ===== IN-MEMORY PENDING PAYMENTS =====
 const pendingPayments = []; // array of { amount, userId, userName, orderNum, phone, addr, ts }
 
@@ -57,8 +85,31 @@ function verifyTelegramAuth(initData) {
   }
 }
 
-// To'lovni ro'yxatga olish API (Xavfsiz qilingan)
-app.post('/api/register-payment', (req, res) => {
+// Firebase Configuration API (Xavfsiz qilingan & Rate Limit)
+app.get('/api/firebase-config', apiRateLimiter, (req, res) => {
+  const initData = req.headers['x-telegram-init-data'];
+  const hostname = req.hostname;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+  
+  // Faqat Telegram Mini App yoki local dev orqali ruxsat beriladi
+  if (!isLocal && !verifyTelegramAuth(initData)) {
+    console.warn(`⚠️  Xavfsizlik: Firebase konfiguratsiyasiga noma'lum manbadan so'rov rad etildi! IP: ${req.ip}`);
+    return res.status(401).json({ error: "Xavfsizlik xatosi: So'rov faqat Telegram orqali qabul qilinadi" });
+  }
+
+  res.json({
+    apiKey: "AIzaSyCe74FO3fYXk9Nc8ZVv6JOlMfAptODP8Kg",
+    authDomain: "techstore-7018f.firebaseapp.com",
+    databaseURL: "https://techstore-7018f-default-rtdb.firebaseio.com",
+    projectId: "techstore-7018f",
+    storageBucket: "techstore-7018f.firebasestorage.app",
+    messagingSenderId: "456809138926",
+    appId: "1:456809138926:web:d4a855263760cb921a81ff"
+  });
+});
+
+// To'lovni ro'yxatga olish API (Xavfsiz qilingan & Rate Limit)
+app.post('/api/register-payment', apiRateLimiter, (req, res) => {
   const initData = req.headers['x-telegram-init-data'];
   const hostname = req.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
@@ -96,28 +147,7 @@ app.post('/api/register-payment', (req, res) => {
   res.json({ success: true });
 });
 
-// Firebase Configuration API (Xavfsiz qilingan)
-app.get('/api/firebase-config', (req, res) => {
-  const initData = req.headers['x-telegram-init-data'];
-  const hostname = req.hostname;
-  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-  
-  // Faqat Telegram Mini App yoki local dev orqali ruxsat beriladi
-  if (!isLocal && !verifyTelegramAuth(initData)) {
-    console.warn(`⚠️  Xavfsizlik: Firebase konfiguratsiyasiga noma'lum manbadan so'rov rad etildi! IP: ${req.ip}`);
-    return res.status(401).json({ error: "Xavfsizlik xatosi: So'rov faqat Telegram orqali qabul qilinadi" });
-  }
 
-  res.json({
-    apiKey: "AIzaSyCe74FO3fYXk9Nc8ZVv6JOlMfAptODP8Kg",
-    authDomain: "techstore-7018f.firebaseapp.com",
-    databaseURL: "https://techstore-7018f-default-rtdb.firebaseio.com",
-    projectId: "techstore-7018f",
-    storageBucket: "techstore-7018f.firebasestorage.app",
-    messagingSenderId: "456809138926",
-    appId: "1:456809138926:web:d4a855263760cb921a81ff"
-  });
-});
 
 // ===== TELEGRAM BOT (POLLING) =====
 if (BOT_TOKEN) {
