@@ -1219,6 +1219,51 @@ body{
 </div>
 
 <script>
+// ===== XAVFSIZLIK: TELEGRAM WEBAPP CHECK =====
+(function checkTelegramWebApp() {
+  const hostname = window.location.hostname;
+  const isDev = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+  
+  // Telegram WebApp initData borligini tekshiramiz
+  const isTg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== '';
+  
+  if (!isTg && !isDev) {
+    document.addEventListener('DOMContentLoaded', () => {
+      // Asosiy app elementini yashiramiz
+      const appEl = document.getElementById('app');
+      if (appEl) appEl.style.display = 'none';
+      
+      // Chiroyli bloklash ekranini chiqaramiz
+      const block = document.createElement('div');
+      block.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: #0d0d1e;
+        z-index: 999999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px;
+        text-align: center;
+        color: #fff;
+        font-family: system-ui, -apple-system, sans-serif;
+      `;
+      block.innerHTML = `
+        <div style="font-size: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(107,127,255,0.45))">🔒</div>
+        <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 12px; font-family: 'Syne', sans-serif;">Kirish taqiqlangan</h1>
+        <p style="font-size: 13px; color: #a0a0b5; line-height: 1.6; max-width: 300px; margin-bottom: 24px;">
+          Xavfsizlik nuqtai nazaridan, ushbu do'kondan faqat rasmiy <b>Telegram Mini App</b> orqali foydalanish mumkin!
+        </p>
+        <div style="font-size: 11px; color: rgba(255,255,255,0.25); border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px; width: 100%; max-width: 260px;">
+          Manzil: ${hostname} (KOD: TG-ONLY-SECURE)
+        </div>
+      `;
+      document.body.appendChild(block);
+    });
+  }
+})();
+
 // ===== DATA (yuqorida e'lon qilinadi — hoisting muammosini hal qilish uchun) =====
 let adminUnlocked = false;
 let ADMIN_TELEGRAM_IDS = []; // /admin buyrug'i uchun ruxsat etilgan ID'lar
@@ -2349,7 +2394,10 @@ async function sendPayment() {
   try {
     await fetch('/api/register-payment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      },
       body: JSON.stringify({
         amount: uniqueAmt,
         userId: tgUser?.id || 'anon_' + Date.now(),

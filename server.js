@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
+const crypto = require('crypto');
 
 // ===== SERVER CRASH BO'LMASIN =====
 process.on('uncaughtException', (err) => {
@@ -33,8 +34,41 @@ app.get('/health', (req, res) => {
 // ===== IN-MEMORY PENDING PAYMENTS =====
 const pendingPayments = []; // array of { amount, userId, userName, orderNum, phone, addr, ts }
 
-// To'lovni ro'yxatga olish API
+// Telegram WebApp initData verifikatsiyasi (HMAC-SHA256)
+function verifyTelegramAuth(initData) {
+  if (!initData || !BOT_TOKEN) return false;
+  
+  try {
+    const urlParams = new URLSearchParams(initData);
+    const hash = urlParams.get('hash');
+    urlParams.delete('hash');
+    
+    // Kalitlarni alifbo tartibida saralash
+    const keys = Array.from(urlParams.keys()).sort();
+    const dataCheckString = keys.map(key => `${key}=${urlParams.get(key)}`).join('\n');
+    
+    // Bot tokenidan maxfiy kalit yaratish
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
+    const generatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    
+    return generatedHash === hash;
+  } catch(e) {
+    return false;
+  }
+}
+
+// To'lovni ro'yxatga olish API (Xavfsiz qilingan)
 app.post('/api/register-payment', (req, res) => {
+  const initData = req.headers['x-telegram-init-data'];
+  const hostname = req.hostname;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+  
+  // Faqat Telegram Mini App yoki local dev orqali kirishga ruxsat
+  if (!isLocal && !verifyTelegramAuth(initData)) {
+    console.warn(`⚠️  Xavfsizlik: Noma'lum manbadan so'rov rad etildi! IP: ${req.ip}`);
+    return res.status(401).json({ error: "Xavfsizlik xatosi: So'rov faqat Telegram orqali qabul qilinadi" });
+  }
+
   const { amount, userId, userName, orderNum, phone, addr } = req.body;
   if (!amount || !userId) {
     return res.status(400).json({ error: "Noto'g'ri ma'lumotlar" });
