@@ -2021,13 +2021,14 @@ function showTab(id) {
     else tg.BackButton.show();
   }
 
-  // Admin panelda pastki nav-bar (tab-nav) yashirilsin
+  // Pastki nav-bar faqat asosiy sahifalarda (home, cart, profile) ko'rinsin
   const nav = document.querySelector('.tab-nav');
   if(nav) {
-    if(id === 'admin') {
-      nav.style.display = 'none';
-    } else {
+    const mainTabs = ['home', 'cart', 'profile'];
+    if(mainTabs.includes(id)) {
       nav.style.display = '';
+    } else {
+      nav.style.display = 'none';
     }
   }
 }
