@@ -243,14 +243,17 @@ body{
 .addr-wrap{padding:20px;display:flex;flex-direction:column;gap:14px;padding-bottom:100px}
 .addr-card{position:relative;z-index:10;background:var(--glass);border:1px solid var(--glass-border);border-radius:22px;padding:20px;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
 .addr-card-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;font-weight:600}
-.form-group{margin-bottom:14px}
-.form-label{font-size:11px;color:var(--text2);margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
+.form-group{margin-bottom:16px}
+.form-label{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.form-step-badge{width:20px;height:20px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-shadow:0 2px 8px rgba(107,127,255,0.4);flex-shrink:0}
+.form-step-text{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.6px;font-weight:700}
 .form-input{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:14px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;transition:border-color 0.2s,box-shadow 0.2s}
 .form-input:focus{border-color:rgba(107,127,255,0.6);box-shadow:0 0 0 3px rgba(107,127,255,0.12)}
 .form-input::placeholder{color:var(--text3)}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form-select{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:14px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;appearance:none;-webkit-appearance:none;color-scheme:dark}
-.addr-next-btn{height:52px;border-radius:18px;background:var(--grad);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;width:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(107,127,255,0.4)}
+.addr-next-btn{height:52px;border-radius:18px;background:var(--grad);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;width:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(107,127,255,0.4);transition:transform 0.15s, opacity 0.15s}
+.addr-next-btn:active{transform:scale(0.98)}
 
 /* PAYMENT SCREEN */
 .pay-wrap{padding:20px;display:flex;flex-direction:column;gap:14px;padding-bottom:100px}
@@ -886,7 +889,10 @@ body{
 
         <!-- 1. Viloyat -->
         <div class="form-group">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">1</span> — Viloyat</label>
+          <label class="form-label">
+            <span class="form-step-badge">1</span>
+            <span class="form-step-text">Viloyat</span>
+          </label>
           <div class="custom-select" id="addrCitySelect">
             <div class="custom-select-trigger" onclick="toggleCustomSelect('addrCitySelect')">
               <span id="addrCityLabel">Toshkent shahri</span>
@@ -914,7 +920,10 @@ body{
 
         <!-- 2. Tuman -->
         <div class="form-group">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">2</span> — Tuman</label>
+          <label class="form-label">
+            <span class="form-step-badge">2</span>
+            <span class="form-step-text">Tuman</span>
+          </label>
           <div class="custom-select" id="addrDistrictSelect">
             <div class="custom-select-trigger" onclick="toggleCustomSelect('addrDistrictSelect')">
               <span id="addrDistrictLabel">Avval viloyatni tanlang</span>
@@ -929,7 +938,10 @@ body{
 
         <!-- 3. BTS topshirish punkti -->
         <div class="form-group">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">3</span> — BTS topshirish punkti</label>
+          <label class="form-label">
+            <span class="form-step-badge">3</span>
+            <span class="form-step-text">BTS topshirish punkti</span>
+          </label>
           <div class="custom-select" id="addrBtsSelect">
             <div class="custom-select-trigger" onclick="toggleCustomSelect('addrBtsSelect')">
               <span id="addrBtsLabel">Avval tumanni tanlang</span>
@@ -945,12 +957,15 @@ body{
 
         <!-- 4. Telefon -->
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">4</span> — Telefon raqami</label>
+          <label class="form-label">
+            <span class="form-step-badge">4</span>
+            <span class="form-step-text">Telefon raqami</span>
+          </label>
           <input class="form-input" placeholder="+998 90 123 45 67" id="addrPhone" type="tel">
         </div>
       </div>
-      <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:18px;padding:14px;backdrop-filter:var(--blur)">
-        <div style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px"><img src="bts-logo.jpg" alt="BTS" style="width:20px;height:20px;object-fit:cover;border-radius:4px;flex-shrink:0;background:#fff;border:1px solid rgba(255,255,255,0.1)"><span>Mahsulot <b style="color:var(--accent)">BTS</b> orqali yuboriladi — <b style="color:var(--green)">dastavka tekin!</b> 🎉</span></div>
+      <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.02));border:1px solid rgba(16,185,129,0.25);border-radius:18px;padding:14px;backdrop-filter:var(--blur)">
+        <div style="font-size:11px;color:rgba(255,255,255,0.9);display:flex;align-items:center;gap:8px"><img src="bts-logo.jpg" alt="BTS" style="width:20px;height:20px;object-fit:cover;border-radius:4px;flex-shrink:0;background:#fff;border:1px solid rgba(255,255,255,0.1)"><span>Mahsulot <b style="color:var(--accent)">BTS</b> orqali yuboriladi — <b style="color:#34d399">dastavka tekin!</b> 🎉</span></div>
       </div>
       <button class="addr-next-btn" onclick="proceedToPayment()"><i class="ti ti-arrow-right" style="font-size:18px"></i> To'lovga o'tish</button>
     </div>
