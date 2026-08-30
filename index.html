@@ -87,7 +87,7 @@ body{
 .slide.active{opacity:1;transform:translateX(0);pointer-events:auto}
 .slide.exit{opacity:0;transform:translateX(-60px)}
 .slide-bg{position:absolute;inset:0;z-index:0}
-.slide-text{z-index:2;flex:1;position:relative}
+.slide-text{z-index:2;flex:1;position:relative;padding-right:100px}
 .slide-badge{display:inline-block;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600;margin-bottom:8px;backdrop-filter:blur(8px)}
 .slide-title{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:5px}
 .slide-price{font-size:13px;font-weight:700;margin-bottom:10px}
@@ -3450,7 +3450,7 @@ function buildSlides() {
         <div class="slide-badge" style="background:${theme.badge};border:1px solid ${theme.badgeBorder};color:${theme.badgeColor}">
           ${p.discount>0?`🔥 -${p.discount}% chegirma`:'⭐ Top mahsulot'}
         </div>
-        <div class="slide-title">${p.name.length>18?p.name.substring(0,18)+'…':p.name}</div>
+        <div class="slide-title">${p.name.length>36?p.name.substring(0,36)+'…':p.name}</div>
         <div class="slide-price" style="color:${theme.priceColor}">
           ${priceM}M so'm ${oldM?`<span style="font-size:11px;color:rgba(255,255,255,0.4);text-decoration:line-through;font-weight:400">${oldM}M</span>`:''}
         </div>
