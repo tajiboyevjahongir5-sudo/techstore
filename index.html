@@ -146,7 +146,7 @@ body{
 .empty-btn{margin-top:4px;padding:12px 24px;border-radius:14px;background:var(--grad);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(107,127,255,0.35)}
 
 /* PRODUCT DETAIL */
-.screen-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,10,20,0.75);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-bottom:1px solid var(--glass-border)}
+.screen-header{position:sticky;top:0;z-index:100;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,10,20,0.85);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-bottom:1px solid var(--glass-border)}
 .screen-header-left{display:flex;align-items:center;gap:12px}
 .back-btn{width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:18px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);flex-shrink:0}
 .back-btn i{color:#fff !important;-webkit-text-fill-color:#fff !important}
@@ -589,7 +589,7 @@ body{
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 .screen.active {
@@ -809,7 +809,7 @@ body{
       <div class="detail-gallery-counter" id="detailGalleryCounter"></div>
       <div class="detail-gallery-zoom" onclick="openImgZoom()"><i class="ti ti-zoom-in"></i></div>
     </div>
-    <div style="overflow-y:auto;height:calc(100vh - 260px - 56px);padding-bottom:90px">
+    <div style="padding-bottom:120px">
       <div class="detail-body">
         <div class="detail-brand" id="detailBrand">Apple</div>
         <div class="detail-name" id="detailName">iPhone 16 Pro Max</div>
