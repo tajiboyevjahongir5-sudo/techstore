@@ -521,6 +521,66 @@ body{
 .prod-img-upload.has-img .placeholder-content{display:none}
 .prod-img-upload .overlay-change{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);border-radius:8px;padding:4px 10px;font-size:11px;color:#fff;display:none}
 .prod-img-upload.has-img .overlay-change{display:block}
+
+/* ADD TO CART ANIMATION IMPROVEMENTS */
+.add-btn {
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease, box-shadow 0.3s ease !important;
+}
+.add-btn.added {
+  background: linear-gradient(135deg, #10B981, #059669) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+  transform: scale(0.9) !important;
+}
+.add-btn.added svg {
+  transform: rotate(360deg);
+  transition: transform 0.4s ease;
+}
+
+/* Flying item glow and trail particle styles */
+.fly-item-glow {
+  box-shadow: 0 0 25px rgba(107, 127, 255, 0.8), 0 0 10px rgba(167, 139, 250, 0.6) !important;
+  border: 2px solid rgba(255, 255, 255, 0.6) !important;
+}
+.fly-particle {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 1) 0%, rgba(107, 127, 255, 0.2) 70%);
+  pointer-events: none;
+  z-index: 99998;
+  opacity: 1;
+  transform: scale(1);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+/* Floating "+1" animation above cart button */
+.float-plus-one {
+  position: fixed;
+  color: #00E5B0;
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  pointer-events: none;
+  z-index: 100000;
+  animation: floatUpAndFade 0.8s cubic-bezier(0.25, 1, 0.50, 1) forwards;
+  text-shadow: 0 0 8px rgba(0, 229, 176, 0.6);
+}
+
+@keyframes floatUpAndFade {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.2);
+  }
+  100% {
+    transform: translateY(-45px) scale(0.8);
+    opacity: 0;
+  }
+}
 </style>
 
 <!-- TechStore -->
@@ -2043,6 +2103,21 @@ function addToCartById(e, id, btn) {
   e.stopPropagation();
   const p = products.find(x=>x.id===id);
   if(!p) return;
+
+  // Tugma micro-interaction effekti
+  if (btn) {
+    btn.classList.add('added');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = `<i class="ti ti-check" style="color:#fff"></i>`;
+    if (typeof applyIconFallback === 'function') applyIconFallback();
+
+    setTimeout(() => {
+      btn.classList.remove('added');
+      btn.innerHTML = `<i class="ti ti-plus" style="color:#fff"></i>`;
+      if (typeof applyIconFallback === 'function') applyIconFallback();
+    }, 1000);
+  }
+
   // Savatga uchib borish animatsiyasi
   const card = btn ? btn.closest('.prod-card') : null;
   if(card) flyToCart(card, p);
@@ -2087,35 +2162,33 @@ function flyToCart(card, p) {
     position: fixed;
     z-index: 99999;
     pointer-events: none;
-    left: ${cardRect.left + cardRect.width / 2 - 28}px;
+    left: ${cardRect.left + cardRect.width / 2 - 25}px;
     top: 0px;
     transition: left 0.7s linear;
   `;
 
   // Uchuvchi bola-element (Y o'qi bo'yicha sakrash - parabola hosil qiladi)
   const flyChild = document.createElement('div');
+  flyChild.className = 'fly-item-glow';
   flyChild.style.cssText = `
-    width: 56px;
-    height: 56px;
-    border-radius: 18px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
+    font-size: 24px;
     background: linear-gradient(135deg, #6B7FFF, #A78BFA);
-    box-shadow: 0 10px 30px rgba(107, 127, 255, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.25);
     position: absolute;
-    top: ${cardRect.top + cardRect.height / 2 - 28}px;
+    top: ${cardRect.top + cardRect.height / 2 - 25}px;
     transition: top 0.7s cubic-bezier(0.06, -0.65, 0.22, 1), 
                 transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1), 
-                opacity 0.7s ease, 
-                border-radius 0.7s ease;
+                opacity 0.7s ease;
     transform: scale(1) rotate(0deg);
   `;
 
   if(imgEl && imgEl.src) {
-    flyChild.innerHTML = `<img src="${imgEl.src}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`;
+    flyChild.innerHTML = `<img src="${imgEl.src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
   } else {
     flyChild.textContent = emoji;
   }
@@ -2123,25 +2196,56 @@ function flyToCart(card, p) {
   flyParent.appendChild(flyChild);
   document.body.appendChild(flyParent);
 
+  // Sehrli zarrachalar hosil qilish (Trail particles)
+  const spawnInterval = setInterval(() => {
+    const rect = flyChild.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return; // parent o'chirilgan bo'lsa to'xtatish
+    
+    const particle = document.createElement('div');
+    particle.className = 'fly-particle';
+    particle.style.left = `${rect.left + rect.width / 2 - 4}px`;
+    particle.style.top = `${rect.top + rect.height / 2 - 4}px`;
+    document.body.appendChild(particle);
+    
+    // Zarrachaning kichrayishi va yo'qolishi
+    requestAnimationFrame(() => {
+      particle.style.transform = 'scale(0.1)';
+      particle.style.opacity = '0';
+    });
+    
+    setTimeout(() => {
+      particle.remove();
+    }, 400);
+  }, 40);
+
   // Animatsiyani boshlash
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       // X o'qi bo'ylab chiziqli harakat
-      flyParent.style.left = `${cartRect.left + cartRect.width / 2 - 15}px`;
+      flyParent.style.left = `${cartRect.left + cartRect.width / 2 - 12}px`;
       
       // Y o'qi bo'ylab yuqoriga sakrab, keyin pastga tushish (parabola)
-      flyChild.style.top = `${cartRect.top + cartRect.height / 2 - 15}px`;
-      flyChild.style.transform = 'scale(0.35) rotate(540deg)'; // 1.5 marta aylanib kichrayadi
-      flyChild.style.opacity = '0.35';
-      flyChild.style.borderRadius = '50%'; // Dumaloq sharchaga aylanadi
+      flyChild.style.top = `${cartRect.top + cartRect.height / 2 - 12}px`;
+      flyChild.style.transform = 'scale(0.3) rotate(720deg)'; // 2 marta aylanib kichrayadi
+      flyChild.style.opacity = '0.2';
     });
   });
 
   // Yetib borgandagi effektlar
   setTimeout(() => {
+    clearInterval(spawnInterval);
     flyParent.remove();
 
-    // 1) Savat tugmasida to'lqin (Ripple) effekti yaratish
+    // 1) Savat tugmasi ustida +1 yozuvi chiqishi
+    const plusOne = document.createElement('div');
+    plusOne.className = 'float-plus-one';
+    plusOne.textContent = '+1';
+    plusOne.style.left = `${cartRect.left + cartRect.width / 2 - 10}px`;
+    plusOne.style.top = `${cartRect.top - 20}px`;
+    document.body.appendChild(plusOne);
+    setTimeout(() => plusOne.remove(), 800);
+
+    // 2) Savat tugmasida to'lqin (Ripple) effekti yaratish
     const ripple = document.createElement('span');
     ripple.style.cssText = `
       position: absolute;
@@ -2167,7 +2271,7 @@ function flyToCart(card, p) {
     });
     setTimeout(() => ripple.remove(), 450);
 
-    // 2) Savat badge (agar mavjud bo'lsa) kattarib kichraysin
+    // 3) Savat badge (agar mavjud bo'lsa) kattarib kichraysin
     const badge = document.querySelector('.cart-badge') || document.getElementById('cartTabBadge');
     if(badge) {
       badge.style.transition = 'none';
@@ -2178,7 +2282,7 @@ function flyToCart(card, p) {
       });
     }
 
-    // 3) Savat tugmasining o'zi prujinaga o'xshash silkinishi (Spring bounce)
+    // 4) Savat tugmasining o'zi prujinaga o'xshash silkinishi (Spring bounce)
     cartBtn.style.transition = 'none';
     cartBtn.style.transform = 'scale(1.25)';
     requestAnimationFrame(() => {
