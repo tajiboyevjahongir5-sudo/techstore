@@ -2825,7 +2825,7 @@ function goHomeAfterOrder() {
   document.getElementById('addrDistrict').value = '';
   document.getElementById('addrStreet').value = '';
   document.getElementById('addrHouse').value = 'BTS Express';
-  document.getElementById('addrPhone').value = '';
+  document.getElementById('addrPhone').value = '+998 ';
   document.getElementById('addrDistrictLabel').textContent = 'Avval viloyatni tanlang';
   document.getElementById('addrBtsLabel').textContent = 'Avval tumanni tanlang';
   showTab('home');
@@ -4820,35 +4820,51 @@ document.addEventListener('DOMContentLoaded', () => {
   updatePaymentCard();
   buildChart();
 
-  // Telefon raqami uchun maska (+998 (XX) XXX-XX-XX)
+  // Telefon raqami uchun maska (+998 (XX) XXX-XX-XX) va uni o'chirib bo'lmasligi
   const phoneInput = document.getElementById('addrPhone');
   if (phoneInput) {
+    phoneInput.value = '+998 ';
+
+    const enforceCursor = () => {
+      if (phoneInput.selectionStart < 5) {
+        phoneInput.setSelectionRange(5, 5);
+      }
+    };
+    phoneInput.addEventListener('click', enforceCursor);
+    phoneInput.addEventListener('keyup', enforceCursor);
+    phoneInput.addEventListener('focus', enforceCursor);
+
+    phoneInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && phoneInput.selectionStart <= 5) {
+        e.preventDefault();
+      }
+      if (e.key === 'Delete' && phoneInput.selectionStart < 5) {
+        e.preventDefault();
+      }
+    });
+
     phoneInput.addEventListener('input', (e) => {
-      let x = e.target.value.replace(/\D/g, '');
-      if (x.startsWith('998')) {
-        // ok
-      } else if (x.length > 0) {
-        x = '998' + x;
+      let val = e.target.value;
+      if (!val.startsWith('+998 ')) {
+        val = '+998 ' + val.replace(/\D/g, '').replace(/^998/, '');
       }
       
-      x = x.substring(0, 12);
+      let digits = val.substring(5).replace(/\D/g, '').substring(0, 9);
       
-      let formatted = '';
-      if (x.length > 0) {
-        formatted += '+' + x.substring(0, 3);
+      let formatted = '+998 ';
+      if (digits.length > 0) {
+        formatted += '(' + digits.substring(0, 2);
       }
-      if (x.length > 3) {
-        formatted += ' (' + x.substring(3, 5) + ')';
+      if (digits.length > 2) {
+        formatted += ') ' + digits.substring(2, 5);
       }
-      if (x.length > 5) {
-        formatted += ' ' + x.substring(5, 8);
+      if (digits.length > 5) {
+        formatted += '-' + digits.substring(5, 7);
       }
-      if (x.length > 8) {
-        formatted += '-' + x.substring(8, 10);
+      if (digits.length > 7) {
+        formatted += '-' + digits.substring(7, 9);
       }
-      if (x.length > 10) {
-        formatted += '-' + x.substring(10, 12);
-      }
+      
       e.target.value = formatted;
     });
   }
