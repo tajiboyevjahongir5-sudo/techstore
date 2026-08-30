@@ -304,12 +304,46 @@ app.get('/api/orders/:orderId', apiRateLimiter, async (req, res) => {
 
 // Yangi buyurtma yaratish va to'lovni ro'yxatga olish
 app.post('/api/orders', apiRateLimiter, async (req, res) => {
-  const { amount, userId, userName, orderNum, phone, addr, items, basePrice, suffix } = req.body;
-  if (!amount || !userId || !orderNum) {
+  const { amount, userId, userName, orderNum, phone, addr, items, basePrice, suffix, chekImg } = req.body;
+  if (!amount || !userId || !orderNum || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: "Noto'g'ri buyurtma ma'lumotlari" });
   }
 
+  // 1) Narxni bazadan qayta tekshirish (Price tampering mudofaasi)
+  let dbProducts = [];
+  try {
+    dbProducts = await firebaseGet('products') || [];
+  } catch(e) {
+    console.error("Failed to fetch products for verification:", e);
+    return res.status(500).json({ error: "Mahsulotlar narxini tekshirishda xatolik yuz berdi" });
+  }
+
+  let calculatedBaseTotal = 0;
+  for (const item of items) {
+    const dbProd = dbProducts.find(p => p && String(p.id) === String(item.id));
+    if (!dbProd) {
+      return res.status(400).json({ error: `Mahsulot topilmadi: ${item.name}` });
+    }
+    const realPrice = dbProd.price;
+    const discount = dbProd.discount || 0;
+    const finalPrice = discount > 0 ? Math.round(realPrice * (1 - discount / 100)) : realPrice;
+    calculatedBaseTotal += finalPrice * (item.qty || 1);
+  }
+
+  const cleanSuffix = Number(suffix || 0);
+  const expectedAmount = calculatedBaseTotal + cleanSuffix;
   const cleanAmount = Number(amount);
+
+  if (Math.abs(expectedAmount - cleanAmount) > 100) {
+    console.warn(`⚠️ Security: Price tampering attempt! Expected: ${expectedAmount}, Got: ${cleanAmount}`);
+    return res.status(400).json({ error: "Buyurtma summasi mos kelmadi. Narxlar o'zgargan bo'lishi mumkin. Iltimos, sahifani yangilang." });
+  }
+
+  // Sanitise fields
+  const cleanUserName = sanitizeInput(userName || 'Foydalanuvchi');
+  const cleanOrderNum = sanitizeInput(orderNum);
+  const cleanPhone = sanitizeInput(phone || '');
+  const cleanAddr = sanitizeInput(addr || '');
 
   // Eski kutilayotgan to'lovlarni o'chirish (tozalash)
   for (let i = pendingPayments.length - 1; i >= 0; i--) {
@@ -321,33 +355,34 @@ app.post('/api/orders', apiRateLimiter, async (req, res) => {
   const newPayment = {
     amount: cleanAmount,
     userId: String(userId),
-    userName: userName || 'Foydalanuvchi',
-    orderNum: orderNum,
-    phone: phone || '',
-    addr: addr || '',
+    userName: cleanUserName,
+    orderNum: cleanOrderNum,
+    phone: cleanPhone,
+    addr: cleanAddr,
     ts: Date.now()
   };
 
   try {
     // 1) Firebase-da buyurtmani saqlash
-    await firebasePut(`orders/${orderNum.replace('#','')}`, {
-      orderNum,
-      products: items.map(i => i.name).join(', '),
+    await firebasePut(`orders/${cleanOrderNum.replace('#','')}`, {
+      orderNum: cleanOrderNum,
+      products: items.map(i => sanitizeInput(i.name)).join(', '),
       total: cleanAmount,
-      basePrice: basePrice || cleanAmount,
-      suffix: suffix || 0,
-      addr: addr || '',
-      phone: phone || '',
+      basePrice: calculatedBaseTotal,
+      suffix: cleanSuffix,
+      addr: cleanAddr,
+      phone: cleanPhone,
       status: 'pending',
-      userId: userId,
-      userName: userName || 'Foydalanuvchi',
+      userId: String(userId),
+      userName: cleanUserName,
+      chekImg: chekImg && typeof chekImg === 'string' ? chekImg : null,
       createdAt: Date.now()
     });
 
     // 2) Kutilayotgan to'lovni Firebase va local xotirada saqlash
     await registerPendingPaymentInDb(newPayment);
 
-    res.json({ success: true, orderNum, amount: cleanAmount });
+    res.json({ success: true, orderNum: cleanOrderNum, amount: cleanAmount });
   } catch (e) {
     console.error("Order processing error:", e);
     res.status(500).json({ error: "Buyurtmani qayta ishlashda xatolik yuz berdi: " + e.message });
@@ -481,9 +516,60 @@ app.post('/api/admin/products/reset', apiRateLimiter, verifyAdmin, async (req, r
   }
 });
 
+// Sanitization helper
+function sanitizeInput(val) {
+  if (typeof val !== 'string') return '';
+  return val.replace(/</g, '&lt;').replace(/>/g, '&gt;').trim();
+}
+
+// Product validator and sanitizer
+function validateAndSanitizeProduct(req, res, next) {
+  const { name, brand, price, discount, cat, desc, specs, images } = req.body;
+  
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    return res.status(400).json({ error: "Mahsulot nomi kiritilishi shart!" });
+  }
+  if (!brand || typeof brand !== 'string' || brand.trim() === '') {
+    return res.status(400).json({ error: "Brand nomi kiritilishi shart!" });
+  }
+  
+  const parsedPrice = parseInt(price);
+  if (isNaN(parsedPrice) || parsedPrice <= 0) {
+    return res.status(400).json({ error: "Mahsulot narxi musbat son bo'lishi shart!" });
+  }
+  
+  const parsedDiscount = parseInt(discount) || 0;
+  if (parsedDiscount < 0 || parsedDiscount > 100) {
+    return res.status(400).json({ error: "Chegirma 0 va 100 oralig'ida bo'lishi shart!" });
+  }
+  
+  const allowedCats = ['Telefonlar', 'Kompyuterlar', 'Audio', 'Aksessuarlar', 'Kameralar'];
+  if (!cat || !allowedCats.includes(cat)) {
+    return res.status(400).json({ error: "Noto'g'ri mahsulot kategoriyasi!" });
+  }
+  
+  req.sanitizedProduct = {
+    id: req.body.id ? Number(req.body.id) : (Date.now() + Math.floor(Math.random() * 1000)),
+    name: sanitizeInput(name),
+    brand: sanitizeInput(brand),
+    price: parsedPrice,
+    discount: parsedDiscount,
+    cat: cat,
+    desc: sanitizeInput(desc || 'Tavsif yo\'q.'),
+    rating: Number(req.body.rating) || 5.0,
+    reviews: Number(req.body.reviews) || 0,
+    specs: Array.isArray(specs) ? specs.map(pair => [sanitizeInput(pair[0]), sanitizeInput(pair[1])]) : [],
+    emoji: req.body.emoji ? sanitizeInput(req.body.emoji) : null,
+    image: req.body.image && typeof req.body.image === 'string' ? req.body.image : null,
+    images: Array.isArray(images) ? images.filter(img => typeof img === 'string') : []
+  };
+  
+  next();
+}
+
 // Mahsulot qo'shish
-app.post('/api/admin/products', apiRateLimiter, verifyAdmin, async (req, res) => {
-  const newProduct = req.body;
+app.post('/api/admin/products', apiRateLimiter, verifyAdmin, validateAndSanitizeProduct, async (req, res) => {
+  const newProduct = req.sanitizedProduct;
   try {
     let prods = await firebaseGet('products') || [];
     prods = prods.filter(p => p && p.id !== newProduct.id);
@@ -496,9 +582,10 @@ app.post('/api/admin/products', apiRateLimiter, verifyAdmin, async (req, res) =>
 });
 
 // Mahsulotni yangilash
-app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res) => {
+app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, validateAndSanitizeProduct, async (req, res) => {
   const { id } = req.params;
-  const updatedProduct = req.body;
+  const updatedProduct = req.sanitizedProduct;
+  updatedProduct.id = Number(id);
   try {
     let prods = await firebaseGet('products') || [];
     const idx = prods.findIndex(p => p && String(p.id) === String(id));
