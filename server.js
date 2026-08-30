@@ -14,13 +14,73 @@ process.on('unhandledRejection', (reason) => {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ===== ENVIRONMENT VARIABLES =====
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+// ===== DATABASE CONFIGURATION =====
+const DB_URL = "https://techstore-7018f-default-rtdb.firebaseio.com";
+
+// ===== MUTABLE SYSTEM SETTINGS =====
+let BOT_TOKEN = process.env.BOT_TOKEN || "";
+let ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+let CARD_NUMBER = process.env.CARD_NUMBER || "9860 3501 4074 7741";
+let CARD_OWNER = process.env.CARD_OWNER || "Tojiboyev Jahongir";
 const APP_URL   = process.env.APP_URL || `https://your-app.railway.app`;
 
+// ===== FIREBASE REST CLIENT =====
+async function firebaseGet(path) {
+  try {
+    const res = await fetch(`${DB_URL}/${path}.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error(`Firebase GET error at ${path}:`, e.message);
+    return null;
+  }
+}
+
+async function firebasePut(path, data) {
+  try {
+    const res = await fetch(`${DB_URL}/${path}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error(`Firebase PUT error at ${path}:`, e.message);
+    throw e;
+  }
+}
+
+async function firebasePatch(path, data) {
+  try {
+    const res = await fetch(`${DB_URL}/${path}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error(`Firebase PATCH error at ${path}:`, e.message);
+    throw e;
+  }
+}
+
+async function firebaseDelete(path) {
+  try {
+    const res = await fetch(`${DB_URL}/${path}.json`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error(`Firebase DELETE error at ${path}:`, e.message);
+    throw e;
+  }
+}
+
 // ===== EXPRESS =====
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
 app.get('/', (req, res) => {
@@ -59,8 +119,76 @@ function apiRateLimiter(req, res, next) {
   next();
 }
 
-// ===== IN-MEMORY PENDING PAYMENTS =====
-const pendingPayments = []; // array of { amount, userId, userName, orderNum, phone, addr, ts }
+// ===== IN-MEMORY PENDING PAYMENTS SYSTEM =====
+const pendingPayments = []; // array of { amount, userId, userName, orderNum, phone, addr, ts, firebaseKey }
+
+// Sync pending payments with Firebase DB (Resilient to server restarts)
+async function loadPendingPayments() {
+  try {
+    const data = await firebaseGet('pending_payments');
+    if (data) {
+      pendingPayments.length = 0; // Clear local array
+      Object.keys(data).forEach(key => {
+        pendingPayments.push({ ...data[key], firebaseKey: key });
+      });
+      console.log(`📝 Loaded ${pendingPayments.length} pending payments from Firebase`);
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to load pending payments from Firebase:", e.message);
+  }
+}
+
+async function registerPendingPaymentInDb(payment) {
+  try {
+    const res = await fetch(`${DB_URL}/pending_payments.json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payment)
+    });
+    const result = await res.json();
+    payment.firebaseKey = result.name;
+    pendingPayments.push(payment);
+    console.log(`📝 Payment registered: ${payment.amount} UZS for order ${payment.orderNum}`);
+  } catch (e) {
+    console.warn("⚠️ Failed to register pending payment in Firebase:", e.message);
+    pendingPayments.push(payment); // Fallback to memory-only
+  }
+}
+
+async function deletePendingPaymentFromDb(payment) {
+  try {
+    if (payment.firebaseKey) {
+      await firebaseDelete(`pending_payments/${payment.firebaseKey}`);
+    }
+    const idx = pendingPayments.indexOf(payment);
+    if (idx !== -1) pendingPayments.splice(idx, 1);
+  } catch (e) {
+    console.warn("⚠️ Failed to delete pending payment from Firebase:", e.message);
+    const idx = pendingPayments.indexOf(payment);
+    if (idx !== -1) pendingPayments.splice(idx, 1);
+  }
+}
+
+// ===== MUTABLE SETTINGS SYNC =====
+async function loadSettingsFromDb() {
+  try {
+    const settings = await firebaseGet('settings');
+    if (settings) {
+      if (settings.bot?.token) {
+        BOT_TOKEN = settings.bot.token;
+        initializeTelegramBot();
+      }
+      if (settings.admin?.telegramIds) {
+        ADMIN_IDS = settings.admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
+      }
+      if (settings.card?.number) CARD_NUMBER = settings.card.number;
+      if (settings.card?.owner) CARD_OWNER = settings.card.owner;
+      console.log("⚙️ Settings loaded from Firebase");
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to load settings from Firebase:", e.message);
+  }
+}
 
 // Telegram WebApp initData verifikatsiyasi (HMAC-SHA256)
 function verifyTelegramAuth(initData) {
@@ -85,174 +213,480 @@ function verifyTelegramAuth(initData) {
   }
 }
 
-// Firebase Configuration API (Xavfsiz qilingan & Rate Limit)
-app.get('/api/firebase-config', apiRateLimiter, (req, res) => {
+// Admin Authorization Middleware (InitData bo'yicha)
+function verifyAdmin(req, res, next) {
   const initData = req.headers['x-telegram-init-data'];
   const hostname = req.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
   
-  // Faqat Telegram Mini App yoki local dev orqali ruxsat beriladi
-  if (!isLocal && !verifyTelegramAuth(initData)) {
-    console.warn(`⚠️  Xavfsizlik: Firebase konfiguratsiyasiga noma'lum manbadan so'rov rad etildi! IP: ${req.ip}`);
-    return res.status(401).json({ error: "Xavfsizlik xatosi: So'rov faqat Telegram orqali qabul qilinadi" });
+  // Local development fallback
+  if (isLocal && !initData) {
+    return next();
   }
+  
+  if (!verifyTelegramAuth(initData)) {
+    console.warn(`⚠️ Security: Unauthorized admin attempt from IP: ${req.ip}`);
+    return res.status(401).json({ error: "Xavfsizlik xatosi: Siz admin emassiz yoki sessiya muddati tugagan" });
+  }
+  
+  try {
+    const urlParams = new URLSearchParams(initData);
+    const userStr = urlParams.get('user');
+    if (!userStr) return res.status(401).json({ error: "Foydalanuvchi ma'lumotlari topilmadi" });
+    
+    const user = JSON.parse(userStr);
+    const userId = String(user.id);
+    
+    if (ADMIN_IDS.length === 0 || ADMIN_IDS.includes(userId)) {
+      req.adminUser = user;
+      return next();
+    }
+  } catch(e) {
+    return res.status(400).json({ error: "Noto'g'ri initData formati" });
+  }
+  
+  return res.status(403).json({ error: "Sizda admin huquqi yo'q!" });
+}
 
+// ===== PUBLIC REST API =====
+
+// Karta ma'lumotlarini olish
+app.get('/api/public-settings', apiRateLimiter, (req, res) => {
   res.json({
-    apiKey: "AIzaSyCe74FO3fYXk9Nc8ZVv6JOlMfAptODP8Kg",
-    authDomain: "techstore-7018f.firebaseapp.com",
-    databaseURL: "https://techstore-7018f-default-rtdb.firebaseio.com",
-    projectId: "techstore-7018f",
-    storageBucket: "techstore-7018f.firebasestorage.app",
-    messagingSenderId: "456809138926",
-    appId: "1:456809138926:web:d4a855263760cb921a81ff"
+    card: {
+      number: CARD_NUMBER,
+      owner: CARD_OWNER
+    }
   });
 });
 
-// To'lovni ro'yxatga olish API (Xavfsiz qilingan & Rate Limit)
-app.post('/api/register-payment', apiRateLimiter, (req, res) => {
-  const initData = req.headers['x-telegram-init-data'];
-  const hostname = req.hostname;
-  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+// Suffix hisoblash API
+app.get('/api/unique-suffix', apiRateLimiter, (req, res) => {
+  const price = parseInt(req.query.price) || 0;
   
-  // Faqat Telegram Mini App yoki local dev orqali kirishga ruxsat
-  if (!isLocal && !verifyTelegramAuth(initData)) {
-    console.warn(`⚠️  Xavfsizlik: Noma'lum manbadan so'rov rad etildi! IP: ${req.ip}`);
-    return res.status(401).json({ error: "Xavfsizlik xatosi: So'rov faqat Telegram orqali qabul qilinadi" });
+  const usedSuffixes = new Set(
+    pendingPayments
+      .filter(p => p.amount >= price && p.amount <= price + 100)
+      .map(p => p.amount - price)
+  );
+  
+  let suffix = Math.floor(Math.random() * 100) + 1;
+  let tries = 0;
+  while (usedSuffixes.has(suffix) && tries < 100) {
+    suffix = (suffix % 100) + 1;
+    tries++;
+  }
+  
+  res.json({ suffix, amount: price + suffix });
+});
+
+// Mahsulotlarni olish
+app.get('/api/products', apiRateLimiter, async (req, res) => {
+  try {
+    const products = await firebaseGet('products');
+    res.json(products || []);
+  } catch (e) {
+    res.status(500).json({ error: "Mahsulotlarni yuklashda xatolik yuz berdi" });
+  }
+});
+
+// Buyurtma holatini olish (Foydalanuvchi tekshirishi uchun polling)
+app.get('/api/orders/:orderId', apiRateLimiter, async (req, res) => {
+  const { orderId } = req.params;
+  try {
+    const order = await firebaseGet(`orders/${orderId}`);
+    if (!order) return res.status(404).json({ error: "Buyurtma topilmadi" });
+    res.json({ status: order.status });
+  } catch (e) {
+    res.status(500).json({ error: "Xatolik yuz berdi" });
+  }
+});
+
+// Yangi buyurtma yaratish va to'lovni ro'yxatga olish
+app.post('/api/orders', apiRateLimiter, async (req, res) => {
+  const { amount, userId, userName, orderNum, phone, addr, items, basePrice, suffix } = req.body;
+  if (!amount || !userId || !orderNum) {
+    return res.status(400).json({ error: "Noto'g'ri buyurtma ma'lumotlari" });
   }
 
-  const { amount, userId, userName, orderNum, phone, addr } = req.body;
-  if (!amount || !userId) {
-    return res.status(400).json({ error: "Noto'g'ri ma'lumotlar" });
-  }
-
-  // Eski bir xil summadagi to'lovlarni o'chirib tashlaymiz (faqat oxirgisi qolishi uchun)
   const cleanAmount = Number(amount);
+
+  // Eski kutilayotgan to'lovlarni o'chirish (tozalash)
   for (let i = pendingPayments.length - 1; i >= 0; i--) {
     if (pendingPayments[i].amount === cleanAmount) {
-      pendingPayments.splice(i, 1);
+      await deletePendingPaymentFromDb(pendingPayments[i]);
     }
   }
 
-  pendingPayments.push({
+  const newPayment = {
     amount: cleanAmount,
     userId: String(userId),
     userName: userName || 'Foydalanuvchi',
-    orderNum: orderNum || 'Nomalum',
+    orderNum: orderNum,
     phone: phone || '',
     addr: addr || '',
     ts: Date.now()
-  });
+  };
 
-  console.log(`📝 Yangi to'lov kutilmoqda: Order ${orderNum}, Summa: ${cleanAmount} so'm, User: ${userName} (${userId})`);
-  res.json({ success: true });
+  try {
+    // 1) Firebase-da buyurtmani saqlash
+    await firebasePut(`orders/${orderNum.replace('#','')}`, {
+      orderNum,
+      products: items.map(i => i.name).join(', '),
+      total: cleanAmount,
+      basePrice: basePrice || cleanAmount,
+      suffix: suffix || 0,
+      addr: addr || '',
+      phone: phone || '',
+      status: 'pending',
+      userId: userId,
+      userName: userName || 'Foydalanuvchi',
+      createdAt: Date.now()
+    });
+
+    // 2) Kutilayotgan to'lovni Firebase va local xotirada saqlash
+    await registerPendingPaymentInDb(newPayment);
+
+    res.json({ success: true, orderNum, amount: cleanAmount });
+  } catch (e) {
+    console.error("Order processing error:", e);
+    res.status(500).json({ error: "Buyurtmani qayta ishlashda xatolik yuz berdi: " + e.message });
+  }
 });
 
+// ===== ADMIN PROTECTED REST API =====
 
+// Barcha buyurtmalarni olish
+app.get('/api/admin/orders', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const ordersData = await firebaseGet('orders');
+    res.json(ordersData || {});
+  } catch (e) {
+    res.status(500).json({ error: "Buyurtmalarni yuklashda xatolik: " + e.message });
+  }
+});
+
+// Buyurtmani tasdiqlash
+app.post('/api/admin/orders/:orderId/approve', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const { orderId } = req.params;
+  const orderPath = `orders/${orderId}`;
+  
+  try {
+    const order = await firebaseGet(orderPath);
+    if (!order) return res.status(404).json({ error: "Buyurtma topilmadi" });
+    
+    // Statusni yangilash
+    await firebasePatch(orderPath, { status: 'confirmed' });
+    
+    // Foydalanuvchiga Telegram xabar yuborish
+    if (order.userId && BOT_TOKEN && global.telegramBotInstance) {
+      const userMsg = `✅ <b>Buyurtmangiz tasdiqlandi!</b>\n\n` +
+        `📦 Buyurtma: <b>#${orderId}</b>\n` +
+        `🚀 Admin siz bilan tez orada bog'lanadi va mahsulot yetkaziladi!\n\n` +
+        `<i>TechStore — Ishonchli xarid</i>`;
+      
+      global.telegramBotInstance.sendMessage(order.userId, userMsg, { parse_mode: 'HTML' })
+        .catch(err => console.error("Foydalanuvchiga tasdiqlash yuborishda xato:", err.message));
+    }
+    
+    // Kutilayotgan to'lovlardan o'chirish
+    const p = pendingPayments.find(x => x.orderNum === '#' + orderId);
+    if (p) await deletePendingPaymentFromDb(p);
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Buyurtmani rad etish
+app.post('/api/admin/orders/:orderId/reject', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const { orderId } = req.params;
+  const orderPath = `orders/${orderId}`;
+  
+  try {
+    const order = await firebaseGet(orderPath);
+    if (!order) return res.status(404).json({ error: "Buyurtma topilmadi" });
+    
+    await firebasePatch(orderPath, { status: 'rejected' });
+    
+    if (order.userId && BOT_TOKEN && global.telegramBotInstance) {
+      const userMsg = `❌ <b>Buyurtmangiz rad etildi!</b>\n\nSiz yuborgan to'lov tasdiqlanmadi. Muammo bo'lsa admin bilan bog'laning.`;
+      global.telegramBotInstance.sendMessage(order.userId, userMsg, { parse_mode: 'HTML' })
+        .catch(err => console.error("Foydalanuvchiga rad etish yuborishda xato:", err.message));
+    }
+    
+    const p = pendingPayments.find(x => x.orderNum === '#' + orderId);
+    if (p) await deletePendingPaymentFromDb(p);
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin sozlamalarini olish
+app.get('/api/admin/settings', apiRateLimiter, verifyAdmin, (req, res) => {
+  res.json({
+    card: { number: CARD_NUMBER, owner: CARD_OWNER },
+    bot: { token: BOT_TOKEN },
+    admin: { telegramIds: ADMIN_IDS.join(',') }
+  });
+});
+
+// Admin sozlamalarini yangilash
+app.post('/api/admin/settings', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const { card, bot, admin } = req.body;
+  
+  try {
+    const updates = {};
+    if (card) {
+      CARD_NUMBER = card.number;
+      CARD_OWNER = card.owner;
+      updates['settings/card'] = { number: CARD_NUMBER, owner: CARD_OWNER };
+    }
+    if (bot) {
+      BOT_TOKEN = bot.token;
+      updates['settings/bot'] = { token: BOT_TOKEN };
+    }
+    if (admin) {
+      ADMIN_IDS = admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
+      updates['settings/admin'] = { telegramIds: admin.telegramIds };
+    }
+    
+    await firebasePatch('', updates);
+    
+    if (bot && bot.token) {
+      initializeTelegramBot();
+    }
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Sozlamalarni yangilashda xato: " + e.message });
+  }
+});
+
+// Mahsulotlarni default holatga reset qilish
+app.post('/api/admin/products/reset', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const { products: defaultProducts } = req.body;
+    if (defaultProducts) {
+      await firebasePut('products', defaultProducts);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: "Standart mahsulotlar ro'yxati yuborilmadi" });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mahsulot qo'shish
+app.post('/api/admin/products', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const newProduct = req.body;
+  try {
+    let prods = await firebaseGet('products') || [];
+    prods = prods.filter(p => p && p.id !== newProduct.id);
+    prods.unshift(newProduct);
+    await firebasePut('products', prods);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mahsulotni yangilash
+app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const updatedProduct = req.body;
+  try {
+    let prods = await firebaseGet('products') || [];
+    const idx = prods.findIndex(p => p && String(p.id) === String(id));
+    if (idx !== -1) {
+      prods[idx] = { ...prods[idx], ...updatedProduct };
+      await firebasePut('products', prods);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: "Mahsulot topilmadi" });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mahsulotni o'chirish
+app.delete('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    let prods = await firebaseGet('products') || [];
+    prods = prods.filter(p => p && String(p.id) !== String(id));
+    await firebasePut('products', prods);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Foydalanuvchilar ro'yxatini olish
+app.get('/api/admin/users', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const ordersData = await firebaseGet('orders') || {};
+    const usersMap = new Map();
+    
+    Object.values(ordersData).forEach(o => {
+      if (o.userId) {
+        usersMap.set(String(o.userId), {
+          id: o.userId,
+          first_name: o.userName || 'Foydalanuvchi',
+          last_name: '',
+          username: o.userUsername || '',
+          phone: o.phone || '',
+          orderCount: (usersMap.get(String(o.userId))?.orderCount || 0) + 1,
+          joinedAt: o.createdAt || Date.now()
+        });
+      }
+    });
+    
+    res.json(Array.from(usersMap.values()));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ===== TELEGRAM BOT (POLLING) =====
-if (BOT_TOKEN) {
-  const bot = new TelegramBot(BOT_TOKEN, {
-    polling: {
-      interval: 300,
-      autoStart: true,
-      params: { timeout: 10 }
+let botInstance = null;
+
+function initializeTelegramBot() {
+  if (!BOT_TOKEN) {
+    console.warn("⚠️ Cannot initialize Telegram Bot: BOT_TOKEN is empty");
+    return;
+  }
+  
+  if (botInstance && botInstance.token === BOT_TOKEN) {
+    return;
+  }
+  
+  if (botInstance) {
+    try {
+      console.log("🔄 Stopping existing Telegram bot instance...");
+      botInstance.stopPolling();
+    } catch(e) {
+      console.error("Error stopping bot polling:", e.message);
     }
-  });
-
-  bot.on('polling_error', (err) => {
-    console.error('Polling xatosi:', err.code, err.message);
-  });
-
-  // /start
-  bot.onText(/\/start/, (msg) => {
-    const chatId    = msg.chat.id;
-    const firstName = msg.from?.first_name || 'Foydalanuvchi';
-    console.log(`/start - ${firstName} (${chatId})`);
-
-    bot.sendMessage(chatId,
-      `👋 Salom, <b>${firstName}</b>!\n\n🛒 <b>TechStore</b>ga xush kelibsiz!\n\nQuyidagi tugma orqali do'konni oching:`,
-      {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "🛍️ Do'konni ochish", web_app: { url: APP_URL } }
-          ]]
-        }
+  }
+  
+  try {
+    const bot = new TelegramBot(BOT_TOKEN, {
+      polling: {
+        interval: 300,
+        autoStart: true,
+        params: { timeout: 10 }
       }
-    );
-  });
+    });
+    botInstance = bot;
+    global.telegramBotInstance = bot;
+    
+    bot.on('polling_error', (err) => {
+      console.error('Polling xatosi:', err.code, err.message);
+    });
 
-  // /admin
-  bot.onText(/\/admin/, (msg) => {
-    const chatId    = msg.chat.id;
-    const userId    = String(msg.from?.id || '');
-    const firstName = msg.from?.first_name || 'Admin';
-    console.log(`/admin - ${firstName} (${userId})`);
+    bot.onText(/\/start/, (msg) => {
+      const chatId    = msg.chat.id;
+      const firstName = msg.from?.first_name || 'Foydalanuvchi';
+      console.log(`/start - ${firstName} (${chatId})`);
 
-    if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(userId)) {
-      bot.sendMessage(chatId, "🚫 Sizda admin huquqi yo'q!");
-      return;
-    }
-
-    const adminUrl = `${APP_URL}?admin_access=true&uid=${userId}`;
-
-    bot.sendMessage(chatId,
-      `🔐 <b>Admin Panel</b>\n\nSalom, <b>${firstName}</b>!\n⚡ Parol so'ralmaydi — avtomatik kirish.`,
-      {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '⚙️ Admin Panelni ochish', web_app: { url: adminUrl } }
-          ]]
+      bot.sendMessage(chatId,
+        `👋 Salom, <b>${firstName}</b>!\n\n🛒 <b>TechStore</b>ga xush kelibsiz!\n\nQuyidagi tugma orqali do'konni oching:`,
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "🛍️ Do'konni ochish", web_app: { url: APP_URL } }
+            ]]
+          }
         }
+      );
+    });
+
+    bot.onText(/\/admin/, (msg) => {
+      const chatId    = msg.chat.id;
+      const userId    = String(msg.from?.id || '');
+      const firstName = msg.from?.first_name || 'Admin';
+      console.log(`/admin - ${firstName} (${userId})`);
+
+      if (ADMIN_IDS.length > 0 && !ADMIN_IDS.includes(userId)) {
+        bot.sendMessage(chatId, "🚫 Sizda admin huquqi yo'q!");
+        return;
       }
-    );
-  });
 
-  // /help
-  bot.onText(/\/help/, (msg) => {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId,
-      `📋 <b>Buyruqlar:</b>\n\n/start — Do'konni ochish\n/admin — Admin panel\n/help — Yordam`,
-      { parse_mode: 'HTML' }
-    );
-  });
+      const adminUrl = `${APP_URL}?admin_access=true&uid=${userId}`;
 
-  // ===== TO'LOV XABARLARINI AVTOMATIK KUZATISH TIZIMI =====
-  function handlePaymentMessage(msg) {
-    const text = msg.text || msg.caption;
-    if (!text) return;
+      bot.sendMessage(chatId,
+        `🔐 <b>Admin Panel</b>\n\nSalom, <b>${firstName}</b>!\n⚡ Parol so'ralmaydi — avtomatik kirish.`,
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '⚙️ Admin Panelni ochish', web_app: { url: adminUrl } }
+            ]]
+          }
+        }
+      );
+    });
 
-    // Har qanday kiruvchi xabardagi raqamlarni tozalab olamiz
-    // Masalan: "Humo Kirim: +30 000 010.00 UZS" -> "3000001000" (tiyinlar) yoki "30000010"
-    const cleanText = text.replace(/[^0-9]/g, '');
-    if (!cleanText) return;
+    bot.onText(/\/help/, (msg) => {
+      const chatId = msg.chat.id;
+      bot.sendMessage(chatId,
+        `📋 <b>Buyruqlar:</b>\n\n/start — Do'konni ochish\n/admin — Admin panel\n/help — Yordam`,
+        { parse_mode: 'HTML' }
+      );
+    });
 
-    console.log(`📩 Kuzatilayotgan xabar: "${text.replace(/\n/g, ' ')}"`);
+    bot.on('channel_post', (msg) => {
+      handlePaymentMessage(msg);
+    });
 
-    // Pending to'lovlar bilan taqqoslaymiz
-    for (let i = pendingPayments.length - 1; i >= 0; i--) {
-      const p = pendingPayments[i];
-      const amountStr = String(p.amount);
+    bot.on('message', (msg) => {
+      if (msg.text && msg.text.startsWith('/')) return;
+      handlePaymentMessage(msg);
+    });
 
-      // Agar xabardagi raqamlar ketma-ketligida kutilayotgan noyob summa mavjud bo'lsa
-      if (cleanText.includes(amountStr)) {
-        console.log(`🎯 TO'LOV MOS KELDI! Summa: ${p.amount} so'm, Buyurtma: ${p.orderNum}`);
+    console.log('✅ Telegram bot ishga tushdi (polling mode & automatic payment verification active)');
+  } catch (e) {
+    console.error("❌ Failed to initialize Telegram Bot:", e.message);
+  }
+}
 
-        // Foydalanuvchiga tasdiqlash xabari (Chiroyli shaklda)
-        const userMsg = `🎉 <b>To'lov qabul qilindi!</b>\n\n` +
-          `Salom, <b>${p.userName}</b>!\n` +
-          `Sizning <b>${p.amount.toLocaleString('uz')} so'm</b> to'lovingiz avtomatik ravishda tasdiqlandi. ✅\n\n` +
-          `📦 Buyurtma raqami: <b>${p.orderNum}</b>\n\n` +
-          `📞 Admin bilan bog'lanib buyurtmangizni olishingiz mumkin:\n` +
-          `👉 <b>@Jahongir_1220</b>\n\n` +
-          `Siz bilan hamkorlikdan mamnunmiz! ⚡`;
+// ===== TO'LOV XABARLARINI AVTOMATIK KUZATISH TIZIMI =====
+function handlePaymentMessage(msg) {
+  const text = msg.text || msg.caption;
+  if (!text) return;
 
-        bot.sendMessage(p.userId, userMsg, { parse_mode: 'HTML' })
+  const cleanText = text.replace(/[^0-9]/g, '');
+  if (!cleanText) return;
+
+  console.log(`📩 Kuzatilayotgan xabar: "${text.replace(/\n/g, ' ')}"`);
+
+  for (let i = pendingPayments.length - 1; i >= 0; i--) {
+    const p = pendingPayments[i];
+    const amountStr = String(p.amount);
+
+    if (cleanText.includes(amountStr)) {
+      console.log(`🎯 TO'LOV MOS KELDI! Summa: ${p.amount} so'm, Buyurtma: ${p.orderNum}`);
+
+      const userMsg = `🎉 <b>To'lov qabul qilindi!</b>\n\n` +
+        `Salom, <b>${p.userName}</b>!\n` +
+        `Sizning <b>${p.amount.toLocaleString('uz')} so'm</b> to'lovingiz avtomatik ravishda tasdiqlandi. ✅\n\n` +
+        `📦 Buyurtma raqami: <b>${p.orderNum}</b>\n\n` +
+        `📞 Admin bilan bog'lanib buyurtmangizni olishingiz mumkin:\n` +
+        `👉 <b>@Jahongir_1220</b>\n\n` +
+        `Siz bilan hamkorlikdan mamnunmiz! ⚡`;
+
+      if (botInstance) {
+        botInstance.sendMessage(p.userId, userMsg, { parse_mode: 'HTML' })
           .then(() => console.log(`✉️ Foydalanuvchiga tasdiqlash xabari yuborildi: ${p.userId}`))
           .catch(err => console.error(`❌ Foydalanuvchiga xabar yuborishda xato:`, err.message));
 
-        // Adminga xabar yuboramiz (barcha adminlarga)
         ADMIN_IDS.forEach(adminId => {
           const adminMsg = `✅ <b>AVTOMATIK TO'LOV TASDIQLANDI</b>\n\n` +
             `👤 Foydalanuvchi: <b>${p.userName}</b> (ID: ${p.userId})\n` +
@@ -261,43 +695,28 @@ if (BOT_TOKEN) {
             `📞 Tel: ${p.phone}\n` +
             `📍 Manzil: ${p.addr}`;
 
-          bot.sendMessage(adminId, adminMsg, { parse_mode: 'HTML' })
+          botInstance.sendMessage(adminId, adminMsg, { parse_mode: 'HTML' })
             .catch(err => console.error(`❌ Adminga xabar yuborishda xato:`, err.message));
         });
-
-        // Firebase da order statusini 'paid' ga o'zgartirishga harakat qilamiz (REST orqali)
-        // Agar Firebase ruxsat bersa, status o'zgaradi, bo'lmasa xatolik tutib ketiladi (hech narsa bo'lmaydi)
-        fetch(`https://techstore-7018f-default-rtdb.firebaseio.com/orders/${p.orderNum.replace('#','')}/status.json`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify('paid')
-        }).catch(()=>{});
-
-        // Ro'yxatdan o'chirib tashlaymiz
-        pendingPayments.splice(i, 1);
       }
+
+      firebasePatch(`orders/${p.orderNum.replace('#','')}`, { status: 'confirmed' })
+        .catch(e => console.error("Failed to update status in Firebase:", e));
+
+      deletePendingPaymentFromDb(p);
     }
   }
-
-  // To'lov kanali yoki guruhdagi barcha xabarlarni tinglash
-  bot.on('channel_post', (msg) => {
-    handlePaymentMessage(msg);
-  });
-
-  bot.on('message', (msg) => {
-    // Slash buyruqlarni tekshirmaymiz
-    if (msg.text && msg.text.startsWith('/')) return;
-    handlePaymentMessage(msg);
-  });
-
-  console.log('✅ Telegram bot ishga tushdi (polling mode & automatic payment verification active)');
-} else {
-  console.warn('⚠️  BOT_TOKEN topilmadi!');
 }
 
 // ===== SERVER =====
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server: http://localhost:${PORT}`);
   console.log(`📱 APP_URL: ${APP_URL}`);
+  
+  // Database sync on startup
+  await loadSettingsFromDb();
+  await loadPendingPayments();
+  initializeTelegramBot();
+  
   console.log(`👑 Admin IDs: ${ADMIN_IDS.join(', ') || 'belgilanmagan'}`);
 });

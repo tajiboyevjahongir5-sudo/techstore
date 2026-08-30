@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TechStore</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1481,26 +1478,8 @@ const DEFAULT_PRODUCTS = [
   {id:20, name:'OnePlus 12 5G',           brand:'OnePlus', price:8000000,  discount:18, emoji:'📱', image:'https://images.unsplash.com/photo-1565849906660-bf47eb869a73?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1565849906660-bf47eb869a73?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.7, reviews:198, desc:'Snapdragon 8 Gen 3, Hasselblad optikasi va 100W SUPERVOOC quvvatlash.',                    specs:[['Ekran','6.82 AMOLED 120Hz'],['Protsessor','Snapdragon 8 Gen 3'],['Kamera','50MP Hasselblad'],['Batareya','5400 mAh'],['Quvvatlash','100W SUPERVOOC']]}
 ];
 
-// ===== FIREBASE (Dinamik yuklanadi) =====
-let db;
-let storage;
-
-// ===== FIREBASE: MA'LUMOT SAQLASH =====
+// ===== DATABASE / API SYNC =====
 function saveData() {
-  // Mahsulotlarni rasmSIZ saqlash (rasmlar Storage da)
-  const prodsToSave = products.map(p => {
-    const {images, image, ...rest} = p;
-    return {
-      ...rest,
-      image: (images && images[0] && !images[0].startsWith('data:')) ? images[0] :
-             (image && !image.startsWith('data:')) ? image : null,
-      images: (images || []).filter(u => u && !u.startsWith('data:'))
-    };
-  });
-  db.ref('products').set(prodsToSave).catch(e => console.warn('FB save products', e));
-  // Eslatma: settings/card faqat saveCardSettings() da saqlanadi
-
-  // Cart, orders — localStorage ga (foydalanuvchiga xos)
   try {
     localStorage.setItem('ts_cart', JSON.stringify(cart));
     localStorage.setItem('ts_orders', JSON.stringify(orders));
@@ -1509,47 +1488,11 @@ function saveData() {
   } catch(e) {}
 }
 
-// ===== FIREBASE: RASM YUKLASH =====
-async function uploadImageToFirebase(base64, prodId, index) {
-  try {
-    const res = await fetch(base64);
-    const blob = await res.blob();
-    const ext = blob.type.split('/')[1] || 'jpg';
-    const ref = storage.ref(`products/${prodId}/img_${index}.${ext}`);
-    await ref.put(blob);
-    return await ref.getDownloadURL();
-  } catch(e) {
-    console.warn('Firebase upload error', e);
-    return null;
-  }
-}
-
 async function uploadProductImages(prod) {
-  const base64Imgs = (prod.images || []).filter(u => u && u.startsWith('data:'));
-  if(!base64Imgs.length) return;
-
-  showToast('Rasmlar yuklanmoqda...', '⏳', 'var(--accent)');
-  const urls = [...(prod.images || []).filter(u => u && !u.startsWith('data:'))];
-
-  for(let i = 0; i < base64Imgs.length; i++) {
-    const url = await uploadImageToFirebase(base64Imgs[i], prod.id, urls.length + i);
-    if(url) urls.push(url);
-  }
-
-  if(urls.length) {
-    prod.images = urls;
-    prod.image = urls[0];
-    saveData();
-    filterProducts();
-    buildSlides();
-    renderAdminProducts && renderAdminProducts();
-    showToast('Rasmlar saqlandi ✓', '🖼️', 'var(--green)');
-  }
+  // Rasm yuklash backendga mahsulot bilan birga yuboriladi (Base64 formatda)
 }
 
-// ===== FIREBASE: MA'LUMOT YUKLASH =====
-function loadData() {
-  // localStorage dan foydalanuvchi ma'lumotlari
+async function loadData() {
   try {
     const c  = localStorage.getItem('ts_cart');
     const o  = localStorage.getItem('ts_orders');
@@ -1561,38 +1504,77 @@ function loadData() {
     if(f)  favorites    = new Set(JSON.parse(f));
   } catch(e) {}
 
-  // Dastlabki ko'rinish uchun default mahsulotlarni render qilib turamiz (Firebase javob berguncha bo'sh turmasligi uchun)
+  // Fallback default mahsulotlar
   products = [...DEFAULT_PRODUCTS];
   renderProducts(products);
   buildSlides();
 
-  if (db) {
-    // Firebase dan mahsulotlar (real-time)
-    db.ref('products').on('value', snap => {
-      const data = snap.val();
-      if(data && Array.isArray(data) && data.length) {
-        products = data;
-      } else if(data && typeof data === 'object') {
-        products = Object.values(data);
-      } else {
-        products = [...DEFAULT_PRODUCTS];
-        // Default mahsulotlarni Firebase ga yozish
-        saveData();
-      }
-      renderProducts(products);
-      buildSlides();
-      renderAdminProducts && renderAdminProducts();
-      updateProfileCounts();
-    }, err => {
-      console.warn("Firebase products read failed, using offline fallback:", err);
-      products = [...DEFAULT_PRODUCTS];
-      renderProducts(products);
-      buildSlides();
-    });
-  }
+  // API dan real mahsulotlarni va settingsni yuklash
+  await loadProductsFromServer();
+  await loadPublicSettingsFromServer();
+  updateProfileCounts();
+}
 
-  // Settings
-  loadSettings();
+async function loadProductsFromServer() {
+  try {
+    const res = await fetch('/api/products');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length) {
+        products = data;
+        renderProducts(products);
+        buildSlides();
+        renderAdminProducts && renderAdminProducts();
+      }
+    }
+  } catch (e) {
+    console.warn("Mahsulotlarni serverdan yuklashda xatolik:", e);
+  }
+}
+
+async function loadPublicSettingsFromServer() {
+  try {
+    const res = await fetch('/api/public-settings');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.card) {
+        CARD_NUMBER = data.card.number || CARD_NUMBER;
+        CARD_OWNER = data.card.owner || CARD_OWNER;
+        updatePaymentCard();
+        loadSettingsUI();
+      }
+    }
+  } catch (e) {
+    console.warn("Sozlamalarni serverdan yuklashda xatolik:", e);
+  }
+}
+
+// Admin sozlamalarini serverdan yuklash
+async function loadAdminSettingsFromServer() {
+  try {
+    const res = await fetch('/api/admin/settings', {
+      headers: {
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.card) {
+        CARD_NUMBER = data.card.number || CARD_NUMBER;
+        CARD_OWNER = data.card.owner || CARD_OWNER;
+      }
+      if (data.bot?.token) {
+        BOT_TOKEN = data.bot.token;
+      }
+      if (data.admin?.telegramIds) {
+        ADMIN_TELEGRAM_IDS = data.admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
+      }
+      updatePaymentCard();
+      loadSettingsUI();
+    }
+  } catch (e) {
+    console.warn("Admin sozlamalarini yuklashda xato:", e);
+  }
 }
 
 
@@ -1604,145 +1586,117 @@ let CARD_OWNER     = 'Tojiboyev Jahongir';
 let BOT_TOKEN      = '';
 
 // ===== NOYOB SUMMA TIZIMI =====
-// Har buyurtmaga 1-100 orasida sufiks qo'shiladi, adashmaydi
-let currentUniqueAmount  = 0;
-let currentBasePrice     = 0;
-
-// Firebase da band suffikslar: settings/pending_suffixes/{suffix} = {orderNum, userId, ts}
 async function getUniqueSuffix(basePrice) {
-  return new Promise(resolve => {
-    const ref = db.ref('settings/pending_suffixes');
-    ref.once('value', snap => {
-      try {
-        const used = snap.val() || {};
-        // Eskirgan (30 daqiqadan eski) yozuvlarni tozala
-        const now = Date.now();
-        const toDelete = {};
-        Object.entries(used).forEach(([k, v]) => {
-          if(now - (v.ts||0) > 30 * 60 * 1000) toDelete[k] = null;
-        });
-        if(Object.keys(toDelete).length) ref.update(toDelete).catch(()=>{});
-
-        const usedSet = new Set(
-          Object.keys(used).filter(k => !toDelete[k]).map(Number)
-        );
-
-        // localStorage counter ni ham tekshir
-        let last = parseInt(localStorage.getItem('ts_suffix_last') || '0');
-        let suffix = last;
-        let tries = 0;
-        do {
-          suffix = (suffix % 100) + 1;
-          tries++;
-        } while(usedSet.has(suffix) && tries < 100);
-
-        localStorage.setItem('ts_suffix_last', suffix);
-        resolve({ suffix, amount: basePrice + suffix });
-      } catch(e) {
-        console.warn('Suffix parsing failed, using fallback:', e);
-        const fallbackSuffix = Math.floor(Math.random() * 100) + 1;
-        resolve({ suffix: fallbackSuffix, amount: basePrice + fallbackSuffix });
-      }
-    }, err => {
-      console.warn('Firebase permission denied, using random suffix fallback:', err);
-      const fallbackSuffix = Math.floor(Math.random() * 100) + 1;
-      resolve({ suffix: fallbackSuffix, amount: basePrice + fallbackSuffix });
-    });
-  });
-}
-
-async function registerPendingPayment(amount, suffix, orderNum, tgUser) {
-  const key = String(suffix);
   try {
-    await db.ref(`settings/pending_suffixes/${key}`).set({
-      orderNum,
-      userId: tgUser?.id || null,
-      userName: tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'Foydalanuvchi',
-      ts: Date.now()
-    });
-  } catch(e) {
-    console.warn('Failed to register pending payment in Firebase:', e.message);
-  }
-}
-
-async function removePendingPayment(suffix) {
-  try {
-    await db.ref(`settings/pending_suffixes/${String(suffix)}`).remove();
-  } catch(e) {
-    console.warn('Failed to remove pending payment from Firebase:', e.message);
-  }
-}
-
-// Settings ni Firebase dan o'qish
-function loadSettings() {
-  if (!db) return;
-  db.ref('settings').once('value', snap => {
-    const s = snap.val();
-    if(!s) return;
-    if(s.card?.number) { CARD_NUMBER = s.card.number; }
-    if(s.card?.owner)  { CARD_OWNER  = s.card.owner; }
-    if(s.admin?.password) { ADMIN_PASSWORD = s.admin.password; }
-    if(s.bot?.token) { BOT_TOKEN = s.bot.token; }
-    if(s.admin?.telegramIds) {
-      ADMIN_TELEGRAM_IDS = s.admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
+    const res = await fetch(`/api/unique-suffix?price=${basePrice}`);
+    if (res.ok) {
+      return await res.json();
     }
-    updatePaymentCard();
-    loadSettingsUI();
-    // /admin buyrug'i orqali kirishni tekshir
-    checkAdminAccessFromUrl();
-  }, err => {
-    console.warn("Firebase settings read failed:", err);
-  });
+  } catch (e) {
+    console.warn('Suffix API failed, using fallback:', e);
+  }
+  const fallbackSuffix = Math.floor(Math.random() * 100) + 1;
+  return { suffix: fallbackSuffix, amount: basePrice + fallbackSuffix };
 }
 
-function saveCardSettings() {
+// Dummy functions since they are handled on the server
+async function registerPendingPayment(amount, suffix, orderNum, tgUser) {}
+async function removePendingPayment(suffix) {}
+function loadSettings() {}
+
+async function saveCardSettings() {
   const num   = document.getElementById('settCardNumber').value.trim();
   const owner = document.getElementById('settCardOwner').value.trim();
   if(!num || !owner) { showToast('Karta ma\'lumotlarini to\'ldiring','⚠️','var(--orange)'); return; }
-  CARD_NUMBER = num; CARD_OWNER = owner;
-  db.ref('settings/card').set({number: num, owner: owner});
-  updatePaymentCard();
-  showToast('Karta saqlandi','✓','var(--green)');
+  
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      },
+      body: JSON.stringify({
+        card: { number: num, owner: owner }
+      })
+    });
+    if (res.ok) {
+      CARD_NUMBER = num; CARD_OWNER = owner;
+      updatePaymentCard();
+      showToast('Karta saqlandi','✓','var(--green)');
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Saqlashda xatolik','✗','var(--red)');
+    }
+  } catch (e) {
+    showToast('Tarmoq xatosi','✗','var(--red)');
+  }
 }
 
+// Password is no longer critical, but we keep a mockup or notify
 function savePasswordSettings() {
-  const oldP = document.getElementById('settOldPass').value;
-  const newP = document.getElementById('settNewPass').value;
-  const confP = document.getElementById('settConfPass').value;
-  if(oldP !== ADMIN_PASSWORD) { showToast('Joriy parol noto\'g\'ri','✗','var(--red)'); return; }
-  if(newP.length < 4) { showToast('Parol kamida 4 ta belgi','⚠️','var(--orange)'); return; }
-  if(newP !== confP) { showToast('Parollar mos kelmadi','✗','var(--red)'); return; }
-  ADMIN_PASSWORD = newP;
-  db.ref('settings/admin/password').set(newP);
-  document.getElementById('settOldPass').value='';
-  document.getElementById('settNewPass').value='';
-  document.getElementById('settConfPass').value='';
-  showToast('Parol o\'zgartirildi','✓','var(--green)');
+  showToast('Parol tizimi avtomatik Telegram auth-ga o\'tkazildi','✓','var(--green)');
 }
 
-function saveBotSettings() {
+async function saveBotSettings() {
   const token   = document.getElementById('settBotToken').value.trim();
   const chatId  = document.getElementById('settAdminChatId').value.trim();
   const adminIds = document.getElementById('settAdminTelegramIds').value.trim();
-  BOT_TOKEN = token;
-  if(chatId) localStorage.setItem('ts_admin_chat_id', chatId);
-  ADMIN_TELEGRAM_IDS = adminIds.split(',').map(id => id.trim()).filter(Boolean);
-  db.ref('settings/bot').set({token, chatId});
-  db.ref('settings/admin/telegramIds').set(adminIds);
-  showToast('Bot sozlamalari saqlandi','🤖','var(--accent)');
+  
+  if (chatId) localStorage.setItem('ts_admin_chat_id', chatId);
+  
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      },
+      body: JSON.stringify({
+        bot: { token, chatId },
+        admin: { telegramIds: adminIds }
+      })
+    });
+    if (res.ok) {
+      BOT_TOKEN = token;
+      ADMIN_TELEGRAM_IDS = adminIds.split(',').map(id => id.trim()).filter(Boolean);
+      showToast('Bot sozlamalari saqlandi','🤖','var(--accent)');
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Saqlashda xatolik','✗','var(--red)');
+    }
+  } catch (e) {
+    showToast('Tarmoq xatosi','✗','var(--red)');
+  }
 }
 
-function resetToDefaultProducts() {
+async function resetToDefaultProducts() {
   if(!confirm('20 ta mahsulot yuklanadi. Mavjud mahsulotlar o\'chiriladi. Davom etasizmi?')) return;
-  products = DEFAULT_PRODUCTS.map(p => ({...p}));
-  db.ref('products').set(products)
-    .then(() => {
+  
+  try {
+    const res = await fetch('/api/admin/products/reset', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      },
+      body: JSON.stringify({
+        products: DEFAULT_PRODUCTS
+      })
+    });
+    if (res.ok) {
+      products = DEFAULT_PRODUCTS.map(p => ({...p}));
       renderProducts(products);
       buildSlides && buildSlides();
       renderAdminProducts && renderAdminProducts();
       showToast('20 ta mahsulot yuklandi! ✓','🔄','var(--green)');
-    })
-    .catch(e => showToast('Xato: ' + e.message,'✗','var(--red)'));
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Reset qilishda xatolik','✗','var(--red)');
+    }
+  } catch (e) {
+    showToast('Tarmoq xatosi','✗','var(--red)');
+  }
 }
 
 function loadSettingsUI() {
@@ -2394,63 +2348,79 @@ async function proceedToPayment() {
 }
 
 // ===== USERS LIST =====
-function renderUsersList() {
+async function renderUsersList() {
   const list = document.getElementById('adminUsersList');
-  const countEl = document.getElementById('userCountBadge');
-  if(countEl) countEl.textContent = registeredUsers.length + ' ta';
-  if(registeredUsers.length === 0) {
-    list.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text2)">
-      <div style="font-size:48px;margin-bottom:12px;opacity:0.35">👥</div>
-      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Foydalanuvchilar yo'q</div>
-      <div style="font-size:12px;line-height:1.6">Telegram Mini Appni ochgan<br>foydalanuvchilar bu yerda ko'rinadi</div>
-    </div>`;
-    return;
+  list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text2);font-size:13px"><i class="ti ti-loader" style="animation:spin 1s linear infinite;font-size:18px"></i> Yuklanmoqda...</div>`;
+  
+  try {
+    const res = await fetch('/api/admin/users', {
+      headers: {
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      }
+    });
+    if (res.ok) {
+      const usersList = await res.json();
+      const countEl = document.getElementById('userCountBadge');
+      if(countEl) countEl.textContent = usersList.length + ' ta';
+      
+      if(usersList.length === 0) {
+        list.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text2)">
+          <div style="font-size:48px;margin-bottom:12px;opacity:0.35">👥</div>
+          <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Foydalanuvchilar yo'q</div>
+          <div style="font-size:12px;line-height:1.6">Telegram Mini Appni ochgan<br>foydalanuvchilar bu yerda ko'rinadi</div>
+        </div>`;
+        return;
+      }
+      
+      const sorted = [...usersList].sort((a,b) => new Date(b.joinedAt||0) - new Date(a.joinedAt||0));
+      
+      list.innerHTML = sorted.map(u => {
+        const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Foydalanuvchi';
+        const initials = fullName.charAt(0).toUpperCase();
+        const isReal = u.id && !String(u.id).startsWith('anon');
+
+        const avaHtml = u.photo_url
+          ? `<img src="${u.photo_url}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
+          : `<span style="font-family:'Syne',sans-serif;font-weight:800">${initials}</span>`;
+
+        const joinDate = u.joinedAt
+          ? new Date(u.joinedAt).toLocaleDateString('uz-UZ', {day:'2-digit',month:'2-digit',year:'numeric'})
+          : '';
+
+        const phoneHtml = u.phone
+          ? `<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--green)">
+               <i class="ti ti-map-pin" style="font-size:11px"></i> ${u.phone}
+             </div>`
+          : `<div style="font-size:11px;color:var(--text3)">📵 Raqam yo'q</div>`;
+
+        const orderBadge = u.orderCount > 0
+          ? `<span style="background:rgba(107,127,255,0.18);color:var(--accent);border:1px solid rgba(107,127,255,0.3);border-radius:8px;padding:2px 8px;font-size:10px;font-weight:700">${u.orderCount} buyurtma</span>`
+          : `<span style="background:rgba(255,255,255,0.06);color:var(--text3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:2px 8px;font-size:10px">Buyurtma yo'q</span>`;
+
+        return `<div class="user-row" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="user-avatar" style="width:46px;height:46px;border-radius:14px;flex-shrink:0">${avaHtml}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fullName}</div>
+              <div style="font-size:11px;color:var(--text2)">${u.username ? '<span style="color:var(--accent)">@'+u.username+'</span>' : '<span style="color:var(--text3)">Username yo\'q</span>'}</div>
+            </div>
+            ${isReal ? `<div class="user-tg-btn" onclick="openTgUser('${u.id}')" title="Telegramda ochish" style="flex-shrink:0"><i class="ti ti-brand-telegram"></i></div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06)">
+            <div>${phoneHtml}</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              ${orderBadge}
+            </div>
+          </div>
+          ${joinDate ? `<div style="font-size:10px;color:var(--text3)">🕐 Qo'shilgan: ${joinDate}</div>` : ''}
+        </div>`;
+      }).join('');
+    } else {
+      list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">Ruxsat berilmadi yoki xatolik</div>`;
+    }
+  } catch (e) {
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">Serverga ulanish xatosi</div>`;
   }
-
-  // Yangi qo'shilganlar birinchi
-  const sorted = [...registeredUsers].sort((a,b) => new Date(b.joinedAt||0) - new Date(a.joinedAt||0));
-
-  list.innerHTML = sorted.map(u => {
-    const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Foydalanuvchi';
-    const initials = fullName.charAt(0).toUpperCase();
-    const isReal = u.id && !String(u.id).startsWith('anon');
-
-    const avaHtml = u.photo_url
-      ? `<img src="${u.photo_url}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
-      : `<span style="font-family:'Syne',sans-serif;font-weight:800">${initials}</span>`;
-
-    const joinDate = u.joinedAt
-      ? new Date(u.joinedAt).toLocaleDateString('uz-UZ', {day:'2-digit',month:'2-digit',year:'numeric'})
-      : '';
-
-    const phoneHtml = u.phone
-      ? `<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--green)">
-           <i class="ti ti-map-pin" style="font-size:11px"></i> ${u.phone}
-         </div>`
-      : `<div style="font-size:11px;color:var(--text3)">📵 Raqam yo'q</div>`;
-
-    const orderBadge = u.orderCount > 0
-      ? `<span style="background:rgba(107,127,255,0.18);color:var(--accent);border:1px solid rgba(107,127,255,0.3);border-radius:8px;padding:2px 8px;font-size:10px;font-weight:700">${u.orderCount} buyurtma</span>`
-      : `<span style="background:rgba(255,255,255,0.06);color:var(--text3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:2px 8px;font-size:10px">Buyurtma yo'q</span>`;
-
-    return `<div class="user-row" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="user-avatar" style="width:46px;height:46px;border-radius:14px;flex-shrink:0">${avaHtml}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fullName}</div>
-          <div style="font-size:11px;color:var(--text2)">${u.username ? '<span style="color:var(--accent)">@'+u.username+'</span>' : '<span style="color:var(--text3)">Username yo\'q</span>'}</div>
-        </div>
-        ${isReal ? `<div class="user-tg-btn" onclick="openTgUser('${u.id}')" title="Telegramda ochish" style="flex-shrink:0"><i class="ti ti-brand-telegram"></i></div>` : ''}
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06)">
-        <div>${phoneHtml}</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          ${orderBadge}
-        </div>
-      </div>
-      ${joinDate ? `<div style="font-size:10px;color:var(--text3)">🕐 Qo'shilgan: ${joinDate}</div>` : ''}
-    </div>`;
-  }).join('');
 }
 
 function openDevModal() {
@@ -2523,12 +2493,12 @@ async function sendPayment() {
   const addrHouse    = document.getElementById('addrHouse').value.trim();
   const addr = [addrCity, addrDistrict, addrStreet, addrHouse].filter(Boolean).join(', ');
   const uName = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'Foydalanuvchi';
+  const suffix = window._currentSuffix || 0;
 
-  // Backend ga to'lovni ro'yxatga olish (Avtomatik tekshirish uchun)
   try {
-    await fetch('/api/register-payment', {
+    const res = await fetch('/api/orders', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
       },
@@ -2538,26 +2508,23 @@ async function sendPayment() {
         userName: uName,
         orderNum: orderNum,
         phone: phone,
-        addr: addr
+        addr: addr,
+        items: orderItems.map(item => ({ id: item.id, name: item.name, price: item.price, qty: item.qty })),
+        basePrice: currentBasePrice,
+        suffix: suffix
       })
     });
+    
+    if (!res.ok) {
+      throw new Error("Server buyurtmani qabul qilmadi");
+    }
   } catch (e) {
-    console.warn('Backend payment registration failed:', e);
+    console.error('Order submission failed:', e);
+    showToast('Buyurtma yuborishda xatolik yuz berdi','✗','var(--red)');
+    btn.innerHTML = '<i class="ti ti-circle-check" style="font-size:18px"></i> Qayta urinib ko\'rish';
+    btn.disabled = false;
+    return;
   }
-
-  // Firebase ga pending to'lovni yoz — bot shu orqali tekshiradi
-  const suffix = window._currentSuffix || 0;
-  await registerPendingPayment(uniqueAmt, suffix, orderNum, tgUser);
-
-  // Firebase ga buyurtmani ham saqla (bot avtotasdiqlash uchun)
-  db.ref(`orders/${orderNum.replace('#','')}`).set({
-    orderNum, products: orderItems.map(i=>i.name).join(', '),
-    total: uniqueAmt, basePrice: currentBasePrice, suffix,
-    addr, phone, status: 'pending',
-    userId: tgUser?.id || null, userName: uName,
-    userUsername: tgUser?.username || null,
-    createdAt: Date.now()
-  });
 
   // localStorage ga ham saqlash
   orders.push({
@@ -2568,31 +2535,6 @@ async function sendPayment() {
     chekImg: null, uniqueAmount: uniqueAmt, suffix
   });
   updateProfileCounts();
-
-  // Foydalanuvchini ro'yxatga olish
-  if(tgUser) {
-    const existing = registeredUsers.find(u=>u.id===tgUser.id);
-    if(existing) {
-      existing.orderCount = (existing.orderCount||0)+1;
-      if(phone) existing.phone = phone;
-      existing.first_name = tgUser.first_name || existing.first_name;
-      existing.last_name  = tgUser.last_name  || existing.last_name;
-      existing.username   = tgUser.username   || existing.username;
-      existing.photo_url  = tgUser.photo_url  || existing.photo_url;
-      existing.lastSeen   = new Date().toISOString();
-    } else {
-      registeredUsers.push({
-        id: tgUser.id, first_name: tgUser.first_name, last_name: tgUser.last_name||'',
-        username: tgUser.username||'', photo_url: tgUser.photo_url||'',
-        phone, orderCount:1, joinedAt: new Date().toISOString(), lastSeen: new Date().toISOString()
-      });
-    }
-  } else {
-    registeredUsers.push({
-      id:'anon_'+Date.now(), first_name:'Foydalanuvchi', last_name:'', username:'',
-      photo_url:'', phone, orderCount:1, joinedAt: new Date().toISOString()
-    });
-  }
 
   document.getElementById('adminBadgeDot').classList.add('show');
   saveData();
@@ -2698,6 +2640,7 @@ function switchAdminTab(btn, tabId) {
     const el = document.getElementById(id);
     if(el) el.style.display = id===tabId?'block':'none';
   });
+  if(tabId==='adminOrders') loadAdminOrders();
   if(tabId==='adminProducts') renderAdminProducts();
   if(tabId==='adminUsers') renderUsersList();
   if(tabId==='adminSettings') loadSettingsUI();
@@ -2725,33 +2668,35 @@ function renderAdminProducts() {
 
 // ===== BOT AVTOTASDIQLASH KUZATUVCHI =====
 function listenOrderStatus(orderId, tgUser) {
-  const ref = db.ref(`orders/${orderId}/status`);
-  const listener = ref.on('value', snap => {
-    const status = snap.val();
-    if(status === 'confirmed') {
-      ref.off('value', listener);
+  const intervalId = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'confirmed' || data.status === 'paid') {
+          clearInterval(intervalId);
 
-      // Buyurtma holati yangilanadi
-      const o = orders.find(x => x.num === '#' + orderId);
-      if(o) o.status = 'Tasdiqlandi ✅';
-      saveData();
+          // Buyurtma holati yangilanadi
+          const o = orders.find(x => x.num === '#' + orderId);
+          if (o) o.status = 'Tasdiqlandi ✅';
+          saveData();
 
-      // Admin panelda badge yangilanadi
-      autoConfirmOrderInAdmin(orderId);
+          // Admin panelda badge yangilanadi
+          autoConfirmOrderInAdmin(orderId);
 
-      // Foydalanuvchiga xabar
-      if(tgUser && BOT_TOKEN) {
-        sendBotMessage(tgUser.id,
-          `✅ <b>To'lovingiz tasdiqlandi!</b>\n\n` +
-          `📦 Buyurtma: <b>#${orderId}</b>\n` +
-          `🚀 Admin siz bilan tez orada bog\'lanadi va mahsulot yetkaziladi!\n\n` +
-          `<i>TechStore — Ishonchli xarid</i>`
-        );
+          showToast('To\'lov avtomatik tasdiqlandi! ✅', '🤖', 'var(--green)');
+        } else if (data.status === 'rejected') {
+          clearInterval(intervalId);
+          const o = orders.find(x => x.num === '#' + orderId);
+          if (o) o.status = 'Rad etildi ❌';
+          saveData();
+          showToast('To\'lov rad etildi ❌', '🤖', 'var(--red)');
+        }
       }
-
-      showToast('To\'lov avtomatik tasdiqlandi! ✅', '🤖', 'var(--green)');
+    } catch (e) {
+      console.warn("Polling order status failed:", e);
     }
-  });
+  }, 3000);
 }
 
 function autoConfirmOrderInAdmin(orderIdNum) {
@@ -2870,14 +2815,13 @@ function openAddModal() {
 }
 function closeAddModal(){document.getElementById('addModal').classList.remove('open')}
 
-function saveProduct() {
+async function saveProduct() {
   const name = document.getElementById('prodName').value.trim() || 'Yangi mahsulot';
   const brand = document.getElementById('prodBrand').value.trim() || 'Brend';
   const price = parseInt(document.getElementById('prodPrice').value) || 0;
   const discount = parseInt(document.getElementById('prodDiscount').value) || 0;
   const cat = document.getElementById('prodCat').value;
   const desc = document.getElementById('prodDesc').value.trim();
-  // Specs fields dan olamiz
   const specs = getSpecsFromFields();
   if(!specs.length) specs.push(['Narx',(price/1000000).toFixed(1)+'M so\'m'],['Brend',brand]);
   const catEmojis = {'Telefonlar':'📱','Kompyuterlar':'💻','Audio':'🎧','Aksessuarlar':'⌚','Kameralar':'📷'};
@@ -2889,16 +2833,31 @@ function saveProduct() {
     cat, rating:5.0, reviews:0, desc: desc||'Yangi mahsulot.',
     specs
   };
-  products.unshift(newProd);
-  newProdImages = [];
-  saveData();
-  closeAddModal();
-  filterProducts();
-  renderAdminProducts();
-  buildSlides();
-  showToast('Mahsulot qo\'shildi ✓', '✓', 'var(--green)');
-  // Rasmlarni Firebase Storage ga yuklash
-  uploadProductImages(newProd);
+
+  try {
+    const res = await fetch('/api/admin/products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      },
+      body: JSON.stringify(newProd)
+    });
+    if (res.ok) {
+      products.unshift(newProd);
+      newProdImages = [];
+      closeAddModal();
+      filterProducts();
+      renderAdminProducts();
+      buildSlides();
+      showToast('Mahsulot qo\'shildi ✓', '✓', 'var(--green)');
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Xatolik yuz berdi', '✗', 'var(--red)');
+    }
+  } catch(e) {
+    showToast('Tarmoq xatosi', '✗', 'var(--red)');
+  }
 }
 
 // ===== EDIT PRODUCT =====
@@ -2918,51 +2877,148 @@ function openEditModal(id) {
 }
 function closeEditModal(){document.getElementById('editModal').classList.remove('open')}
 
-function saveEditProduct() {
+async function saveEditProduct() {
   const p = products.find(x=>x.id===editingProdId);
   if(!p) return;
-  p.name = document.getElementById('editName').value.trim() || p.name;
-  p.brand = document.getElementById('editBrand').value.trim() || p.brand;
-  p.price = parseInt(document.getElementById('editPrice').value) || p.price;
-  p.discount = parseInt(document.getElementById('editDiscount').value) || 0;
-  p.desc = document.getElementById('editDesc').value.trim() || p.desc;
+  const updatedProduct = {
+    name: document.getElementById('editName').value.trim() || p.name,
+    brand: document.getElementById('editBrand').value.trim() || p.brand,
+    price: parseInt(document.getElementById('editPrice').value) || p.price,
+    discount: parseInt(document.getElementById('editDiscount').value) || 0,
+    desc: document.getElementById('editDesc').value.trim() || p.desc
+  };
   if(editProdImages.length) {
-    p.images = [...editProdImages];
-    p.image = editProdImages[0];
-    p.emoji = null;
-    // Rasmlarni darhol Firebase Storage ga yuklash
-    uploadProductImages(p);
+    updatedProduct.images = [...editProdImages];
+    updatedProduct.image = editProdImages[0];
+    updatedProduct.emoji = null;
   }
-  saveData();
-  closeEditModal();
-  filterProducts();
-  renderAdminProducts();
-  buildSlides();
-  showToast('Mahsulot yangilandi','✓','var(--accent)');
+
+  try {
+    const res = await fetch(`/api/admin/products/${editingProdId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      },
+      body: JSON.stringify(updatedProduct)
+    });
+    if (res.ok) {
+      Object.assign(p, updatedProduct);
+      closeEditModal();
+      filterProducts();
+      renderAdminProducts();
+      buildSlides();
+      showToast('Mahsulot yangilandi','✓','var(--accent)');
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Xatolik yuz berdi', '✗', 'var(--red)');
+    }
+  } catch (e) {
+    showToast('Tarmoq xatosi', '✗', 'var(--red)');
+  }
 }
 
 // ===== DELETE PRODUCT =====
 function openConfirmDelete(id) {
   deletingProdId = id;
   document.getElementById('confirmModal').classList.add('open');
-  document.getElementById('confirmDelBtn').onclick = () => {
-    products = products.filter(p=>p.id!==deletingProdId);
-    saveData();
-    closeConfirm();
-    filterProducts();
-    renderAdminProducts();
-    showToast('Mahsulot o\'chirildi','🗑️','var(--red)');
+  document.getElementById('confirmDelBtn').onclick = async () => {
+    try {
+      const res = await fetch(`/api/admin/products/${deletingProdId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+        }
+      });
+      if (res.ok) {
+        products = products.filter(p=>p.id!==deletingProdId);
+        closeConfirm();
+        filterProducts();
+        renderAdminProducts();
+        showToast('Mahsulot o\'chirildi','🗑️','var(--red)');
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'O\'chirishda xatolik', '✗', 'var(--red)');
+      }
+    } catch(e) {
+      showToast('Tarmoq xatosi', '✗', 'var(--red)');
+    }
   };
 }
 function closeConfirm(){document.getElementById('confirmModal').classList.remove('open')}
 
 // ===== ADMIN CHEK MODAL =====
-function openChek(name, prod, price, time, status, userId, chekImg, userUsername, userPhoto) {
-  currentChekData = {name, prod, price, time, status, userId: userId||null, chekImg: chekImg||null, userUsername: userUsername||null, userPhoto: userPhoto||null};
+// ===== ADMIN ORDERS LOADING =====
+async function loadAdminOrders() {
+  const list = document.getElementById('adminOrdersList');
+  list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text2);font-size:13px"><i class="ti ti-loader" style="animation:spin 1s linear infinite;font-size:18px"></i> Yuklanmoqda...</div>`;
+  
+  try {
+    const res = await fetch('/api/admin/orders', {
+      headers: {
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      }
+    });
+    if (res.ok) {
+      const ordersData = await res.json();
+      list.innerHTML = '';
+      const orderList = Object.values(ordersData);
+      
+      if (orderList.length === 0) {
+        list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text2);font-size:13px">Buyurtmalar yo'q</div>`;
+        return;
+      }
+      
+      orderList.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+      
+      orderList.forEach(o => {
+        const row = document.createElement('div');
+        row.className = 'order-row';
+        row._orderNum = o.orderNum;
+        const prodNames = o.products || 'Mahsulotlar';
+        const total = o.total || 0;
+        const uName = o.userName || 'Foydalanuvchi';
+        
+        let statusClass = 'status-chek';
+        let statusText = 'Kutilmoqda';
+        if (o.status === 'confirmed' || o.status === 'paid') {
+          statusClass = 'status-done';
+          statusText = 'Tasdiqlandi';
+        } else if (o.status === 'rejected') {
+          statusClass = 'status-proc';
+          statusText = 'Rad etildi';
+        }
+        
+        row.innerHTML = `
+          <div class="order-icon" style="background:rgba(245,91,91,0.1);color:var(--red);position:relative">
+            <i class="ti ti-receipt"></i>
+          </div>
+          <div class="order-info">
+            <div class="order-name">${uName} — ${o.orderNum}</div>
+            <div class="order-time">${prodNames.substring(0,25)}${prodNames.length>25?'...':''}</div>
+          </div>
+          <div>
+            <div class="order-price">${(total/1000000).toFixed(1)}M</div>
+            <div class="status-badge ${statusClass}">${statusText}</div>
+          </div>`;
+        
+        row.onclick = () => openChek(uName, prodNames, total, 'Batafsil', o.status, o.userId, null, null, null, o.orderNum);
+        list.appendChild(row);
+      });
+    } else {
+      list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">Ruxsat berilmadi yoki xatolik</div>`;
+    }
+  } catch (e) {
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">Serverga ulanish xatosi</div>`;
+  }
+}
+
+// ===== ADMIN CHEK MODAL =====
+function openChek(name, prod, price, time, status, userId, chekImg, userUsername, userPhoto, orderId) {
+  currentChekData = {name, prod, price, time, status, userId: userId||null, chekImg: chekImg||null, userUsername: userUsername||null, userPhoto: userPhoto||null, orderId: orderId || null};
 
   document.getElementById('chekModalTitle').textContent = name + ' buyurtmasi';
 
-  // User row
   const avaEl = document.getElementById('chekUserAva');
   document.getElementById('chekUserName').textContent = name;
   document.getElementById('chekUserTg').textContent = userUsername ? '@'+userUsername : (userId ? 'ID: '+userId : 'Telegram foydalanuvchi');
@@ -2970,7 +3026,6 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
   else { avaEl.textContent = name.charAt(0).toUpperCase(); avaEl.innerHTML = avaEl.innerHTML || name.charAt(0); }
   document.getElementById('chekOpenProfileBtn').style.display = userId ? 'flex' : 'none';
 
-  // Check image
   const actualImg = document.getElementById('chekActualImg');
   const placeholder = document.getElementById('chekImgPlaceholder');
   if(chekImg) {
@@ -2979,71 +3034,89 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
     actualImg.style.display='none'; placeholder.style.display='flex';
   }
 
-  const statusHtml = status==='new'?'<span class="status-badge status-chek">Tekshirilmoqda</span>':
-    status==='done'?'<span class="status-badge status-done">Tasdiqlandi</span>':
-    '<span class="status-badge status-proc">Jarayon</span>';
+  const statusHtml = (status==='new' || status==='pending') ? '<span class="status-badge status-chek">Tekshirilmoqda</span>':
+    (status==='done' || status==='confirmed' || status==='paid') ? '<span class="status-badge status-done">Tasdiqlandi</span>':
+    '<span class="status-badge status-proc">Rad etildi</span>';
   document.getElementById('chekInfo').innerHTML=`
     <div class="chek-row"><span>Mahsulot</span><span>${prod}</span></div>
     <div class="chek-row"><span>Summa</span><span style="color:var(--accent);font-weight:700">${typeof price==='number'?price.toLocaleString('uz'):price} so'm</span></div>
     <div class="chek-row"><span>Vaqt</span><span>${time}</span></div>
     <div class="chek-row"><span>Holat</span><span>${statusHtml}</span></div>`;
-  document.getElementById('chekActionsArea').innerHTML = `
-    <button class="btn-reject" onclick="rejectChek()"><i class="ti ti-x"></i> Rad etish</button>
-    <button class="btn-approve" onclick="approveChek()"><i class="ti ti-check"></i> Tasdiqlash</button>`;
+    
+  if (status==='new' || status==='pending') {
+    document.getElementById('chekActionsArea').innerHTML = `
+      <button class="btn-reject" onclick="rejectChek()"><i class="ti ti-x"></i> Rad etish</button>
+      <button class="btn-approve" onclick="approveChek()"><i class="ti ti-check"></i> Tasdiqlash</button>`;
+  } else {
+    const uid = userId;
+    const uname = userUsername;
+    document.getElementById('chekActionsArea').innerHTML = `
+      <div style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:14px;padding:10px 14px;text-align:center;margin-bottom:10px;font-size:12px;color:var(--text);font-weight:600">
+        Holat: ${statusHtml}
+      </div>
+      ${uid ? `<button onclick="openTgUserDirect('${uid}','${uname||''}')" style="width:100%;height:50px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.4);margin-bottom:10px">
+        <i class="ti ti-brand-telegram" style="font-size:18px"></i> Telegram orqali bog'lanish
+      </button>` : ''}
+      <button onclick="document.getElementById('chekModal').classList.remove('open')" style="width:100%;height:44px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text2);font-family:'Syne',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Yopish</button>`;
+  }
   document.getElementById('chekModal').classList.add('open');
-}
-
-function openTgUserDirect(uid, uname) {
-  if(tg) tg.openTelegramLink('tg://user?id=' + uid);
-  else if(uname) window.open('https://t.me/' + uname, '_blank');
-  else window.open('tg://user?id=' + uid, '_blank');
-}
-
-function openUserProfile() {
-  const uid = currentChekData.userId;
-  if(!uid) return;
-  if(tg) { tg.openTelegramLink('tg://user?id=' + uid); }
-  else { window.open('tg://user?id=' + uid, '_blank'); }
 }
 
 async function approveChek() {
   document.getElementById('chekNotify').style.display='none';
   document.getElementById('adminBadgeDot').classList.remove('show');
 
-  // Send Telegram message
-  const msg = `✅ <b>Buyurtmangiz tasdiqlandi!</b>\n\nAdmin siz bilan tez orada bog'lanadi va mahsulot yetkazib beriladi. 🎉\n\n<i>TechStore orqali buyurtma berildi</i>`;
-  if(currentChekData.userId && BOT_TOKEN) {
-    const sent = await sendBotMessage(currentChekData.userId, msg);
-    showToast(sent ? 'Xabar yuborildi ✓' : 'Tasdiqlandi', '✓', 'var(--green)');
-  } else {
-    showToast('Buyurtma tasdiqlandi', '✓', 'var(--green)');
+  const orderId = currentChekData.orderId ? currentChekData.orderId.replace('#', '') : null;
+  if (!orderId) {
+    showToast('Xatolik: Buyurtma raqami topilmadi','✗','var(--red)');
+    return;
   }
 
-  // Tugmalar o'rniga Telegram tugmasini ko'rsatamiz
-  const actionsEl = document.getElementById('chekActionsArea');
-  const uid = currentChekData.userId;
-  const uname = currentChekData.userUsername;
-  actionsEl.innerHTML = `
-    <div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);border-radius:14px;padding:10px 14px;text-align:center;margin-bottom:10px;font-size:12px;color:var(--green);font-weight:600">
-      ✅ Buyurtma tasdiqlandi
-    </div>
-    ${uid ? `<button onclick="openTgUserDirect('${uid}','${uname||''}')" style="width:100%;height:50px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.4);margin-bottom:10px">
-      <i class="ti ti-brand-telegram" style="font-size:18px"></i> Telegram orqali bog'lanish
-    </button>` : ''}
-    <button onclick="document.getElementById('chekModal').classList.remove('open')" style="width:100%;height:44px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text2);font-family:'Syne',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Yopish</button>`;
+  try {
+    const res = await fetch(`/api/admin/orders/${orderId}/approve`, {
+      method: 'POST',
+      headers: {
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      }
+    });
+    if (res.ok) {
+      showToast('Buyurtma tasdiqlandi ✓', '✓', 'var(--green)');
+      loadAdminOrders();
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Xatolik', '✗', 'var(--red)');
+    }
+  } catch (e) {
+    showToast('Tarmoq xatosi', '✗', 'var(--red)');
+  }
+  document.getElementById('chekModal').classList.remove('open');
 }
 
 async function rejectChek() {
-  document.getElementById('chekModal').classList.remove('open');
-
-  // Send Telegram message
-  const msg = `❌ <b>Buyurtmangiz rad etildi!</b>\n\nSiz soxta chek yuborgansiz. Buyurtmangiz bekor qilindi.\n\n<i>Muammo bo'lsa admin bilan bog'laning.</i>`;
-  if(currentChekData.userId && BOT_TOKEN) {
-    const sent = await sendBotMessage(currentChekData.userId, msg);
-    showToast(sent ? 'Rad xabari yuborildi' : 'Rad etildi (bot yo\'q)', '✗', 'var(--red)');
-  } else {
-    showToast('Buyurtma rad etildi', '✗', 'var(--red)');
+  const orderId = currentChekData.orderId ? currentChekData.orderId.replace('#', '') : null;
+  if (!orderId) {
+    showToast('Xatolik: Buyurtma raqami topilmadi','✗','var(--red)');
+    return;
   }
+
+  try {
+    const res = await fetch(`/api/admin/orders/${orderId}/reject`, {
+      method: 'POST',
+      headers: {
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      }
+    });
+    if (res.ok) {
+      showToast('Buyurtma rad etildi', '✗', 'var(--red)');
+      loadAdminOrders();
+    } else {
+      const err = await res.json();
+      showToast(err.error || 'Xatolik', '✗', 'var(--red)');
+    }
+  } catch (e) {
+    showToast('Tarmoq xatosi', '✗', 'var(--red)');
+  }
+  document.getElementById('chekModal').classList.remove('open');
 }
 
 // ===== CHART =====
@@ -3442,40 +3515,7 @@ function applyIconFallback() {
 }
 
 async function initFirebaseAndLoad() {
-  const hostname = window.location.hostname;
-  const isDev = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
-  const isTg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== '';
-
-  if (!isTg && !isDev) {
-    // Agar Telegram bo'lmasa va dev muhiti bo'lmasa, default mahsulotlarni yuklab qo'yamiz (offline ko'rinish uchun)
-    products = [...DEFAULT_PRODUCTS];
-    renderProducts(products);
-    buildSlides();
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/firebase-config', {
-      headers: {
-        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
-      }
-    });
-    if (!res.ok) throw new Error("Config yuklab bo'lmadi");
-    const firebaseConfig = await res.json();
-
-    // Firebase'ni initialize qilish
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-    storage = firebase.storage();
-
-    // Ma'lumotlarni yuklash
-    loadData();
-  } catch (e) {
-    console.warn("Firebase initialize xatosi, lokal rejimda ishlaydi:", e);
-    products = [...DEFAULT_PRODUCTS];
-    renderProducts(products);
-    buildSlides();
-  }
+  await loadData();
 }
 
 // Har doim SVG ishlatamiz (CDN yo'q)
