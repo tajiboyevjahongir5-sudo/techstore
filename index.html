@@ -103,7 +103,7 @@ body{
 .slide-img::before{content:'';position:absolute;inset:-15px;border-radius:50%;background:radial-gradient(circle, rgba(255,255,255,0.15), transparent 70%);z-index:-1;filter:blur(8px)}
 @keyframes bobbing{0%, 100% { transform:translateY(-50%) translateY(0); } 50% { transform:translateY(-50%) translateY(-6px); }}
 /* Dots */
-.slider-dots{position:absolute;bottom:14px;left:20px;display:flex;gap:6px;z-index:10}
+.slider-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10}
 .slider-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.25);transition:all 0.35s cubic-bezier(0.4, 0, 0.2, 1);cursor:pointer}
 .slider-dot.active{width:20px;border-radius:3px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,0.6)}
 /* Progress bar */
