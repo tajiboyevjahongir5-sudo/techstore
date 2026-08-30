@@ -900,25 +900,9 @@ body{
           <input type="hidden" id="addrDistrict" value="">
         </div>
 
-        <!-- 3. Yetkazib berish usuli -->
+        <!-- 3. BTS topshirish punkti -->
         <div class="form-group">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">3</span> — Yetkazib berish usuli</label>
-          <div class="custom-select" id="addrDeliveryTypeSelect">
-            <div class="custom-select-trigger" onclick="toggleCustomSelect('addrDeliveryTypeSelect')">
-              <span id="addrDeliveryTypeLabel">BTS filialidan olib ketish (Tekin)</span>
-              <i class="ti ti-chevron-down"></i>
-            </div>
-            <div class="custom-select-dropdown" id="addrDeliveryTypeDropdown">
-              <div class="custom-select-option selected" onclick="selectCatOption('addrDeliveryTypeSelect','BTS filialidan olib ketish (Tekin)')">BTS filialidan olib ketish (Tekin)</div>
-              <div class="custom-select-option" onclick="selectCatOption('addrDeliveryTypeSelect','Kuryer orqali yetkazib berish (Tekin)')">Kuryer orqali yetkazib berish (Tekin)</div>
-            </div>
-          </div>
-          <input type="hidden" id="addrDeliveryType" value="BTS filialidan olib ketish (Tekin)">
-        </div>
-
-        <!-- 4. BTS topshirish punkti -->
-        <div class="form-group" id="addrBtsGroup">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">4</span> — BTS topshirish punkti</label>
+          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">3</span> — BTS topshirish punkti</label>
           <div class="custom-select" id="addrBtsSelect">
             <div class="custom-select-trigger" onclick="toggleCustomSelect('addrBtsSelect')">
               <span id="addrBtsLabel">Avval tumanni tanlang</span>
@@ -929,18 +913,12 @@ body{
             </div>
           </div>
           <input type="hidden" id="addrStreet" value="">
-        </div>
-
-        <!-- 5. Shaxsiy Manzil (Turi Kuryer bo'lganda ko'rinadi) -->
-        <div class="form-group" id="addrHomeAddressGroup" style="display:none">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">4</span> — Uy / Ofis manzili</label>
-          <input class="form-input" placeholder="masalan: Tinchlik ko'chasi, 12-uy, 4-xonadon" id="addrCustomAddressInput">
           <input type="hidden" id="addrHouse" value="BTS Express">
         </div>
 
-        <!-- 6. Telefon -->
+        <!-- 4. Telefon -->
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">5</span> — Telefon raqami</label>
+          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">4</span> — Telefon raqami</label>
           <input class="form-input" placeholder="+998 90 123 45 67" id="addrPhone" type="tel">
         </div>
       </div>
@@ -2565,15 +2543,7 @@ async function proceedToPayment() {
   const house    = document.getElementById('addrHouse').value.trim();
   const phone    = document.getElementById('addrPhone').value.trim();
   if(!district) { showToast('Tumanni tanlang','⚠️','var(--orange)'); return; }
-  
-  const deliveryType = document.getElementById('addrDeliveryType').value;
-  const isCourier = deliveryType.includes('Kuryer');
-  
-  if (isCourier) {
-    if (!house || house === "BTS Express") { showToast('Iltimos, uy/ofis manzilini yozing','⚠️','var(--orange)'); return; }
-  } else {
-    if (!street) { showToast('BTS topshirish punktini tanlang','⚠️','var(--orange)'); return; }
-  }
+  if(!street)   { showToast('BTS topshirish punktini tanlang','⚠️','var(--orange)'); return; }
   
   const phoneRegex = /^\+998\s\(\d{2}\)\s\d{3}-\d{2}-\d{2}$/;
   if(!phone) { showToast('Telefon raqamini kiriting','⚠️','var(--orange)'); return; }
@@ -2833,11 +2803,6 @@ function goHomeAfterOrder() {
   document.getElementById('addrPhone').value = '';
   document.getElementById('addrDistrictLabel').textContent = 'Avval viloyatni tanlang';
   document.getElementById('addrBtsLabel').textContent = 'Avval tumanni tanlang';
-  document.getElementById('addrDeliveryType').value = 'BTS filialidan olib ketish (Tekin)';
-  document.getElementById('addrDeliveryTypeLabel').textContent = 'BTS filialidan olib ketish (Tekin)';
-  document.getElementById('addrBtsGroup').style.display = 'block';
-  document.getElementById('addrHomeAddressGroup').style.display = 'none';
-  document.getElementById('addrCustomAddressInput').value = '';
   showTab('home');
 }
 
@@ -3631,19 +3596,26 @@ function onTumanChange(tuman) {
   const btsDropdown = document.getElementById('addrBtsDropdown');
   const btsLabel = document.getElementById('addrBtsLabel');
   const btsHidden = document.getElementById('addrStreet');
-  
-  btsLabel.textContent = "BTS punktini tanlang";
   btsHidden.value = "";
   btsDropdown.innerHTML = "";
-  
   const viloyat = document.getElementById('addrCity').value;
   const regionData = UZ_REGIONS_DATA[viloyat];
   
   let btsPoints = [];
   if (regionData && regionData.bts && regionData.bts[tuman]) {
     btsPoints = [...regionData.bts[tuman]];
+    btsLabel.textContent = "BTS topshirish punktini tanlang";
   } else {
-    btsPoints = [`BTS ${tuman.replace(' tumani', '').replace(' shahri', '')} Express filiali`];
+    if (regionData && regionData.bts) {
+      Object.keys(regionData.bts).forEach(t => {
+        btsPoints.push(...regionData.bts[t]);
+      });
+    }
+    btsLabel.textContent = "Yaqinroq BTS filialini tanlang (Tumanda yo'q)";
+  }
+  
+  if (btsPoints.length === 0) {
+    btsPoints = [`BTS ${viloyat} bosh shoxobchasi`];
   }
   
   btsDropdown.innerHTML = btsPoints.map(point => 
