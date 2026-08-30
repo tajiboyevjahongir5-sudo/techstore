@@ -531,10 +531,7 @@ body{
 .bts-point-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.3;flex:1}
 .bts-point-details{display:flex;flex-direction:column;gap:6px;padding-left:46px}
 .bts-point-detail{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);line-height:1.4}
-.bts-point-detail i{font-size:14px;flex-shrink:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px}
-.bts-point-detail .pin-icon{color:#f472b6;background:rgba(244,114,182,0.12)}
-.bts-point-detail .clock-icon{color:#fbbf24;background:rgba(251,191,36,0.12)}
-.bts-point-detail .phone-icon{color:#34d399;background:rgba(52,211,153,0.12)}
+.bts-point-detail .detail-emoji{font-size:14px;flex-shrink:0;width:20px;text-align:center}
 .bts-point-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);border-radius:20px;padding:3px 10px;font-size:10px;color:#34d399;font-weight:700;letter-spacing:0.3px;flex-shrink:0}
 .bts-point-badge .pulse-dot{width:6px;height:6px;border-radius:50%;background:#34d399;animation:btsPulse 2s ease-in-out infinite}
 @keyframes btsPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
@@ -4438,9 +4435,9 @@ function onTumanChange(tuman) {
         <div class="bts-point-badge"><span class="pulse-dot"></span> Ochiq</div>
       </div>
       <div class="bts-point-details">
-        ${addr ? `<div class="bts-point-detail"><i class="ti ti-map-pin pin-icon"></i>${addr}</div>` : ''}
-        <div class="bts-point-detail"><i class="ti ti-clock clock-icon"></i>Du-Shan: 09:00–18:00 · Tushlik: 13:00–14:00</div>
-        <div class="bts-point-detail"><i class="ti ti-phone phone-icon"></i>Qo'ng'iroq: 1230 (bepul)</div>
+        ${addr ? `<div class="bts-point-detail"><span class="detail-emoji">📍</span>${addr}</div>` : ''}
+        <div class="bts-point-detail"><span class="detail-emoji">🕐</span>Du-Shan: 09:00–18:00 · Tushlik: 13:00–14:00</div>
+        <div class="bts-point-detail"><span class="detail-emoji">📞</span>Qo'ng'iroq: 1230 (bepul)</div>
       </div>
     </div>`;
   }).join('');
