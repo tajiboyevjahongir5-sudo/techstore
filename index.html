@@ -205,7 +205,7 @@ body{
   display:none;grid-template-columns:50px 1fr;gap:10px;
   z-index:90;
 }
-#detail.active ~ * .detail-actions-fixed,
+#detail.active ~ .detail-actions-fixed,
 .detail-actions-fixed.visible{display:grid}
 .detail-fav-btn{height:50px;border-radius:16px;background:var(--glass);border:1px solid var(--glass-border);color:var(--text2);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
 .detail-fav-btn.active{color:var(--red);border-color:rgba(248,113,113,0.4);background:rgba(248,113,113,0.1)}
@@ -585,11 +585,9 @@ body{
 @keyframes screenFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(16px);
   }
   100% {
     opacity: 1;
-    transform: none;
   }
 }
 .screen.active {
@@ -828,11 +826,12 @@ body{
         <div class="detail-specs" id="detailSpecs"></div>
       </div>
     </div>
-    <!-- ACTIONS: fixed pastdan, tab-nav ustida -->
-    <div class="detail-actions-fixed" id="detailActionsFixed">
-      <div class="detail-fav-btn" id="detailFavBtn" onclick="toggleFavDetail()"><i class="ti ti-heart"></i></div>
-      <button class="detail-add-btn" onclick="addToCartFromDetail()"><i class="ti ti-shopping-cart" style="font-size:18px"></i> Savatga qo'shish</button>
-    </div>
+  </div>
+
+  <!-- ACTIONS: fixed pastdan, tab-nav ustida -->
+  <div class="detail-actions-fixed" id="detailActionsFixed">
+    <div class="detail-fav-btn" id="detailFavBtn" onclick="toggleFavDetail()"><i class="ti ti-heart"></i></div>
+    <button class="detail-add-btn" onclick="addToCartFromDetail()"><i class="ti ti-shopping-cart" style="font-size:18px"></i> Savatga qo'shish</button>
   </div>
 
   <!-- CART -->
