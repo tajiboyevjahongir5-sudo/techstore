@@ -980,10 +980,7 @@ body{
           <div><div class="copy-label">Karta raqami</div><div class="copy-value" id="payDisplayCardNum">9860 3501 4074 7741</div></div>
           <button class="copy-btn" id="copyCardBtn" onclick="copyCard()"><i class="ti ti-copy" style="font-size:14px"></i> Nusxa</button>
         </div>
-        <div class="copy-row">
-          <div><div class="copy-label">Karta egasi</div><div class="copy-value" id="payDisplayCardOwner" style="font-size:13px;letter-spacing:0">Tojiboyev Jahongir</div></div>
-          <button class="copy-btn" onclick="copyName()"><i class="ti ti-copy" style="font-size:14px"></i> Nusxa</button>
-        </div>
+
         <div class="amount-row">
           <div class="amount-label">To'lov summasi</div>
           <div class="amount-val" id="paymentAmountDisplay">0 so'm</div>
@@ -2695,10 +2692,6 @@ function copyCard() {
   setTimeout(()=>{btn.classList.remove('copy-success');btn.innerHTML='<i class="ti ti-copy" style="font-size:14px"></i> Nusxa'},2000);
 }
 
-function copyName() {
-  navigator.clipboard?.writeText(CARD_OWNER).catch(()=>{});
-  showToast('Nusxalandi','✓','var(--green)');
-}
 
 let currentChekBase64 = null;
 
