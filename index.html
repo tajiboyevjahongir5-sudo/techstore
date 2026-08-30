@@ -914,6 +914,10 @@ body{
           </div>
           <input type="hidden" id="addrStreet" value="">
           <input type="hidden" id="addrHouse" value="BTS Express">
+          <div class="form-group" id="addrCustomBtsGroup" style="display:none;margin-top:10px;margin-bottom:0">
+            <label class="form-label" style="font-size:11px;color:var(--text2)">Yangi yoki ro'yxatda bo'lmagan BTS filiali nomini yozing</label>
+            <input class="form-input" placeholder="masalan: BTS Vobkent-2 filiali" id="addrCustomBtsInput">
+          </div>
         </div>
 
         <!-- 4. Telefon -->
@@ -2543,6 +2547,11 @@ async function proceedToPayment() {
   const house    = document.getElementById('addrHouse').value.trim();
   const phone    = document.getElementById('addrPhone').value.trim();
   if(!district) { showToast('Tumanni tanlang','⚠️','var(--orange)'); return; }
+  const btsSelVal = document.getElementById('addrBtsLabel').textContent.trim();
+  if (btsSelVal === "Ro'yxatdan topolmadim (Qo'lda yozish)" && !street) {
+    showToast('Iltimos, BTS filiali nomini yozing','⚠️','var(--orange)');
+    return;
+  }
   if(!street)   { showToast('BTS topshirish punktini tanlang','⚠️','var(--orange)'); return; }
   
   const phoneRegex = /^\+998\s\(\d{2}\)\s\d{3}-\d{2}-\d{2}$/;
@@ -2803,6 +2812,8 @@ function goHomeAfterOrder() {
   document.getElementById('addrPhone').value = '';
   document.getElementById('addrDistrictLabel').textContent = 'Avval viloyatni tanlang';
   document.getElementById('addrBtsLabel').textContent = 'Avval tumanni tanlang';
+  document.getElementById('addrCustomBtsGroup').style.display = 'none';
+  document.getElementById('addrCustomBtsInput').value = '';
   showTab('home');
 }
 
@@ -3617,6 +3628,7 @@ function onTumanChange(tuman) {
   if (btsPoints.length === 0) {
     btsPoints = [`BTS ${viloyat} bosh shoxobchasi`];
   }
+  btsPoints.push("Ro'yxatdan topolmadim (Qo'lda yozish)");
   
   btsDropdown.innerHTML = btsPoints.map(point => 
     `<div class="custom-select-option" onclick="selectCatOption('addrBtsSelect','${point}')">${point}</div>`
@@ -3649,30 +3661,22 @@ function selectCatOption(selectId, value) {
     onViloyatChange(value);
   } else if (selectId === 'addrDistrictSelect') {
     onTumanChange(value);
-  } else if (selectId === 'addrDeliveryTypeSelect') {
-    const btsGroup = document.getElementById('addrBtsGroup');
-    const homeGroup = document.getElementById('addrHomeAddressGroup');
-    const customAddrInput = document.getElementById('addrCustomAddressInput');
-    const hStreet = document.getElementById('addrStreet');
-    const hHouse = document.getElementById('addrHouse');
-    if (value.includes('Kuryer')) {
-      btsGroup.style.display = 'none';
-      homeGroup.style.display = 'block';
-      hStreet.value = 'Kuryer orqali yetkazib berish';
-      hHouse.value = customAddrInput.value.trim();
-      customAddrInput.oninput = () => {
-        hHouse.value = customAddrInput.value.trim();
+  } else if (selectId === 'addrBtsSelect') {
+    const customGroup = document.getElementById('addrCustomBtsGroup');
+    const customInput = document.getElementById('addrCustomBtsInput');
+    if (value === "Ro'yxatdan topolmadim (Qo'lda yozish)") {
+      customGroup.style.display = 'block';
+      customInput.value = '';
+      customInput.focus();
+      customInput.oninput = () => {
+        const h = document.getElementById('addrStreet');
+        if(h) h.value = customInput.value.trim();
       };
-      customAddrInput.focus();
+      if(hidden) hidden.value = '';
     } else {
-      btsGroup.style.display = 'block';
-      homeGroup.style.display = 'none';
-      hHouse.value = 'BTS Express';
-      hStreet.value = '';
-      customAddrInput.oninput = null;
-      document.getElementById('addrBtsLabel').textContent = 'Avval tumanni tanlang';
-      const curDist = document.getElementById('addrDistrict').value;
-      if (curDist) onTumanChange(curDist);
+      customGroup.style.display = 'none';
+      customInput.value = '';
+      customInput.oninput = null;
     }
   }
 }
