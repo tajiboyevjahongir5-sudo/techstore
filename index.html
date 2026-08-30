@@ -256,16 +256,18 @@ body{
 .pay-wrap{padding:20px;display:flex;flex-direction:column;gap:14px;padding-bottom:100px}
 .pay-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:22px;padding:20px;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
 .pay-card-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;font-weight:600}
-.card-visual{background:linear-gradient(135deg,rgba(26,26,62,0.95),rgba(42,26,94,0.9),rgba(26,42,94,0.9));border:1px solid rgba(107,127,255,0.3);border-radius:18px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden;backdrop-filter:blur(20px)}
-.card-visual::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(107,127,255,0.2)}
-.card-visual::after{content:'';position:absolute;bottom:-20px;left:20px;width:80px;height:80px;border-radius:50%;background:rgba(167,139,250,0.15)}
-.card-chip{width:36px;height:28px;background:linear-gradient(135deg,#d4a847,#f0c060);border-radius:6px;margin-bottom:14px;position:relative;z-index:1}
-.card-number{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:700;letter-spacing:3px;color:#fff;margin-bottom:14px;position:relative;z-index:1;display:flex;gap:14px}
-.card-number span{opacity:0.5}
-.card-bottom{display:flex;justify-content:space-between;align-items:flex-end;position:relative;z-index:1}
-.card-owner{font-size:13px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:1px}
-.card-bank{font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px}
-.visa-logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#fff;font-style:italic}
+.card-visual{background:linear-gradient(135deg,#14142b 0%,#221440 50%,#151e3f 100%);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;margin-bottom:20px;position:relative;overflow:hidden;box-shadow:0 15px 35px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);display:flex;flex-direction:column;justify-content:space-between}
+.card-visual::before{content:'';position:absolute;top:-50px;right:-50px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(147,51,234,0.3) 0%,rgba(147,51,234,0) 70%);filter:blur(10px)}
+.card-visual::after{content:'';position:absolute;bottom:-40px;left:-40px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,0.2) 0%,rgba(59,130,246,0) 70%);filter:blur(10px)}
+.card-chip{width:42px;height:32px;background:linear-gradient(135deg,#e5c158,#b88a1b);border-radius:8px;position:relative;z-index:1;box-shadow:inset 0 1px 0 rgba(255,255,255,0.3),0 2px 4px rgba(0,0,0,0.2)}
+.card-chip::after{content:'';position:absolute;top:4px;left:4px;right:4px;bottom:4px;border:1px solid rgba(0,0,0,0.15);border-radius:4px}
+.card-number{font-family:'SF Mono',Menlo,Monaco,Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:2px;color:#fff;margin-top:15px;margin-bottom:15px;position:relative;z-index:1;display:flex;justify-content:space-between;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
+.card-number span{color:#fff;opacity:0.95}
+.card-bottom{display:flex;justify-content:space-between;align-items:flex-end;position:relative;z-index:1;margin-top:10px}
+.card-owner{font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;font-weight:600;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:1.5px;text-shadow:0 1px 2px rgba(0,0,0,0.2)}
+.card-bank{font-size:9px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;font-weight:600}
+.visa-logo{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:22px;font-weight:900;color:#fff;font-style:italic;letter-spacing:0.5px;text-shadow:0 1px 3px rgba(0,0,0,0.3)}
+@keyframes borderPulse{0%{border-color:rgba(239,68,68,0.4);box-shadow:0 4px 15px rgba(239,68,68,0.05)}100%{border-color:rgba(239,68,68,1);box-shadow:0 4px 25px rgba(239,68,68,0.25)}}
 .copy-row{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;padding:12px 14px;margin-bottom:8px}
 .copy-label{font-size:11px;color:var(--text2);margin-bottom:3px}
 .copy-value{font-size:15px;font-weight:700;letter-spacing:1px}
@@ -986,29 +988,22 @@ body{
           <div class="amount-label">To'lov summasi</div>
           <div class="amount-val" id="paymentAmountDisplay">0 so'm</div>
         </div>
-        <!-- NOYOB SUMMA — BOT UCHUN -->
-        <div id="uniqueAmountBox" style="margin-top:10px;background:linear-gradient(135deg,rgba(107,127,255,0.15),rgba(167,139,250,0.1));border:2px solid rgba(107,127,255,0.45);border-radius:16px;padding:14px">
-          <div style="font-size:10px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;font-weight:700">⚡ AYNAN SHU SUMMANI TO'LANG</div>
-          <div id="uniqueAmountVal" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">—</div>
-          <div style="font-size:10px;color:rgba(52,211,153,0.9);margin-top:5px;font-weight:600">🤖 Bot to'lovni avtomatik tekshiradi</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:3px">⚠️ 1 so'm ham farq bo'lsa bot tanimaydi!</div>
+        <!-- TO'LOV SUMMASI ESLATMASI -->
+        <div id="uniqueAmountBox" style="margin-top:15px;background:rgba(239,68,68,0.08);border:2px dashed #ef4444;border-radius:18px;padding:16px;box-shadow:0 4px 20px rgba(239,68,68,0.15);animation:borderPulse 2s infinite alternate">
+          <div style="font-size:11px;color:#f87171;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-weight:800;display:flex;align-items:center;gap:6px">
+            <span style="font-size:14px">⚠️</span> DIQQAT! AYNAN SHU SUMMANI O'TKAZING
+          </div>
+          <div id="uniqueAmountVal" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;font-weight:900;color:#ef4444;text-shadow:0 0 10px rgba(239,68,68,0.2)">—</div>
+          <div style="font-size:12px;color:var(--text);font-weight:700;margin-top:8px;line-height:1.4">
+            To'lovingiz avtomatik tarzda 1 soniyada tasdiqlanishi uchun kartaga aynan yuqoridagi summani o'tkazishingiz kerak.
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.4">
+            ⚠️ <span style="color:#ef4444;font-weight:700">1 so'm ham farq qilsa</span> yoki summani yaxlitlab yuborsangiz, bot to'lovingizni avtomat tekshira olmaydi va buyurtma bekor qilinadi.
+          </div>
         </div>
       </div>
-      <div class="pay-card">
-        <div class="pay-card-title">Chek yuborish</div>
-        <div class="upload-area" id="uploadArea" onclick="document.getElementById('chekInput').click()">
-          <div class="upload-icon"><i class="ti ti-photo-up" style="font-size:36px"></i></div>
-          <div class="upload-title">Chekni yuklang</div>
-          <div class="upload-sub">To'lov cheki rasmini tanlang<br>JPG, PNG, PDF qabul qilinadi</div>
-          <img id="previewImg" class="preview-img" style="display:none">
-        </div>
-        <input type="file" id="chekInput" class="upload-input" accept="image/*" onchange="previewChek(this)">
-        <div style="margin-top:10px;padding:10px 14px;background:rgba(107,127,255,0.07);border-radius:14px;border:1px solid rgba(107,127,255,0.15)">
-          <div style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px"><i class="ti ti-info-circle" style="font-size:14px;color:var(--accent)"></i> Chek adminga avtomatik yuboriladi va buyurtmangiz tasdiqlanadi</div>
-        </div>
-      </div>
-      <button class="send-pay-btn" id="sendPayBtn" onclick="sendPayment()" disabled>
-        <i class="ti ti-send" style="font-size:18px"></i> Chekni yuborish
+      <button class="send-pay-btn" id="sendPayBtn" onclick="sendPayment()">
+        <i class="ti ti-circle-check" style="font-size:18px"></i> To'lovni qildim, buyurtmani tasdiqlash
       </button>
     </div>
   </div>
@@ -1292,7 +1287,7 @@ body{
         </div>
         <!-- Chek image -->
         <div class="chek-img-wrap" id="chekImgWrap">
-          <div style="text-align:center;color:var(--text2)" id="chekImgPlaceholder"><i class="ti ti-photo" style="font-size:48px;color:var(--text3)"></i><div style="font-size:12px;margin-top:8px">Foydalanuvchi yuborgan chek</div></div>
+          <div style="text-align:center;color:var(--text2)" id="chekImgPlaceholder"><i class="ti ti-photo-off" style="font-size:48px;color:var(--text3)"></i><div style="font-size:12px;margin-top:8px">To'lov chekisiz buyurtma (Avtomatik tekshiruv)</div></div>
           <img id="chekActualImg" style="max-width:100%;max-height:200px;object-fit:contain;display:none">
         </div>
         <div class="chek-info" id="chekInfo"></div>
@@ -2706,23 +2701,6 @@ function copyName() {
 
 let currentChekBase64 = null;
 
-function previewChek(input) {
-  const file = input.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('previewImg');
-    img.src = e.target.result; img.style.display='block';
-    currentChekBase64 = e.target.result;
-    const area = document.getElementById('uploadArea');
-    area.classList.add('has-file');
-    area.querySelector('.upload-title').textContent = 'Chek yuklandi';
-    area.querySelector('.upload-sub').textContent = file.name;
-    document.getElementById('sendPayBtn').disabled = false;
-  };
-  reader.readAsDataURL(file);
-}
-
 async function sendPayment() {
   const btn = document.getElementById('sendPayBtn');
   btn.innerHTML = '<i class="ti ti-loader" style="font-size:18px"></i> Yuborilmoqda...';
@@ -2812,16 +2790,7 @@ function goHomeAfterOrder() {
   updateCartBadge();
   currentChekBase64 = null;
   
-  // Reset chek input fields
-  document.getElementById('chekInput').value = '';
-  document.getElementById('previewImg').src = '';
-  document.getElementById('previewImg').style.display = 'none';
-  const area = document.getElementById('uploadArea');
-  area.classList.remove('has-file');
-  area.querySelector('.upload-title').textContent = 'Chekni yuklang';
-  area.querySelector('.upload-sub').textContent = 'To\'lov cheki rasmini tanlang\nJPG, PNG, PDF qabul qilinadi';
-
-  document.getElementById('sendPayBtn').disabled = true;
+  // Reset fields
   document.getElementById('addrDistrict').value = '';
   document.getElementById('addrStreet').value = '';
   document.getElementById('addrHouse').value = 'BTS Express';
