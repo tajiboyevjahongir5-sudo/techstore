@@ -578,6 +578,170 @@ body{
     opacity: 0;
   }
 }
+
+/* ===== NEW BEAUTIFUL MICRO-ANIMATIONS ===== */
+
+/* 1. Screen transition slide & fade */
+@keyframes screenFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.screen.active {
+  animation: screenFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 2. Product Grid Staggered Item Slide */
+@keyframes cardSlideUpIn {
+  0% {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 3. Product Card Hover Lift and Zoom */
+.prod-card {
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.3s ease !important;
+}
+.prod-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  border-color: rgba(107, 127, 255, 0.45) !important;
+}
+.prod-card:hover .prod-img img {
+  transform: scale(1.06);
+}
+.prod-img img {
+  transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+/* 4. Cart Item Removal Sliding Shrink */
+.cart-item {
+  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  max-height: 150px;
+  overflow: hidden;
+}
+.cart-item.removing {
+  opacity: 0 !important;
+  transform: translateX(-100px) !important;
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border: none !important;
+}
+
+/* 5. Modal sheets spring slide-up animations */
+@keyframes modalFadeIn {
+  0% {
+    background: rgba(0,0,0,0);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  100% {
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+@keyframes sheetSlideUp {
+  0% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.modal-overlay.open {
+  display: flex;
+  animation: modalFadeIn 0.3s ease forwards;
+}
+.modal-overlay.open .modal-sheet {
+  animation: sheetSlideUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
+}
+.chek-modal-overlay.open {
+  display: flex;
+  animation: modalFadeIn 0.3s ease forwards;
+}
+.chek-modal-overlay.open .chek-sheet {
+  animation: sheetSlideUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
+}
+.confirm-overlay.open {
+  display: flex;
+  animation: modalFadeIn 0.3s ease forwards;
+}
+@keyframes boxPopIn {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.confirm-overlay.open .confirm-box {
+  animation: boxPopIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards;
+}
+.edit-modal-overlay.open {
+  display: flex;
+  animation: modalFadeIn 0.3s ease forwards;
+}
+.edit-modal-overlay.open .modal-sheet {
+  animation: sheetSlideUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
+}
+
+/* 6. Animated checkmark for success screen */
+.checkmark__circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  stroke: var(--green);
+  fill: none;
+  animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+.checkmark {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 2.5;
+  stroke: var(--green);
+  stroke-miterlimit: 10;
+  margin: 0 auto;
+  box-shadow: inset 0px 0px 0px var(--green);
+  animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s forwards;
+}
+.checkmark__check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+@keyframes fill {
+  100% {
+    box-shadow: inset 0px 0px 0px 30px rgba(34, 216, 126, 0.15);
+  }
+}
+
+/* 7. Bottom navigation active tab bounce */
+.tab-btn i {
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s ease !important;
+}
+.tab-btn.active i {
+  transform: scale(1.25) translateY(-2px) !important;
+}
 </style>
 
 <!-- TechStore -->
@@ -815,7 +979,12 @@ body{
   <!-- SUCCESS -->
   <div id="success" class="screen">
     <div class="success-wrap">
-      <div class="success-icon"><i class="ti ti-check" style="font-size:40px;color:var(--green)"></i></div>
+      <div class="success-icon">
+        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
       <div class="success-title">Buyurtma qabul qilindi!</div>
       <div class="success-sub">Bot to'lovingizni avtomatik ravishda tekshirmoqda. To'lov tasdiqlangandan so'ng sizga Telegram orqali xabar boradi.</div>
       <div class="success-order" id="successOrderCard"></div>
@@ -1868,13 +2037,16 @@ function renderProducts(list) {
     return;
   }
   document.getElementById('noResultsMsg').style.display='none';
-  list.forEach(p => {
+  list.forEach((p, idx) => {
     const isFav = favorites.has(p.id);
     const priceStr = formatPrice(p.price);
     const oldPrice = p.discount > 0 ? Math.round(p.price / (1 - p.discount/100)) : null;
     const oldPriceStr = oldPrice ? formatPrice(oldPrice) : null;
     const card = document.createElement('div');
     card.className = 'prod-card';
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(24px)';
+    card.style.animation = `cardSlideUpIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) ${idx * 0.04}s forwards`;
     card.dataset.id = p.id;
     card.dataset.cat = p.cat;
     card.innerHTML = `
@@ -2303,8 +2475,9 @@ function chQty(id, delta) {
   if(!item) return;
   item.qty += delta;
   if(item.qty < 1) {
-    cart = cart.filter(c=>c.id!==id);
+    removeFromCart(id);
     showToast('Savatdan olib tashlandi','🗑️','var(--red)');
+    return;
   }
   saveData();
   renderCart();
@@ -2312,10 +2485,21 @@ function chQty(id, delta) {
 }
 
 function removeFromCart(id) {
-  cart = cart.filter(c=>c.id!==id);
-  saveData();
-  renderCart();
-  updateCartBadge();
+  const row = document.querySelector(`.cart-item[data-id="${id}"]`);
+  if (row) {
+    row.classList.add('removing');
+    setTimeout(() => {
+      cart = cart.filter(c=>c.id!==id);
+      saveData();
+      renderCart();
+      updateCartBadge();
+    }, 350);
+  } else {
+    cart = cart.filter(c=>c.id!==id);
+    saveData();
+    renderCart();
+    updateCartBadge();
+  }
 }
 
 // ===== ADDRESS & PAYMENT =====
