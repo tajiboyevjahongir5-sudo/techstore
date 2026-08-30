@@ -914,6 +914,10 @@ body{
           </div>
           <input type="hidden" id="addrStreet" value="">
           <input type="hidden" id="addrHouse" value="BTS Express">
+          <div class="form-group" id="addrCustomBtsGroup" style="display:none;margin-top:10px;margin-bottom:0">
+            <label class="form-label" style="font-size:11px;color:var(--text2)">Taqdim etiladigan manzil yoki yaqin filial nomi</label>
+            <input class="form-input" placeholder="masalan: G'ijduvon markaziy filiali yoki shaxsiy manzil yozing" id="addrCustomBtsInput">
+          </div>
         </div>
 
         <!-- 4. Telefon -->
@@ -2543,6 +2547,11 @@ async function proceedToPayment() {
   const house    = document.getElementById('addrHouse').value.trim();
   const phone    = document.getElementById('addrPhone').value.trim();
   if(!district) { showToast('Tumanni tanlang','⚠️','var(--orange)'); return; }
+  const btsSelVal = document.getElementById('addrBtsLabel').textContent.trim();
+  if (btsSelVal === "Ro'yxatdan topolmadim (Qo'lda kiritish)" && !street) {
+    showToast('Iltimos, topshirish punktini yozing','⚠️','var(--orange)');
+    return;
+  }
   if(!street)   { showToast('BTS topshirish punktini tanlang','⚠️','var(--orange)'); return; }
   
   const phoneRegex = /^\+998\s\(\d{2}\)\s\d{3}-\d{2}-\d{2}$/;
@@ -2803,6 +2812,8 @@ function goHomeAfterOrder() {
   document.getElementById('addrPhone').value = '';
   document.getElementById('addrDistrictLabel').textContent = 'Avval viloyatni tanlang';
   document.getElementById('addrBtsLabel').textContent = 'Avval tumanni tanlang';
+  document.getElementById('addrCustomBtsGroup').style.display = 'none';
+  document.getElementById('addrCustomBtsInput').value = '';
   showTab('home');
 }
 
@@ -3606,10 +3617,11 @@ function onTumanChange(tuman) {
   
   let btsPoints = [];
   if (regionData && regionData.bts && regionData.bts[tuman]) {
-    btsPoints = regionData.bts[tuman];
+    btsPoints = [...regionData.bts[tuman]];
   } else {
     btsPoints = [`BTS ${tuman.replace(' tumani', '').replace(' shahri', '')} Express filiali`];
   }
+  btsPoints.push("Ro'yxatdan topolmadim (Qo'lda kiritish)");
   
   btsDropdown.innerHTML = btsPoints.map(point => 
     `<div class="custom-select-option" onclick="selectCatOption('addrBtsSelect','${point}')">${point}</div>`
@@ -3641,6 +3653,23 @@ function selectCatOption(selectId, value) {
     onViloyatChange(value);
   } else if (selectId === 'addrDistrictSelect') {
     onTumanChange(value);
+  } else if (selectId === 'addrBtsSelect') {
+    const customGroup = document.getElementById('addrCustomBtsGroup');
+    const customInput = document.getElementById('addrCustomBtsInput');
+    if (value === "Ro'yxatdan topolmadim (Qo'lda kiritish)") {
+      customGroup.style.display = 'block';
+      customInput.value = '';
+      customInput.focus();
+      customInput.oninput = () => {
+        const h = document.getElementById('addrStreet');
+        if(h) h.value = customInput.value.trim();
+      };
+      if(hidden) hidden.value = '';
+    } else {
+      customGroup.style.display = 'none';
+      customInput.value = '';
+      customInput.oninput = null;
+    }
   }
 }
 
