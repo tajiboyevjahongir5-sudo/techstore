@@ -888,24 +888,37 @@ body{
         <!-- 2. Tuman -->
         <div class="form-group">
           <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">2</span> — Tuman</label>
-          <input class="form-input" placeholder="masalan: Yunusobod tumani" id="addrDistrict">
+          <div class="custom-select" id="addrDistrictSelect">
+            <div class="custom-select-trigger" onclick="toggleCustomSelect('addrDistrictSelect')">
+              <span id="addrDistrictLabel">Avval viloyatni tanlang</span>
+              <i class="ti ti-chevron-down"></i>
+            </div>
+            <div class="custom-select-dropdown" id="addrDistrictDropdown">
+              <!-- Dinamik to'ldiriladi -->
+            </div>
+          </div>
+          <input type="hidden" id="addrDistrict" value="">
         </div>
 
-        <!-- 3. Qishloq / MFY -->
+        <!-- 3. BTS topshirish punkti -->
         <div class="form-group">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">3</span> — Qishloq / MFY / Ko'cha</label>
-          <input class="form-input" placeholder="masalan: Bog'ishamol MFY" id="addrStreet">
+          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">3</span> — BTS topshirish punkti</label>
+          <div class="custom-select" id="addrBtsSelect">
+            <div class="custom-select-trigger" onclick="toggleCustomSelect('addrBtsSelect')">
+              <span id="addrBtsLabel">Avval tumanni tanlang</span>
+              <i class="ti ti-chevron-down"></i>
+            </div>
+            <div class="custom-select-dropdown" id="addrBtsDropdown">
+              <!-- Dinamik to'ldiriladi -->
+            </div>
+          </div>
+          <input type="hidden" id="addrStreet" value="">
+          <input type="hidden" id="addrHouse" value="BTS Express">
         </div>
 
-        <!-- 4. Uy manzili -->
-        <div class="form-group">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">4</span> — Uy manzili</label>
-          <input class="form-input" placeholder="masalan: 12-uy, 5-xonadon" id="addrHouse">
-        </div>
-
-        <!-- 5. Telefon -->
+        <!-- 4. Telefon -->
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">5</span> — Telefon raqami</label>
+          <label class="form-label"><span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700">4</span> — Telefon raqami</label>
           <input class="form-input" placeholder="+998 90 123 45 67" id="addrPhone" type="tel">
         </div>
       </div>
@@ -1967,6 +1980,10 @@ async function sendBotMessage(chatId, text) {
 // ===== DATA =====
 
 function showTab(id) {
+  if (id === 'address') {
+    const curCity = document.getElementById('addrCity').value || 'Toshkent shahri';
+    onViloyatChange(curCity);
+  }
   tabs.forEach(t => {
     const el = document.getElementById(t);
     if(el) el.classList.toggle('active', t===id);
@@ -2525,9 +2542,8 @@ async function proceedToPayment() {
   const street   = document.getElementById('addrStreet').value.trim();
   const house    = document.getElementById('addrHouse').value.trim();
   const phone    = document.getElementById('addrPhone').value.trim();
-  if(!district) { showToast('Tumanni kiriting','⚠️','var(--orange)'); return; }
-  if(!street)   { showToast('Qishloq / MFY / Ko\'chani kiriting','⚠️','var(--orange)'); return; }
-  if(!house)    { showToast('Uy manzilini kiriting','⚠️','var(--orange)'); return; }
+  if(!district) { showToast('Tumanni tanlang','⚠️','var(--orange)'); return; }
+  if(!street)   { showToast('BTS topshirish punktini tanlang','⚠️','var(--orange)'); return; }
   
   const phoneRegex = /^\+998\s\(\d{2}\)\s\d{3}-\d{2}-\d{2}$/;
   if(!phone) { showToast('Telefon raqamini kiriting','⚠️','var(--orange)'); return; }
@@ -2783,8 +2799,10 @@ function goHomeAfterOrder() {
   document.getElementById('sendPayBtn').disabled = true;
   document.getElementById('addrDistrict').value = '';
   document.getElementById('addrStreet').value = '';
-  document.getElementById('addrHouse').value = '';
+  document.getElementById('addrHouse').value = 'BTS Express';
   document.getElementById('addrPhone').value = '';
+  document.getElementById('addrDistrictLabel').textContent = 'Avval viloyatni tanlang';
+  document.getElementById('addrBtsLabel').textContent = 'Avval tumanni tanlang';
   showTab('home');
 }
 
@@ -3389,21 +3407,241 @@ function toggleCustomSelect(selectId) {
   }
 }
 
+const UZ_REGIONS_DATA = {
+  "Toshkent shahri": {
+    districts: [
+      "Yunusobod tumani", "Chilonzor tumani", "Mirzo Ulug'bek tumani", 
+      "Uchtepa tumani", "Yashnobod tumani", "Mirobod tumani", 
+      "Yakkasaroy tumani", "Olmazor tumani", "Shayxontohur tumani", 
+      "Sergeli tumani", "Yangihayot tumani", "Bektemir tumani"
+    ],
+    bts: {
+      "Yunusobod tumani": ["BTS Yunusobod 1 (Mega Planet)", "BTS Yunusobod 2 (Bodomzor Metro)", "BTS Yunusobod 3 (Gvardeyskiy)"],
+      "Chilonzor tumani": ["BTS Chilonzor 1 (Integro)", "BTS Chilonzor 2 (Qatortol)", "BTS Chilonzor 3 (Novza)"],
+      "Mirzo Ulug'bek tumani": ["BTS Mirzo Ulug'bek 1 (Buyuk Ipak Yo'li)", "BTS Mirzo Ulug'bek 2 (Maksim Gorkiy)", "BTS TTZ filiali"],
+      "Uchtepa tumani": ["BTS Uchtepa 1 (Farhod bozori)", "BTS Uchtepa 2 (Lutfiy ko'chasi)"],
+      "Yashnobod tumani": ["BTS Yashnobod 1 (Qo'ylik Metro)", "BTS Yashnobod 2 (Tuzel)", "BTS Kadisheva filiali"],
+      "Mirobod tumani": ["BTS Mirobod 1 (Oybek Metro)", "BTS Mirobod 2 (Mirobod Bozori)", "BTS Toshkent Shimoliy Vokzal"],
+      "Yakkasaroy tumani": ["BTS Yakkasaroy 1 (Grand Mir Hotel)", "BTS Yakkasaroy 2 (Kosmonavtlar)"],
+      "Olmazor tumani": ["BTS Olmazor 1 (Qoraqamish)", "BTS Olmazor 2 (G'ofur G'ulom Metro)"],
+      "Shayxontohur tumani": ["BTS Shayxontohur 1 (Chorsu)", "BTS Shayxontohur 2 (Samarqand Darvoza)"],
+      "Sergeli tumani": ["BTS Sergeli 1 (Sergeli-7)", "BTS Sergeli 2 (Moshina Bozori)"],
+      "Yangihayot tumani": ["BTS Yangihayot 1 (Qipchoq ko'chasi)"],
+      "Bektemir tumani": ["BTS Bektemir 1 (Food City)"]
+    }
+  },
+  "Toshkent viloyati": {
+    districts: ["Zangiota tumani", "Qibray tumani", "Bo'stonliq tumani", "Chirchiq shahri", "Angren shahri", "Olmaliq shahri", "Yangiyo'l tumani"],
+    bts: {
+      "Zangiota tumani": ["BTS Zangiota (Eshonguzar)", "BTS Quyoshli bo'limi"],
+      "Qibray tumani": ["BTS Qibray markaz (Salor)"],
+      "Bo'stonliq tumani": ["BTS G'azalkent (Markaz)", "BTS Chorvoq punkt"],
+      "Chirchiq shahri": ["BTS Chirchiq Markaz (Alisher Navoiy)", "BTS Chirchiq 2-bo'lim"],
+      "Angren shahri": ["BTS Angren (Konchilar ko'chasi)"],
+      "Olmaliq shahri": ["BTS Olmaliq (Metallurglar ko'chasi)"],
+      "Yangiyo'l tumani": ["BTS Yangiyo'l (Markaziy Vokzal)"]
+    }
+  },
+  "Samarqand viloyati": {
+    districts: ["Samarqand shahri", "Pastdarg'om tumani", "Urgut tumani", "Bulung'ur tumani", "Jomboy tumani", "Kattaqo'rg'on tumani"],
+    bts: {
+      "Samarqand shahri": ["BTS Samarqand Markaz (Gagarin ko'chasi)", "BTS Samarqand Vokzal (Temiryo'l)", "BTS Samarqand Universitet"],
+      "Pastdarg'om tumani": ["BTS Juma shahri (Markaz)"],
+      "Urgut tumani": ["BTS Urgut Markaz (Bozor yaqinida)", "BTS Urgut Karvon"],
+      "Bulung'ur tumani": ["BTS Bulung'ur Markaz"],
+      "Jomboy tumani": ["BTS Jomboy Markaz"],
+      "Kattaqo'rg'on tumani": ["BTS Kattaqo'rg'on Markaz"]
+    }
+  },
+  "Buxoro viloyati": {
+    districts: ["Buxoro shahri", "G'ijduvon tumani", "Kogon tumani", "Qorako'l tumani", "Olot tumani", "Shofirkon tumani"],
+    bts: {
+      "Buxoro shahri": ["BTS Buxoro Markaz (Bahauddin Naqshband)", "BTS Buxoro Karvon", "BTS Buxoro Sharq"],
+      "G'ijduvon tumani": ["BTS G'ijduvon Markaz (Yusuf Hamadoniy)"],
+      "Kogon tumani": ["BTS Kogon Vokzal"],
+      "Qorako'l tumani": ["BTS Qorako'l (Markaz)"],
+      "Olot tumani": ["BTS Olot (Markaz)"],
+      "Shofirkon tumani": ["BTS Shofirkon (Markaz)"]
+    }
+  },
+  "Farg'ona viloyati": {
+    districts: ["Farg'ona shahri", "Qo'qon shahri", "Marg'ilon shahri", "Oltiariq tumani", "Rishton tumani", "Quva tumani"],
+    bts: {
+      "Farg'ona shahri": ["BTS Farg'ona Markaz (Al-Farg'oniy)", "BTS Farg'ona Kirgili", "BTS Farg'ona Yuksalish"],
+      "Qo'qon shahri": ["BTS Qo'qon Markaz (Turkiston)", "BTS Qo'qon G'ishtko'prik"],
+      "Marg'ilon shahri": ["BTS Marg'ilon Markaz (Mustaqillik ko'chasi)"],
+      "Oltiariq tumani": ["BTS Oltiariq (Markaz)"],
+      "Rishton tumani": ["BTS Rishton (Markaz)"],
+      "Quva tumani": ["BTS Quva (Markaz)"]
+    }
+  },
+  "Andijon viloyati": {
+    districts: ["Andijon shahri", "Asaka tumani", "Shahrixon tumani", "Xonobod tumani", "Marhamat tumani"],
+    bts: {
+      "Andijon shahri": ["BTS Andijon Markaz (Navoiy shoh)", "BTS Andijon Yangi Bozor", "BTS Andijon Eski Shahar"],
+      "Asaka tumani": ["BTS Asaka Markaz (GM O'zbekiston yaqinida)"],
+      "Shahrixon tumani": ["BTS Shahrixon (Markaz)"],
+      "Xonobod tumani": ["BTS Xonobod (Markaz)"],
+      "Marhamat tumani": ["BTS Marhamat (Markaz)"]
+    }
+  },
+  "Namangan viloyati": {
+    districts: ["Namangan shahri", "Chust tumani", "Pop tumani", "Uchqo'rg'on tumani", "Kosonsoy tumani"],
+    bts: {
+      "Namangan shahri": ["BTS Namangan Markaz (Marg'ilon ko'chasi)", "BTS Namangan Sardoba"],
+      "Chust tumani": ["BTS Chust (Markaz)"],
+      "Pop tumani": ["BTS Pop (Markaz)"],
+      "Uchqo'rg'on tumani": ["BTS Uchqo'rg'on (Markaz)"],
+      "Kosonsoy tumani": ["BTS Kosonsoy (Markaz)"]
+    }
+  },
+  "Qashqadaryo viloyati": {
+    districts: ["Qarshi shahri", "Shahrisabz tumani", "Kitob tumani", "Koson tumani", "Nishon tumani"],
+    bts: {
+      "Qarshi shahri": ["BTS Qarshi Markaz (Mustaqillik shoh ko'chasi)", "BTS Qarshi Vokzal"],
+      "Shahrisabz tumani": ["BTS Shahrisabz Markaz (Ipak Yo'li)"],
+      "Kitob tumani": ["BTS Kitob (Markaz)"],
+      "Koson tumani": ["BTS Koson (Markaz)"],
+      "Nishon tumani": ["BTS Nishon (Yangi Nishon Markaz)"]
+    }
+  },
+  "Surxondaryo viloyati": {
+    districts: ["Termiz shahri", "Denov tumani", "Sherobod tumani", "Jarqo'rg'on tumani", "Boysun tumani"],
+    bts: {
+      "Termiz shahri": ["BTS Termiz Markaz (At-Termiziy)", "BTS Termiz Limonariy"],
+      "Denov tumani": ["BTS Denov Markaz (Sharaf Rashidov)"],
+      "Sherobod tumani": ["BTS Sherobod (Markaz)"],
+      "Jarqo'rg'on tumani": ["BTS Jarqo'rg'on (Markaz)"],
+      "Boysun tumani": ["BTS Boysun (Markaz)"]
+    }
+  },
+  "Jizzax viloyati": {
+    districts: ["Jizzax shahri", "Sharof Rashidov tumani", "Zomin tumani", "G'allaorol tumani"],
+    bts: {
+      "Jizzax shahri": ["BTS Jizzax Markaz (Sharaf Rashidov shoh)", "BTS Jizzax Ko'k bozor"],
+      "Sharof Rashidov tumani": ["BTS Uchtepa (Jizzax tumani)"],
+      "Zomin tumani": ["BTS Zomin Markaz", "BTS Dashtobod bo'limi"],
+      "G'allaorol tumani": ["BTS G'allaorol (Markaz)"]
+    }
+  },
+  "Sirdaryo viloyati": {
+    districts: ["Guliston shahri", "Shirin shahri", "Yangiyer shahri", "Sardoba tumani"],
+    bts: {
+      "Guliston shahri": ["BTS Guliston Markaz (Mustaqillik ko'chasi)"],
+      "Shirin shahri": ["BTS Shirin (Markaz)"],
+      "Yangiyer shahri": ["BTS Yangiyer Markaz"],
+      "Sardoba tumani": ["BTS Sardoba (Markaz)"]
+    }
+  },
+  "Navoiy viloyati": {
+    districts: ["Navoiy shahri", "Zarafshon shahri", "Qiziltepa tumani", "Karmana tumani"],
+    bts: {
+      "Navoiy shahri": ["BTS Navoiy Markaz (Galaba ko'chasi)", "BTS Navoiy Janubiy"],
+      "Zarafshon shahri": ["BTS Zarafshon Markaz"],
+      "Qiziltepa tumani": ["BTS Qiziltepa (Markaz)"],
+      "Karmana tumani": ["BTS Karmana Markaz"]
+    }
+  },
+  "Xorazm viloyati": {
+    districts: ["Urganch shahri", "Xiva shahri", "Gurlan tumani", "Shovot tumani", "Xonqa tumani"],
+    bts: {
+      "Urganch shahri": ["BTS Urganch Markaz (Al-Xorazmiy)", "BTS Urganch Vokzal"],
+      "Xiva shahri": ["BTS Xiva Markaz (Jaloliddin Manguberdi)"],
+      "Gurlan tumani": ["BTS Gurlan Markaz"],
+      "Shovot tumani": ["BTS Shovot Markaz"],
+      "Xonqa tumani": ["BTS Xonqa Markaz"]
+    }
+  },
+  "Qoraqalpog'iston Respublikasi": {
+    districts: ["Nukus shahri", "Qo'ng'irot tumani", "To'rtko'l tumani", "Beruniy tumani", "Mo'ynoq tumani"],
+    bts: {
+      "Nukus shahri": ["BTS Nukus Markaz (Ernazar Alakuz)", "BTS Nukus Tursan"],
+      "Qo'ng'irot tumani": ["BTS Qo'ng'irot Markaz"],
+      "To'rtko'l tumani": ["BTS To'rtko'l Markaz"],
+      "Beruniy tumani": ["BTS Beruniy Markaz"],
+      "Mo'ynoq tumani": ["BTS Mo'ynoq Express bo'limi"]
+    }
+  }
+};
+
+function onViloyatChange(viloyat) {
+  const tumanSel = document.getElementById('addrDistrictSelect');
+  const tumanDropdown = document.getElementById('addrDistrictDropdown');
+  const tumanLabel = document.getElementById('addrDistrictLabel');
+  const tumanHidden = document.getElementById('addrDistrict');
+  
+  tumanLabel.textContent = "Tuman tanlang";
+  tumanHidden.value = "";
+  tumanDropdown.innerHTML = "";
+  
+  const btsSel = document.getElementById('addrBtsSelect');
+  const btsDropdown = document.getElementById('addrBtsDropdown');
+  const btsLabel = document.getElementById('addrBtsLabel');
+  const btsHidden = document.getElementById('addrStreet');
+  
+  btsLabel.textContent = "Avval tumanni tanlang";
+  btsHidden.value = "";
+  btsDropdown.innerHTML = "";
+  
+  const data = UZ_REGIONS_DATA[viloyat];
+  if (!data || !data.districts) return;
+  
+  tumanDropdown.innerHTML = data.districts.map(dist => 
+    `<div class="custom-select-option" onclick="selectCatOption('addrDistrictSelect','${dist}')">${dist}</div>`
+  ).join('');
+}
+
+function onTumanChange(tuman) {
+  const btsSel = document.getElementById('addrBtsSelect');
+  const btsDropdown = document.getElementById('addrBtsDropdown');
+  const btsLabel = document.getElementById('addrBtsLabel');
+  const btsHidden = document.getElementById('addrStreet');
+  
+  btsLabel.textContent = "BTS punktini tanlang";
+  btsHidden.value = "";
+  btsDropdown.innerHTML = "";
+  
+  const viloyat = document.getElementById('addrCity').value;
+  const regionData = UZ_REGIONS_DATA[viloyat];
+  
+  let btsPoints = [];
+  if (regionData && regionData.bts && regionData.bts[tuman]) {
+    btsPoints = regionData.bts[tuman];
+  } else {
+    btsPoints = [`BTS ${tuman.replace(' tumani', '').replace(' shahri', '')} Express filiali`];
+  }
+  
+  btsDropdown.innerHTML = btsPoints.map(point => 
+    `<div class="custom-select-option" onclick="selectCatOption('addrBtsSelect','${point}')">${point}</div>`
+  ).join('');
+}
+
 function selectCatOption(selectId, value) {
   const sel = document.getElementById(selectId);
   const label = sel.querySelector('[id$="Label"]') || sel.querySelector('.custom-select-trigger span');
   if(label) label.textContent = value;
-  // update hidden input
-  const hiddenId = selectId === 'prodCatSelect' ? 'prodCat' : 'addrCity';
+  
+  let hiddenId = '';
+  if (selectId === 'prodCatSelect') hiddenId = 'prodCat';
+  else if (selectId === 'addrCitySelect') hiddenId = 'addrCity';
+  else if (selectId === 'addrDistrictSelect') hiddenId = 'addrDistrict';
+  else if (selectId === 'addrBtsSelect') hiddenId = 'addrStreet';
+  
   const hidden = document.getElementById(hiddenId);
   if(hidden) hidden.value = value;
-  // mark selected option
+  
   sel.querySelectorAll('.custom-select-option').forEach(opt => {
     opt.classList.toggle('selected', opt.textContent.trim() === value);
   });
   sel.classList.remove('open');
-  // kategoriya o'zgarganda specs yangilash
-  if(selectId === 'prodCatSelect') renderSpecsFields(value);
+  
+  if(selectId === 'prodCatSelect') {
+    renderSpecsFields(value);
+  } else if (selectId === 'addrCitySelect') {
+    onViloyatChange(value);
+  } else if (selectId === 'addrDistrictSelect') {
+    onTumanChange(value);
+  }
 }
 
 // Close custom selects on outside click
