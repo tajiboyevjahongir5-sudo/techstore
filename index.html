@@ -520,17 +520,24 @@ body{
 .custom-select-option.selected{color:var(--accent);background:rgba(107,127,255,0.1)}
 
 /* BTS RICH POINT CARDS */
-.bts-point-card{padding:12px 14px;cursor:pointer;transition:all 0.2s;border-bottom:1px solid rgba(255,255,255,0.05)}
-.bts-point-card:last-child{border-bottom:none}
-.bts-point-card:hover{background:rgba(107,127,255,0.12)}
-.bts-point-card.selected{background:rgba(107,127,255,0.15);border-left:3px solid var(--accent)}
-.bts-point-card-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.bts-point-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,rgba(107,127,255,0.2),rgba(147,51,234,0.2));display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
-.bts-point-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
-.bts-point-details{display:flex;flex-direction:column;gap:3px;padding-left:36px}
-.bts-point-detail{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);line-height:1.3}
-.bts-point-detail i{font-size:12px;color:var(--accent);flex-shrink:0;width:14px;text-align:center}
-.bts-point-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:2px 7px;font-size:10px;color:#34d399;font-weight:600;margin-left:auto;flex-shrink:0}
+.bts-point-card{padding:14px;margin:6px 8px;cursor:pointer;transition:all 0.25s ease;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);position:relative;overflow:hidden}
+.bts-point-card::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:14px;padding:1px;background:linear-gradient(135deg,rgba(107,127,255,0),rgba(147,51,234,0));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;transition:all 0.3s;pointer-events:none}
+.bts-point-card:hover{background:rgba(107,127,255,0.08);transform:translateY(-1px);box-shadow:0 4px 20px rgba(107,127,255,0.12)}
+.bts-point-card:hover::before{background:linear-gradient(135deg,rgba(107,127,255,0.5),rgba(147,51,234,0.4))}
+.bts-point-card:active{transform:scale(0.98)}
+.bts-point-card.selected{background:rgba(107,127,255,0.1);border-color:rgba(107,127,255,0.3)}
+.bts-point-card-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bts-point-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(107,127,255,0.15),rgba(147,51,234,0.15));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid rgba(107,127,255,0.15)}
+.bts-point-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.3;flex:1}
+.bts-point-details{display:flex;flex-direction:column;gap:5px;padding-left:46px}
+.bts-point-detail{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text3);line-height:1.3}
+.bts-point-detail i{font-size:13px;flex-shrink:0;width:15px;text-align:center}
+.bts-point-detail .pin-icon{color:#f472b6}
+.bts-point-detail .clock-icon{color:#fbbf24}
+.bts-point-detail .phone-icon{color:#34d399}
+.bts-point-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);border-radius:20px;padding:3px 10px;font-size:10px;color:#34d399;font-weight:700;letter-spacing:0.3px;flex-shrink:0}
+.bts-point-badge .pulse-dot{width:6px;height:6px;border-radius:50%;background:#34d399;animation:btsPulse 2s ease-in-out infinite}
+@keyframes btsPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
 .prod-img-upload{border:2px dashed rgba(107,127,255,0.3);border-radius:16px;padding:20px;text-align:center;cursor:pointer;transition:all 0.25s;background:rgba(107,127,255,0.04);position:relative;overflow:hidden}
 .prod-img-upload:hover{border-color:rgba(107,127,255,0.6);background:rgba(107,127,255,0.08)}
 .prod-img-upload.has-img{border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.04)}
@@ -929,7 +936,7 @@ body{
               <span id="addrBtsLabel">Avval tumanni tanlang</span>
               <i class="ti ti-chevron-down"></i>
             </div>
-            <div class="custom-select-dropdown" id="addrBtsDropdown" style="max-height:340px;padding:4px 0">
+            <div class="custom-select-dropdown" id="addrBtsDropdown" style="max-height:380px;padding:2px 0">
               <!-- Dinamik to'ldiriladi -->
             </div>
           </div>
@@ -4428,12 +4435,12 @@ function onTumanChange(tuman) {
       <div class="bts-point-card-header">
         <div class="bts-point-icon">📦</div>
         <div class="bts-point-name">${name}</div>
-        <div class="bts-point-badge"><i class="ti ti-circle-check" style="font-size:10px"></i> Ochiq</div>
+        <div class="bts-point-badge"><span class="pulse-dot"></span> Ochiq</div>
       </div>
       <div class="bts-point-details">
-        ${addr ? `<div class="bts-point-detail"><i class="ti ti-map-pin"></i>${addr}</div>` : ''}
-        <div class="bts-point-detail"><i class="ti ti-clock"></i>09:00 – 18:00 • Tushlik: 13:00–14:00</div>
-        <div class="bts-point-detail"><i class="ti ti-phone"></i>1230</div>
+        ${addr ? `<div class="bts-point-detail"><i class="ti ti-map-pin pin-icon"></i>${addr}</div>` : ''}
+        <div class="bts-point-detail"><i class="ti ti-clock clock-icon"></i>Du-Shan: 09:00–18:00 · Tushlik: 13:00–14:00</div>
+        <div class="bts-point-detail"><i class="ti ti-phone phone-icon"></i>Qo'ng'iroq: 1230 (bepul)</div>
       </div>
     </div>`;
   }).join('');
