@@ -513,7 +513,7 @@ body{
 .custom-select-trigger:hover,.custom-select.open .custom-select-trigger{border-color:rgba(107,127,255,0.5)}
 .custom-select-trigger i{font-size:14px;color:var(--text3);transition:transform 0.2s}
 .custom-select.open .custom-select-trigger i{transform:rotate(180deg)}
-.custom-select-dropdown{display:none;position:fixed;background:rgba(18,18,36,0.98);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:16px;overflow:hidden;z-index:2000;box-shadow:0 8px 32px rgba(0,0,0,0.6);min-width:160px}
+.custom-select-dropdown{display:none;position:absolute;top:100%;left:0;width:100%;margin-top:4px;background:rgba(18,18,36,0.98);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:16px;z-index:2000;box-shadow:0 8px 32px rgba(0,0,0,0.6);max-height:220px;overflow-y:auto}
 .custom-select.open .custom-select-dropdown{display:block}
 .custom-select-option{padding:11px 16px;font-size:13px;cursor:pointer;color:var(--text2);transition:background 0.15s}
 .custom-select-option:hover{background:rgba(107,127,255,0.15);color:var(--text)}
@@ -3395,23 +3395,6 @@ function toggleCustomSelect(selectId) {
   });
   if(!isOpen) {
     sel.classList.add('open');
-    // position dropdown
-    const trigger = sel.querySelector('.custom-select-trigger');
-    const dropdown = sel.querySelector('.custom-select-dropdown');
-    const rect = trigger.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const dropH = Math.min(dropdown.scrollHeight, 220);
-    dropdown.style.width = rect.width + 'px';
-    dropdown.style.left = rect.left + 'px';
-    if(spaceBelow >= dropH + 8) {
-      dropdown.style.top = (rect.bottom + 4) + 'px';
-      dropdown.style.bottom = 'auto';
-    } else {
-      dropdown.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
-      dropdown.style.top = 'auto';
-    }
-    dropdown.style.maxHeight = Math.min(220, Math.max(spaceBelow, rect.top) - 16) + 'px';
-    dropdown.style.overflowY = 'auto';
   }
 }
 
