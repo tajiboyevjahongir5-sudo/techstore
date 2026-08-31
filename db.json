@@ -36,7 +36,8 @@
           "Rang",
           "Titanium"
         ]
-      ]
+      ],
+      "bannerImage": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-9inch-deserttitanium?wid=2560&hei=1440&fmt=png-alpha"
     },
     {
       "id": 2,
@@ -74,7 +75,8 @@
           "RAM",
           "12GB"
         ]
-      ]
+      ],
+      "bannerImage": "https://images.samsung.com/is/image/samsung/p6pim/in/sm-s938bztmins/sm-s938bztmins-front-titaniumblack?$ORIGIN_PNG$&fmt=png-alpha"
     },
     {
       "id": 3,
@@ -112,7 +114,8 @@
           "Og'irlik",
           "1.24 kg"
         ]
-      ]
+      ],
+      "bannerImage": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mba13-midnight-select-202402?wid=2000&hei=2000&fmt=png-alpha"
     },
     {
       "id": 4,
@@ -150,7 +153,8 @@
           "Og'irlik",
           "2.14 kg"
         ]
-      ]
+      ],
+      "bannerImage": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mbp14-spaceblack-select-202310?wid=2000&hei=2000&fmt=png-alpha"
     },
     {
       "id": 5,
@@ -188,7 +192,8 @@
           "Qalinlik",
           "5.1mm"
         ]
-      ]
+      ],
+      "bannerImage": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/ipad-pro-finish-select-202405-13inch-spaceblack?wid=2000&hei=2000&fmt=png-alpha"
     },
     {
       "id": 6,
@@ -226,7 +231,8 @@
           "Og'irlik",
           "250g"
         ]
-      ]
+      ],
+      "bannerImage": "https://electronics.sony.com/is/image/sony/WH1000XM5-B?$pdp_gallery_zoom$&fmt=png-alpha&wid=1200"
     },
     {
       "id": 7,
@@ -264,7 +270,8 @@
           "Suv",
           "IPX4"
         ]
-      ]
+      ],
+      "bannerImage": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MTJV3?wid=2000&hei=2000&fmt=png-alpha"
     },
     {
       "id": 8,
@@ -302,7 +309,8 @@
           "Korpus",
           "Titan"
         ]
-      ]
+      ],
+      "bannerImage": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/ultra-case-unselect-gallery-1-202409?wid=2000&hei=2000&fmt=png-alpha"
     },
     {
       "id": 9,
@@ -340,7 +348,8 @@
           "Protsessor",
           "Exynos W1000"
         ]
-      ]
+      ],
+      "bannerImage": "https://images.samsung.com/is/image/samsung/p6pim/in/sm-l310nzsains/sm-l310nzsains-front-silver?$ORIGIN_PNG$&fmt=png-alpha"
     },
     {
       "id": 10,
@@ -378,7 +387,8 @@
           "Optik",
           "4K Blu-ray"
         ]
-      ]
+      ],
+      "bannerImage": "https://media.direct.playstation.com/is/image/sierradirectprod/ps5-slim-console-disc-pack-hero?wid=1600&fmt=png-alpha"
     },
     {
       "id": 11,
@@ -416,7 +426,8 @@
           "Og'irlik",
           "249g"
         ]
-      ]
+      ],
+      "bannerImage": "https://dji-official-fe.djicdn.com/dps/4e5a0e08f51a704e6c38ce713a0c0a96.png"
     },
     {
       "id": 12,
@@ -454,7 +465,8 @@
           "Og'irlik",
           "154g"
         ]
-      ]
+      ],
+      "bannerImage": "https://assets.gopro.com/is/image/gopro/hero13-black-camera-hero?wid=1200&fmt=png-alpha"
     },
     {
       "id": 13,
@@ -492,7 +504,8 @@
           "Quvvatlash",
           "90W"
         ]
-      ]
+      ],
+      "bannerImage": "https://i02.appmifile.com/mi-com-product/fly-birds/xiaomi-14-ultra/pc/6c5ee2c0702d847120a1ebf2d4bf6b22.png"
     },
     {
       "id": 14,
@@ -530,7 +543,8 @@
           "Batareya",
           "4400 mAh"
         ]
-      ]
+      ],
+      "bannerImage": "https://images.samsung.com/is/image/samsung/p6pim/in/sm-f956bdbgins/sm-f956bdbgins-front-silver?$ORIGIN_PNG$&fmt=png-alpha"
     },
     {
       "id": 15,
@@ -568,7 +582,8 @@
           "GPU",
           "RTX 4070"
         ]
-      ]
+      ],
+      "bannerImage": "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/xps-notebooks/xps-15-9530/media-gallery/touch-black/notebook-xps-15-9530-t-black-gallery-1.psd?fmt=png-alpha&wid=1400"
     },
     {
       "id": 16,
@@ -606,7 +621,8 @@
           "Og'irlik",
           "238g"
         ]
-      ]
+      ],
+      "bannerImage": "https://assets.bose.com/content/dam/Bose_DAM/Web/consumer_electronics/global/products/headphones/qc45/product_silo_images/qc45_triple_black_EC_hero.png"
     },
     {
       "id": 17,
@@ -644,7 +660,8 @@
           "Port",
           "HDMI 2.1"
         ]
-      ]
+      ],
+      "bannerImage": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/apple-tv-4k-hero-select-202210?wid=2000&hei=2000&fmt=png-alpha"
     },
     {
       "id": 18,
@@ -682,7 +699,8 @@
           "Dinamik",
           "6.2.4 ch"
         ]
-      ]
+      ],
+      "bannerImage": "https://images.samsung.com/is/image/samsung/p6pim/in/qa65qn900dkxxl/qa65qn900dkxxl-front-black?$ORIGIN_PNG$&fmt=png-alpha"
     },
     {
       "id": 19,
@@ -720,7 +738,8 @@
           "Og'irlik",
           "141g"
         ]
-      ]
+      ],
+      "bannerImage": "https://resource.logitech.com/w_1600,c_limit,q_auto,f_auto,dpr_1.0/d_transparent.gif/content/dam/logitech/en/products/mice/mx-master-3s/gallery/mx-master-3s-mouse-top-view-graphite.png"
     },
     {
       "id": 20,
@@ -758,7 +777,8 @@
           "Quvvatlash",
           "100W SUPERVOOC"
         ]
-      ]
+      ],
+      "bannerImage": "https://oasis.opstatics.com/content/dam/oasis/page/2024/global/product/12/specs/black-phone.png"
     }
   ],
   "settings": {
