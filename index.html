@@ -4033,6 +4033,15 @@ function loadTelegramUser() {
     nameEl.textContent = 'Foydalanuvchi';
     usernameEl.textContent = 'Telegram orqali kirish';
     if(headerAvatar) headerAvatar.textContent = 'A';
+
+    // Serverga ro'yxatdan o'tkazish so'rovini yuborish (local/browser testing uchun)
+    fetch('/api/users/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': ''
+      }
+    }).catch(err => console.warn("Foydalanuvchini serverda ro'yxatdan o'tkazishda xato:", err));
   }
 }
 
