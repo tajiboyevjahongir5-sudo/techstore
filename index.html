@@ -3594,88 +3594,88 @@ body.modal-open {
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ADD PRODUCT MODAL -->
-    <div class="modal-overlay" id="addModal">
-      <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div class="modal-title" id="addModalTitle">✨ Yangi mahsulot</div>
-        <div class="form-group"><label class="form-label">🏷️ Mahsulot nomi</label><input class="form-input" placeholder="masalan: iPhone 15 Pro" id="prodName"></div>
-        <div class="form-group"><label class="form-label">🏢 Brend</label><input class="form-input" placeholder="masalan: Apple" id="prodBrand"></div>
-        <div class="form-row">
-          <div class="form-group"><label class="form-label">💵 Narx (so'm)</label><input class="form-input" type="number" placeholder="18500000" id="prodPrice"></div>
-          <div class="form-group"><label class="form-label">📦 Miqdor</label><input class="form-input" type="number" placeholder="50" id="prodQty"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">📁 Kategoriya</label>
-          <div class="custom-select" id="prodCatSelect">
-            <div class="custom-select-trigger" onclick="toggleCustomSelect('prodCatSelect')">
-              <span id="prodCatLabel">Telefonlar</span>
-              <i class="ti ti-chevron-down"></i>
-            </div>
-            <div class="custom-select-dropdown" id="prodCatDropdown">
-              <div class="custom-select-option selected" onclick="selectCatOption('prodCatSelect','Telefonlar')">Telefonlar</div>
-              <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Kompyuterlar')">Kompyuterlar</div>
-              <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Audio')">Audio</div>
-              <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Aksessuarlar')">Aksessuarlar</div>
-              <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Kameralar')">Kameralar</div>
-            </div>
+  <!-- ADD PRODUCT MODAL (outside admin screen to prevent scroll-through) -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="addModalTitle">✨ Yangi mahsulot</div>
+      <div class="form-group"><label class="form-label">🏷️ Mahsulot nomi</label><input class="form-input" placeholder="masalan: iPhone 15 Pro" id="prodName"></div>
+      <div class="form-group"><label class="form-label">🏢 Brend</label><input class="form-input" placeholder="masalan: Apple" id="prodBrand"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">💵 Narx (so'm)</label><input class="form-input" type="number" placeholder="18500000" id="prodPrice"></div>
+        <div class="form-group"><label class="form-label">📦 Miqdor</label><input class="form-input" type="number" placeholder="50" id="prodQty"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">📁 Kategoriya</label>
+        <div class="custom-select" id="prodCatSelect">
+          <div class="custom-select-trigger" onclick="toggleCustomSelect('prodCatSelect')">
+            <span id="prodCatLabel">Telefonlar</span>
+            <i class="ti ti-chevron-down"></i>
           </div>
-          <input type="hidden" id="prodCat" value="Telefonlar">
-        </div>
-        <div class="form-group">
-          <label class="form-label">📝 Tavsif</label>
-          <input class="form-input" placeholder="Qisqacha tavsif..." id="prodDesc">
-        </div>
-        <!-- DINAMIK SPECS (kategoriyaga qarab) -->
-        <div id="prodSpecsSection">
-          <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-list-details" style="color:var(--accent);font-size:14px"></i> 📋 Mahsulot xususiyatlari</div>
-          <div id="prodSpecsFields" style="display:flex;flex-direction:column;gap:8px"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">🖼️ Rasmlar (max 5 ta)</label>
-          <div id="addImgGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px"></div>
-          <div id="addImgUploadBtn" style="border:1.5px dashed rgba(107,127,255,0.35);border-radius:14px;padding:12px;text-align:center;cursor:pointer;background:rgba(107,127,255,0.04)" onclick="document.getElementById('prodImgInput').click()">
-            <i class="ti ti-photo-up" style="font-size:24px;color:var(--text3)"></i>
-            <div style="font-size:12px;font-weight:600;margin-top:4px">Rasm qo'shish</div>
-            <div id="addImgCount" style="font-size:10px;color:var(--text2)">0 / 5</div>
+          <div class="custom-select-dropdown" id="prodCatDropdown">
+            <div class="custom-select-option selected" onclick="selectCatOption('prodCatSelect','Telefonlar')">Telefonlar</div>
+            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Kompyuterlar')">Kompyuterlar</div>
+            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Audio')">Audio</div>
+            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Aksessuarlar')">Aksessuarlar</div>
+            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Kameralar')">Kameralar</div>
           </div>
-          <input type="file" id="prodImgInput" accept="image/*" multiple style="display:none" onchange="addProductImages(this)">
         </div>
-        <div class="form-group"><label class="form-label">🔥 Chegirma (%)</label><input class="form-input" type="number" placeholder="0" id="prodDiscount" min="0" max="99"></div>
-        <div class="modal-actions">
-          <button class="btn-cancel" onclick="closeAddModal()">Bekor</button>
-          <button class="btn-save" id="saveProductBtn" onclick="saveProduct()">Saqlash</button>
+        <input type="hidden" id="prodCat" value="Telefonlar">
+      </div>
+      <div class="form-group">
+        <label class="form-label">📝 Tavsif</label>
+        <input class="form-input" placeholder="Qisqacha tavsif..." id="prodDesc">
+      </div>
+      <!-- DINAMIK SPECS (kategoriyaga qarab) -->
+      <div id="prodSpecsSection">
+        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-list-details" style="color:var(--accent);font-size:14px"></i> 📋 Mahsulot xususiyatlari</div>
+        <div id="prodSpecsFields" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🖼️ Rasmlar (max 5 ta)</label>
+        <div id="addImgGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px"></div>
+        <div id="addImgUploadBtn" style="border:1.5px dashed rgba(107,127,255,0.35);border-radius:14px;padding:12px;text-align:center;cursor:pointer;background:rgba(107,127,255,0.04)" onclick="document.getElementById('prodImgInput').click()">
+          <i class="ti ti-photo-up" style="font-size:24px;color:var(--text3)"></i>
+          <div style="font-size:12px;font-weight:600;margin-top:4px">Rasm qo'shish</div>
+          <div id="addImgCount" style="font-size:10px;color:var(--text2)">0 / 5</div>
         </div>
+        <input type="file" id="prodImgInput" accept="image/*" multiple style="display:none" onchange="addProductImages(this)">
+      </div>
+      <div class="form-group"><label class="form-label">🔥 Chegirma (%)</label><input class="form-input" type="number" placeholder="0" id="prodDiscount" min="0" max="99"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeAddModal()">Bekor</button>
+        <button class="btn-save" id="saveProductBtn" onclick="saveProduct()">Saqlash</button>
       </div>
     </div>
+  </div>
 
-    <!-- CHEK MODAL -->
-    <div class="modal-overlay chek-modal-overlay" id="chekModal">
-      <div class="modal-sheet chek-sheet">
-        <div class="modal-handle"></div>
-        <div class="modal-title" id="chekModalTitle">Buyurtma cheki</div>
-        <!-- User info row -->
-        <div class="chek-user-row" id="chekUserRow">
-          <div class="chek-user-ava" id="chekUserAva">?</div>
-          <div class="chek-user-info">
-            <div class="chek-user-name" id="chekUserName">Foydalanuvchi</div>
-            <div class="chek-user-tg" id="chekUserTg">@username</div>
-          </div>
-          <button class="chek-open-profile-btn" id="chekOpenProfileBtn" onclick="openUserProfile()">
-            <i class="ti ti-external-link" style="font-size:12px"></i> Profil
-          </button>
+  <!-- CHEK MODAL -->
+  <div class="modal-overlay chek-modal-overlay" id="chekModal">
+    <div class="modal-sheet chek-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="chekModalTitle">Buyurtma cheki</div>
+      <!-- User info row -->
+      <div class="chek-user-row" id="chekUserRow">
+        <div class="chek-user-ava" id="chekUserAva">?</div>
+        <div class="chek-user-info">
+          <div class="chek-user-name" id="chekUserName">Foydalanuvchi</div>
+          <div class="chek-user-tg" id="chekUserTg">@username</div>
         </div>
-        <!-- Chek image -->
-        <div class="chek-img-wrap" id="chekImgWrap">
-          <div style="text-align:center;color:var(--text2)" id="chekImgPlaceholder"><i class="ti ti-photo-off" style="font-size:48px;color:var(--text3)"></i><div style="font-size:12px;margin-top:8px">To'lov chekisiz buyurtma (Avtomatik tekshiruv)</div></div>
-          <img id="chekActualImg" style="max-width:100%;max-height:200px;object-fit:contain;display:none">
-        </div>
-        <div class="chek-info" id="chekInfo"></div>
-        <div class="chek-actions" id="chekActionsArea">
-          <button class="btn-reject" onclick="rejectChek()"><i class="ti ti-x"></i> Rad etish</button>
-          <button class="btn-approve" onclick="approveChek()"><i class="ti ti-check"></i> Tasdiqlash</button>
-        </div>
+        <button class="chek-open-profile-btn" id="chekOpenProfileBtn" onclick="openUserProfile()">
+          <i class="ti ti-external-link" style="font-size:12px"></i> Profil
+        </button>
+      </div>
+      <!-- Chek image -->
+      <div class="chek-img-wrap" id="chekImgWrap">
+        <div style="text-align:center;color:var(--text2)" id="chekImgPlaceholder"><i class="ti ti-photo-off" style="font-size:48px;color:var(--text3)"></i><div style="font-size:12px;margin-top:8px">To'lov chekisiz buyurtma (Avtomatik tekshiruv)</div></div>
+        <img id="chekActualImg" style="max-width:100%;max-height:200px;object-fit:contain;display:none">
+      </div>
+      <div class="chek-info" id="chekInfo"></div>
+      <div class="chek-actions" id="chekActionsArea">
+        <button class="btn-reject" onclick="rejectChek()"><i class="ti ti-x"></i> Rad etish</button>
+        <button class="btn-approve" onclick="approveChek()"><i class="ti ti-check"></i> Tasdiqlash</button>
       </div>
     </div>
   </div>
