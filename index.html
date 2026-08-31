@@ -3583,15 +3583,15 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
     <div class="modal-overlay" id="addModal">
       <div class="modal-sheet">
         <div class="modal-handle"></div>
-        <div class="modal-title" id="addModalTitle">Yangi mahsulot</div>
-        <div class="form-group"><label class="form-label">Mahsulot nomi</label><input class="form-input" placeholder="masalan: iPhone 15 Pro" id="prodName"></div>
-        <div class="form-group"><label class="form-label">Brend</label><input class="form-input" placeholder="masalan: Apple" id="prodBrand"></div>
+        <div class="modal-title" id="addModalTitle">✨ Yangi mahsulot</div>
+        <div class="form-group"><label class="form-label">🏷️ Mahsulot nomi</label><input class="form-input" placeholder="masalan: iPhone 15 Pro" id="prodName"></div>
+        <div class="form-group"><label class="form-label">🏢 Brend</label><input class="form-input" placeholder="masalan: Apple" id="prodBrand"></div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Narx (so'm)</label><input class="form-input" type="number" placeholder="18500000" id="prodPrice"></div>
-          <div class="form-group"><label class="form-label">Miqdor</label><input class="form-input" type="number" placeholder="50" id="prodQty"></div>
+          <div class="form-group"><label class="form-label">💵 Narx (so'm)</label><input class="form-input" type="number" placeholder="18500000" id="prodPrice"></div>
+          <div class="form-group"><label class="form-label">📦 Miqdor</label><input class="form-input" type="number" placeholder="50" id="prodQty"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Kategoriya</label>
+          <label class="form-label">📁 Kategoriya</label>
           <div class="custom-select" id="prodCatSelect">
             <div class="custom-select-trigger" onclick="toggleCustomSelect('prodCatSelect')">
               <span id="prodCatLabel">Telefonlar</span>
@@ -3608,16 +3608,16 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
           <input type="hidden" id="prodCat" value="Telefonlar">
         </div>
         <div class="form-group">
-          <label class="form-label">Tavsif</label>
+          <label class="form-label">📝 Tavsif</label>
           <input class="form-input" placeholder="Qisqacha tavsif..." id="prodDesc">
         </div>
         <!-- DINAMIK SPECS (kategoriyaga qarab) -->
         <div id="prodSpecsSection">
-          <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-list-details" style="color:var(--accent);font-size:14px"></i> Mahsulot xususiyatlari</div>
+          <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-list-details" style="color:var(--accent);font-size:14px"></i> 📋 Mahsulot xususiyatlari</div>
           <div id="prodSpecsFields" style="display:flex;flex-direction:column;gap:8px"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Rasmlar (max 5 ta)</label>
+          <label class="form-label">🖼️ Rasmlar (max 5 ta)</label>
           <div id="addImgGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px"></div>
           <div id="addImgUploadBtn" style="border:1.5px dashed rgba(107,127,255,0.35);border-radius:14px;padding:12px;text-align:center;cursor:pointer;background:rgba(107,127,255,0.04)" onclick="document.getElementById('prodImgInput').click()">
             <i class="ti ti-photo-up" style="font-size:24px;color:var(--text3)"></i>
@@ -3626,7 +3626,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
           </div>
           <input type="file" id="prodImgInput" accept="image/*" multiple style="display:none" onchange="addProductImages(this)">
         </div>
-        <div class="form-group"><label class="form-label">Chegirma (%)</label><input class="form-input" type="number" placeholder="0" id="prodDiscount" min="0" max="99"></div>
+        <div class="form-group"><label class="form-label">🔥 Chegirma (%)</label><input class="form-input" type="number" placeholder="0" id="prodDiscount" min="0" max="99"></div>
         <div class="modal-actions">
           <button class="btn-cancel" onclick="closeAddModal()">Bekor</button>
           <button class="btn-save" id="saveProductBtn" onclick="saveProduct()">Saqlash</button>
@@ -3814,17 +3814,17 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   <div class="modal-overlay edit-modal-overlay" id="editModal">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title">Mahsulotni tahrirlash</div>
+      <div class="modal-title">✏️ Mahsulotni tahrirlash</div>
       <input type="hidden" id="editProdId">
-      <div class="form-group"><label class="form-label">Mahsulot nomi</label><input class="form-input" id="editName"></div>
-      <div class="form-group"><label class="form-label">Brend</label><input class="form-input" id="editBrand"></div>
+      <div class="form-group"><label class="form-label">🏷️ Mahsulot nomi</label><input class="form-input" id="editName"></div>
+      <div class="form-group"><label class="form-label">🏢 Brend</label><input class="form-input" id="editBrand"></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Narx (so'm)</label><input class="form-input" type="number" id="editPrice"></div>
-        <div class="form-group"><label class="form-label">Chegirma (%)</label><input class="form-input" type="number" id="editDiscount" min="0" max="99"></div>
+        <div class="form-group"><label class="form-label">💵 Narx (so'm)</label><input class="form-input" type="number" id="editPrice"></div>
+        <div class="form-group"><label class="form-label">🔥 Chegirma (%)</label><input class="form-input" type="number" id="editDiscount" min="0" max="99"></div>
       </div>
-      <div class="form-group"><label class="form-label">Tavsif</label><input class="form-input" id="editDesc"></div>
+      <div class="form-group"><label class="form-label">📝 Tavsif</label><input class="form-input" id="editDesc"></div>
       <div class="form-group">
-        <label class="form-label">Rasmlar (max 5 ta)</label>
+        <label class="form-label">🖼️ Rasmlar (max 5 ta)</label>
         <div id="editImgGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px"></div>
         <div id="editImgUploadBtn" style="border:1.5px dashed rgba(107,127,255,0.35);border-radius:14px;padding:12px;text-align:center;cursor:pointer;background:rgba(107,127,255,0.04)" onclick="document.getElementById('editImgInput').click()">
           <i class="ti ti-photo-up" style="font-size:24px;color:var(--text3)"></i>
