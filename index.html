@@ -36,19 +36,26 @@
 
 body {
   background: var(--bg);
-  background-image: 
-    radial-gradient(circle at 0% 0%, rgba(107, 127, 255, 0.28) 0%, transparent 45%),
-    radial-gradient(circle at 100% 0%, rgba(167, 139, 250, 0.22) 0%, transparent 40%),
-    radial-gradient(circle at 100% 50%, rgba(107, 127, 255, 0.15) 0%, transparent 35%),
-    radial-gradient(circle at 0% 100%, rgba(167, 139, 250, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(107, 127, 255, 0.05) 0%, transparent 50%);
-  background-attachment: fixed;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text);
   overflow-x: hidden;
   min-height: 100vh;
   overscroll-behavior: none;
   scroll-behavior: smooth;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(107, 127, 255, 0.28) 0%, transparent 45%),
+    radial-gradient(circle at 100% 0%, rgba(167, 139, 250, 0.22) 0%, transparent 40%),
+    radial-gradient(circle at 100% 50%, rgba(107, 127, 255, 0.15) 0%, transparent 35%),
+    radial-gradient(circle at 0% 100%, rgba(167, 139, 250, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(107, 127, 255, 0.05) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 /* Safe area for Telegram WebApp compatibility */
