@@ -14,7 +14,7 @@
 }
 
 :root {
-  --bg: #21203f;
+  --bg: #050833;
   --bg2: rgba(18, 18, 36, 0.85);
   --bg3: rgba(255, 255, 255, 0.04);
   --card: rgba(255, 255, 255, 0.03);
@@ -49,12 +49,8 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(107, 127, 255, 0.28) 0%, transparent 45%),
-    radial-gradient(circle at 100% 0%, rgba(167, 139, 250, 0.22) 0%, transparent 40%),
-    radial-gradient(circle at 100% 50%, rgba(107, 127, 255, 0.15) 0%, transparent 35%),
-    radial-gradient(circle at 0% 100%, rgba(167, 139, 250, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(107, 127, 255, 0.05) 0%, transparent 50%);
+  background: linear-gradient(rgba(5, 8, 51, 0.4), rgba(5, 8, 51, 0.4)), url('bg.jpg') no-repeat center center;
+  background-size: cover;
   pointer-events: none;
 }
 
@@ -4057,8 +4053,8 @@ const tg = window.Telegram?.WebApp;
 if(tg) {
   tg.ready();
   tg.expand();
-  tg.setHeaderColor('#21203f');
-  tg.setBackgroundColor('#21203f');
+  tg.setHeaderColor('#050833');
+  tg.setBackgroundColor('#050833');
 
   // Pastga scroll qilganda yopilmasin
   if(tg.disableVerticalSwipes) tg.disableVerticalSwipes();
