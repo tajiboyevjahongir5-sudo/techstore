@@ -2,6 +2,9 @@ const express = require('express');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 const crypto = require('crypto');
+const fs = require('fs');
+
+const DB_FILE = path.join(__dirname, 'db.json');
 
 // ===== SERVER CRASH BO'LMASIN =====
 process.on('uncaughtException', (err) => {
@@ -24,6 +27,209 @@ let CARD_NUMBER = process.env.CARD_NUMBER || "9860 3501 4074 7741";
 let CARD_OWNER = process.env.CARD_OWNER || "Tojiboyev Jahongir";
 const APP_URL   = process.env.APP_URL || `https://your-app.railway.app`;
 
+const DEFAULT_PRODUCTS = [
+  {id:1,  name:'iPhone 16 Pro Max',       brand:'Apple',   price:18500000, discount:15, emoji:'📱', image:'https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.9, reviews:248, desc:'Professional darajadagi kamera tizimi, A18 Pro chip va titan rama bilan jihozlangan.',      specs:[['Ekran','6.9 OLED'],['Protsessor','A18 Pro'],['Kamera','48MP Triple'],['Batareya','4685 mAh'],['Rang','Titanium']]},
+  {id:2,  name:'Samsung Galaxy S25 Ultra',brand:'Samsung', price:15000000, discount:10, emoji:'📱', image:'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.8, reviews:312, desc:'Snapdragon 8 Elite, 200MP kamera va S Pen bilan jihozlangan flagman smartfon.',            specs:[['Ekran','6.9 AMOLED'],['Protsessor','Snapdragon 8 Elite'],['Kamera','200MP'],['Batareya','5000 mAh'],['RAM','12GB']]},
+  {id:3,  name:'MacBook Air M3',          brand:'Apple',   price:24000000, discount:0,  emoji:'💻', image:'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=600&auto=format&fit=crop'], cat:'Kompyuterlar', rating:4.8, reviews:183, desc:'Ultra-yengil korpus, M3 chip va 18 soatlik batareya muddati.',                              specs:[['Ekran','13.6 Liquid Retina'],['Chip','Apple M3'],['RAM','8GB'],['Xotira','256GB SSD'],['Og\'irlik','1.24 kg']]},
+  {id:4,  name:'MacBook Pro M3 Pro',      brand:'Apple',   price:35000000, discount:5,  emoji:'💻', image:'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?q=80&w=600&auto=format&fit=crop'], cat:'Kompyuterlar', rating:4.9, reviews:97,  desc:'M3 Pro chip bilan professional darajadagi unumdorlik va Liquid Retina XDR displey.',        specs:[['Ekran','16 Liquid Retina XDR'],['Chip','Apple M3 Pro'],['RAM','18GB'],['Xotira','512GB SSD'],['Og\'irlik','2.14 kg']]},
+  {id:5,  name:'iPad Pro M4 13"',         brand:'Apple',   price:18000000, discount:0,  emoji:'📱', image:'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=600&auto=format&fit=crop'], cat:'Kompyuterlar', rating:4.9, reviews:156, desc:'Eng nozik Apple qurilmasi, M4 chip va Ultra Retina XDR OLED displey.',                      specs:[['Ekran','13 Ultra Retina XDR'],['Chip','Apple M4'],['RAM','8GB'],['Xotira','256GB'],['Qalinlik','5.1mm']]},
+  {id:6,  name:'Sony WH-1000XM5',         brand:'Sony',    price:3200000,  discount:20, emoji:'🎧', image:'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop'], cat:'Audio',        rating:4.7, reviews:412, desc:'Industry-leading shovqin o\'chirish texnologiyasi va 30 soatlik batareya.',                 specs:[['Tip','Over-ear'],['ANC','30dB'],['Batareya','30 soat'],['Ulanish','Bluetooth 5.2'],['Og\'irlik','250g']]},
+  {id:7,  name:'AirPods Pro 2',           brand:'Apple',   price:2800000,  discount:0,  emoji:'🎧', image:'https://images.unsplash.com/photo-1588449668365-d15e397f6787?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1588449668365-d15e397f6787?q=80&w=600&auto=format&fit=crop'], cat:'Audio',        rating:4.8, reviews:534, desc:'H2 chip, adaptiv shovqin bekor qilish va Spatial Audio texnologiyasi.',                    specs:[['Tip','In-ear'],['ANC','2x kuchli'],['Batareya','30 soat (quticha)'],['Ulanish','Bluetooth 5.3'],['Suv','IPX4']]},
+  {id:8,  name:'Apple Watch Ultra 2',     brand:'Apple',   price:9800000,  discount:0,  emoji:'⌚', image:'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?q=80&w=600&auto=format&fit=crop'], cat:'Aksessuarlar', rating:4.9, reviews:96,  desc:'Ekstremal sharoitlar uchun mo\'ljallangan eng kuchli Apple Watch.',                         specs:[['Ekran','49mm OLED'],['Batareya','36 soat'],['Suv','100m'],['GPS','Dual frequency'],['Korpus','Titan']]},
+  {id:9,  name:'Samsung Galaxy Watch 7',  brand:'Samsung', price:4200000,  discount:15, emoji:'⌚', image:'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop'], cat:'Aksessuarlar', rating:4.6, reviews:203, desc:'BioActive Sensor va AI salomatlik kuzatuvi bilan zamonaviy smartwatch.',                    specs:[['Ekran','1.3 AMOLED'],['Batareya','40 soat'],['Suv','5ATM'],['OS','Wear OS'],['Protsessor','Exynos W1000']]},
+  {id:10, name:'PlayStation 5 Slim',      brand:'Sony',    price:8500000,  discount:0,  emoji:'🎮', image:'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1606813907291-d86efa9b94db?q=80&w=600&auto=format&fit=crop'], cat:'O\'yinlar',    rating:4.8, reviews:678, desc:'8K grafik, ultra-tez SSD va immersiv DualSense controller bilan yangi avlod konsol.',      specs:[['CPU','8-core AMD Zen 2'],['GPU','10.28 TFLOPS'],['RAM','16GB GDDR6'],['Xotira','1TB SSD'],['Optik','4K Blu-ray']]},
+  {id:11, name:'DJI Mini 4 Pro',          brand:'DJI',     price:9000000,  discount:10, emoji:'🚁', image:'https://images.unsplash.com/photo-1508614589041-895b88991e3e?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1508614589041-895b88991e3e?q=80&w=600&auto=format&fit=crop'], cat:'Dronlar',      rating:4.8, reviews:145, desc:'249g yengil, 4K/60fps video va omnidirectional obstacle sensing bilan professional dron.', specs:[['Video','4K/60fps HDR'],['Kamera','1/1.3" CMOS'],['Uchish','34 daqiqa'],['Masofa','20km'],['Og\'irlik','249g']]},
+  {id:12, name:'GoPro Hero 13 Black',     brand:'GoPro',   price:4500000,  discount:0,  emoji:'📷', image:'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop'], cat:'Kameralar',    rating:4.7, reviews:289, desc:'5.3K video, HyperSmooth 6.0 va 13 metr chuqurlikda suv o\'tkazmasligi.',                  specs:[['Video','5.3K/60fps'],['Foto','24.7MP'],['Suv','13m'],['Batareya','Enduro'],['Og\'irlik','154g']]},
+  {id:13, name:'Xiaomi 14 Ultra',         brand:'Xiaomi',  price:10500000, discount:12, emoji:'📱', image:'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.7, reviews:267, desc:'Leica optikasi, Snapdragon 8 Gen 3 va 90W simsiz quvvatlash.',                             specs:[['Ekran','6.73 AMOLED'],['Protsessor','Snapdragon 8 Gen 3'],['Kamera','50MP Leica'],['Batareya','5000 mAh'],['Quvvatlash','90W']]},
+  {id:14, name:'Samsung Galaxy Z Fold 6', brand:'Samsung', price:22000000, discount:8,  emoji:'📱', image:'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.7, reviews:134, desc:'7.6" katlanadigan displey, S Pen qo\'llab-quvvatlash va titan korpus.',                   specs:[['Asosiy','7.6 AMOLED'],['Tashqi','6.3 AMOLED'],['Protsessor','Snapdragon 8 Gen 3'],['RAM','12GB'],['Batareya','4400 mAh']]},
+  {id:15, name:'Dell XPS 15 OLED',        brand:'Dell',    price:22000000, discount:5,  emoji:'💻', image:'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1593642632823-8f785ba67e45?q=80&w=600&auto=format&fit=crop'], cat:'Kompyuterlar', rating:4.7, reviews:118, desc:'3.5K OLED touch displey, Intel Core i9 va RTX 4070 grafik karta bilan professional noutbuk.',specs:[['Ekran','15.6 3.5K OLED'],['Protsessor','Intel Core i9'],['RAM','32GB DDR5'],['Xotira','1TB SSD'],['GPU','RTX 4070']]},
+  {id:16, name:'Bose QuietComfort 45',    brand:'Bose',    price:2500000,  discount:10, emoji:'🎧', image:'https://images.unsplash.com/photo-1546435770-a3e426bf472b?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1546435770-a3e426bf472b?q=80&w=600&auto=format&fit=crop'], cat:'Audio',        rating:4.6, reviews:356, desc:'Dunyoga mashhur shovqin bekor qilish va 24 soatlik batareya.',                             specs:[['Tip','Over-ear'],['ANC','WorldClass'],['Batareya','24 soat'],['Ulanish','Bluetooth 5.1'],['Og\'irlik','238g']]},
+  {id:17, name:'Apple TV 4K (3-avlod)',   brand:'Apple',   price:2200000,  discount:0,  emoji:'📺', image:'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=600&auto=format&fit=crop'], cat:'Smart TV',     rating:4.7, reviews:201, desc:'A15 Bionic chip, Dolby Vision va HDR10+ qo\'llab-quvvatlash.',                            specs:[['Chip','A15 Bionic'],['Video','4K Dolby Vision'],['Audio','Dolby Atmos'],['Xotira','64GB'],['Port','HDMI 2.1']]},
+  {id:18, name:'Samsung 65" Neo QLED 8K', brand:'Samsung', price:45000000, discount:10, emoji:'📺', image:'https://images.unsplash.com/photo-1593789198777-f29bc259780e?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1593789198777-f29bc259780e?q=80&w=600&auto=format&fit=crop'], cat:'Smart TV',     rating:4.8, reviews:67,  desc:'8K Neo QLED texnologiyasi va Neural Quantum Processor bilan.',                             specs:[['Ekran','65" 8K QLED'],['Yorqinlik','4000 nit'],['OS','Tizen'],['Ulanish','Wi-Fi 6E'],['Dinamik','6.2.4 ch']]},
+  {id:19, name:'Logitech MX Master 3S',   brand:'Logitech',price:1200000,  discount:0,  emoji:'🖱️', image:'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?q=80&w=600&auto=format&fit=crop'], cat:'Aksessuarlar', rating:4.8, reviews:445, desc:'8000 DPI, magnit scroll va ergonomik dizayn bilan professional sichqoncha.',               specs:[['DPI','200-8000'],['Tugmalar','7'],['Batareya','70 kun'],['Ulanish','Bluetooth + USB'],['Og\'irlik','141g']]},
+  {id:20, name:'OnePlus 12 5G',           brand:'OnePlus', price:8000000,  discount:18, emoji:'📱', image:'https://images.unsplash.com/photo-1565849906660-bf47eb869a73?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1565849906660-bf47eb869a73?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.7, reviews:198, desc:'Snapdragon 8 Gen 3, Hasselblad optikasi va 100W SUPERVOOC quvvatlash.',                    specs:[['Ekran','6.82 AMOLED 120Hz'],['Protsessor','Snapdragon 8 Gen 3'],['Kamera','50MP Hasselblad'],['Batareya','5400 mAh'],['Quvvatlash','100W SUPERVOOC']]}
+];
+
+function getNestedValue(obj, path) {
+  const parts = path.split('/').filter(Boolean);
+  let current = obj;
+  for (const part of parts) {
+    if (current === null || typeof current !== 'object') {
+      return undefined;
+    }
+    current = current[part];
+  }
+  return current;
+}
+
+function setNestedValue(obj, path, value) {
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length === 0) {
+    return value;
+  }
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === undefined || current[part] === null || typeof current[part] !== 'object') {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  current[parts[parts.length - 1]] = value;
+  return obj;
+}
+
+function patchNestedValue(obj, path, value) {
+  const parts = path.split('/').filter(Boolean);
+  
+  if (parts.length === 0) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+        obj = {};
+      }
+      for (const key of Object.keys(value)) {
+        if (key.includes('/')) {
+          obj = setNestedValue(obj, key, value[key]);
+        } else {
+          obj[key] = value[key];
+        }
+      }
+      return obj;
+    }
+    return value;
+  }
+  
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === undefined || current[part] === null || typeof current[part] !== 'object') {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  
+  const lastPart = parts[parts.length - 1];
+  if (current[lastPart] === undefined || current[lastPart] === null || typeof current[lastPart] !== 'object') {
+    current[lastPart] = {};
+  }
+  
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const key of Object.keys(value)) {
+      if (key.includes('/')) {
+        current[lastPart] = setNestedValue(current[lastPart], key, value[key]);
+      } else {
+        current[lastPart][key] = value[key];
+      }
+    }
+  } else {
+    current[lastPart] = value;
+  }
+  
+  return obj;
+}
+
+function deleteNestedValue(obj, path) {
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length === 0) {
+    return {};
+  }
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === undefined || current[part] === null || typeof current[part] !== 'object') {
+      return obj;
+    }
+    current = current[part];
+  }
+  const lastPart = parts[parts.length - 1];
+  if (current && typeof current === 'object') {
+    delete current[lastPart];
+  }
+  return obj;
+}
+
+function readLocalDb() {
+  try {
+    if (!fs.existsSync(DB_FILE)) {
+      return {};
+    }
+    const content = fs.readFileSync(DB_FILE, 'utf8');
+    return JSON.parse(content);
+  } catch (e) {
+    console.error('Error reading local db:', e.message);
+    return {};
+  }
+}
+
+function writeLocalDb(data) {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error writing local db:', e.message);
+  }
+}
+
+function initializeDbFile() {
+  let data = {};
+  if (fs.existsSync(DB_FILE)) {
+    try {
+      data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    } catch (e) {
+      console.warn("db.json was invalid, reinitializing:", e.message);
+      data = {};
+    }
+  }
+
+  let modified = false;
+  if (!data.products || !Array.isArray(data.products) || data.products.length === 0) {
+    data.products = DEFAULT_PRODUCTS;
+    modified = true;
+  }
+  if (!data.settings) {
+    data.settings = {
+      card: {
+        number: "9860 3501 4074 7741",
+        owner: "Tojiboyev Jahongir"
+      },
+      bot: {
+        token: ""
+      },
+      admin: {
+        telegramIds: ""
+      }
+    };
+    modified = true;
+  } else {
+    if (!data.settings.card) {
+      data.settings.card = { number: "9860 3501 4074 7741", owner: "Tojiboyev Jahongir" };
+      modified = true;
+    }
+    if (!data.settings.bot) {
+      data.settings.bot = { token: "" };
+      modified = true;
+    }
+    if (!data.settings.admin) {
+      data.settings.admin = { telegramIds: "" };
+      modified = true;
+    }
+  }
+  if (!data.users) {
+    data.users = {};
+    modified = true;
+  }
+  if (!data.orders) {
+    data.orders = {};
+    modified = true;
+  }
+
+  if (modified) {
+    writeLocalDb(data);
+    console.log("📂 Local db.json pre-populated with default products and settings.");
+  }
+}
+
+initializeDbFile();
+
 // ===== FIREBASE REST CLIENT =====
 async function firebaseGet(path) {
   try {
@@ -31,8 +237,9 @@ async function firebaseGet(path) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error(`Firebase GET error at ${path}:`, e.message);
-    return null;
+    console.error(`Firebase GET error at ${path}: ${e.message} - falling back to local db.json`);
+    const dbData = readLocalDb();
+    return getNestedValue(dbData, path) ?? null;
   }
 }
 
@@ -46,8 +253,11 @@ async function firebasePut(path, data) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error(`Firebase PUT error at ${path}:`, e.message);
-    throw e;
+    console.error(`Firebase PUT error at ${path}: ${e.message} - falling back to local db.json`);
+    let dbData = readLocalDb();
+    dbData = setNestedValue(dbData, path, data);
+    writeLocalDb(dbData);
+    return data;
   }
 }
 
@@ -61,8 +271,11 @@ async function firebasePatch(path, data) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error(`Firebase PATCH error at ${path}:`, e.message);
-    throw e;
+    console.error(`Firebase PATCH error at ${path}: ${e.message} - falling back to local db.json`);
+    let dbData = readLocalDb();
+    dbData = patchNestedValue(dbData, path, data);
+    writeLocalDb(dbData);
+    return data;
   }
 }
 
@@ -74,10 +287,14 @@ async function firebaseDelete(path) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error(`Firebase DELETE error at ${path}:`, e.message);
-    throw e;
+    console.error(`Firebase DELETE error at ${path}: ${e.message} - falling back to local db.json`);
+    let dbData = readLocalDb();
+    dbData = deleteNestedValue(dbData, path);
+    writeLocalDb(dbData);
+    return null;
   }
 }
+
 
 // ===== EXPRESS =====
 app.use(express.json({ limit: '10mb' }));
@@ -96,6 +313,13 @@ const requestTracker = new Map(); // IP -> Array of timestamps
 
 function apiRateLimiter(req, res, next) {
   const ip = req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress;
+  const hostname = req.hostname;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || ip === '::1' || ip === '127.0.0.1' || ip.endsWith('127.0.0.1');
+
+  if (isLocal) {
+    return next();
+  }
+
   const now = Date.now();
   const limit = 20; // 1 daqiqada maksimal 20 ta so'rov
   const windowMs = 60 * 1000; // 1 daqiqa (60000 ms)
@@ -145,13 +369,22 @@ async function registerPendingPaymentInDb(payment) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payment)
     });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const result = await res.json();
     payment.firebaseKey = result.name;
     pendingPayments.push(payment);
     console.log(`📝 Payment registered: ${payment.amount} UZS for order ${payment.orderNum}`);
   } catch (e) {
-    console.warn("⚠️ Failed to register pending payment in Firebase:", e.message);
-    pendingPayments.push(payment); // Fallback to memory-only
+    console.warn("⚠️ Failed to register pending payment in Firebase, writing to local db.json:", e.message);
+    const key = 'local_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    payment.firebaseKey = key;
+    
+    // Save to local db.json
+    let dbData = readLocalDb();
+    dbData = setNestedValue(dbData, `pending_payments/${key}`, payment);
+    writeLocalDb(dbData);
+    
+    pendingPayments.push(payment);
   }
 }
 
@@ -219,12 +452,35 @@ function verifyAdmin(req, res, next) {
   const hostname = req.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
   
-  // Local development fallback
-  if (isLocal && !initData) {
-    return next();
+  if (isLocal) {
+    if (!initData) {
+      req.adminUser = { id: 'mock-admin', first_name: 'Local', last_name: 'Admin', username: 'local_admin' };
+      return next();
+    }
+    
+    let isValid = verifyTelegramAuth(initData);
+    if (!isValid) {
+      isValid = true; // Local dev bypass for invalid signature
+    }
+    
+    if (isValid) {
+      try {
+        const urlParams = new URLSearchParams(initData);
+        const userStr = urlParams.get('user');
+        if (userStr) {
+          req.adminUser = JSON.parse(userStr);
+        } else {
+          req.adminUser = { id: 'mock-admin', first_name: 'Local', last_name: 'Admin', username: 'local_admin' };
+        }
+        return next();
+      } catch (e) {
+        req.adminUser = { id: 'mock-admin', first_name: 'Local', last_name: 'Admin', username: 'local_admin' };
+        return next();
+      }
+    }
   }
   
-  if (!verifyTelegramAuth(initData)) {
+  if (!initData || !verifyTelegramAuth(initData)) {
     console.warn(`⚠️ Security: Unauthorized admin attempt from IP: ${req.ip}`);
     return res.status(401).json({ error: "Xavfsizlik xatosi: Siz admin emassiz yoki sessiya muddati tugagan" });
   }
