@@ -16,20 +16,20 @@
 :root {
   --bg: #050833;
   --bg2: rgba(18, 18, 36, 0.85);
-  --bg3: rgba(255, 255, 255, 0.04);
-  --card: rgba(255, 255, 255, 0.03);
-  --border: rgba(255, 255, 255, 0.06);
+  --bg3: rgba(255, 255, 255, 0.06);
+  --card: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.12);
   --accent: #6B7FFF;
   --accent2: #A78BFA;
   --grad: linear-gradient(135deg, #6B7FFF 0%, #A78BFA 100%);
   --text: #FFFFFF;
-  --text2: rgba(255, 255, 255, 0.65);
-  --text3: rgba(255, 255, 255, 0.35);
+  --text2: rgba(255, 255, 255, 0.78);
+  --text3: rgba(255, 255, 255, 0.52);
   --green: #10B981;
   --orange: #FBBF24;
   --red: #EF4444;
-  --glass: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.12);
   --blur: blur(24px) saturate(190%);
   --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
 }
@@ -125,7 +125,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   padding: 6px 4px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 11px;
   font-weight: 600;
   display: flex;
@@ -291,20 +291,22 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .search-bar {
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 20px;
   display: flex;
   align-items: center;
   padding: 6px 6px 6px 16px;
   gap: 10px;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
   transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .search-bar:focus-within {
-  border-color: rgba(167, 139, 250, 0.5);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 16px rgba(167, 139, 250, 0.15);
+  border-color: rgba(167, 139, 250, 0.6);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.2);
 }
 
 .search-bar input {
@@ -318,11 +320,11 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .search-bar input::placeholder {
-  color: var(--text3);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .search-bar .ti {
-  color: var(--text3);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 18px;
 }
 
@@ -575,15 +577,18 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   border-radius: 16px;
   font-size: 13px;
   font-weight: 600;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  color: var(--text2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.82);
   white-space: nowrap;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .cat-chip:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
   color: var(--text);
 }
 
@@ -622,7 +627,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .prod-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--card);
   border: 1px solid var(--glass-border);
   border-radius: 24px;
   overflow: hidden;
