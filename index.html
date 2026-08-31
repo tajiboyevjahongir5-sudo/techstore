@@ -3488,20 +3488,8 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
           <div class="see-all">Barchasi</div>
         </div>
         <div class="orders-list" id="adminOrdersList">
-          <div class="order-row" onclick="openChek('Alisher K.','iPhone 16 Pro','18 500 000','5 daqiqa oldin','new')">
-            <div class="order-icon" style="background:rgba(245,91,91,0.1);color:var(--red);position:relative"><i class="ti ti-receipt"></i><span style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:var(--red);border-radius:50%"></span></div>
-            <div class="order-info"><div class="order-name">Alisher K. — iPhone 16 Pro</div><div class="order-time">Chek yuborildi · 5 daqiqa oldin</div></div>
-            <div><div class="order-price">18.5M</div><div class="status-badge status-chek">Chek ✓</div></div>
-          </div>
-          <div class="order-row" onclick="openChek('Nilufar R.','AirPods Pro','2 800 000','23 daqiqa oldin','done')">
-            <div class="order-icon" style="background:rgba(34,216,126,0.1);color:var(--green)"><i class="ti ti-headphones"></i></div>
-            <div class="order-info"><div class="order-name">Nilufar R. — AirPods Pro</div><div class="order-time">23 daqiqa oldin</div></div>
-            <div><div class="order-price">2.8M</div><div class="status-badge status-done">Tasdiqlandi</div></div>
-          </div>
-          <div class="order-row" onclick="openChek('Bobur T.','MacBook Air','24 000 000','1 soat oldin','proc')">
-            <div class="order-icon" style="background:rgba(245,166,35,0.1);color:var(--orange)"><i class="ti ti-device-laptop"></i></div>
-            <div class="order-info"><div class="order-name">Bobur T. — MacBook Air</div><div class="order-time">1 soat oldin</div></div>
-            <div><div class="order-price">24M</div><div class="status-badge status-proc">Jarayon</div></div>
+          <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px">
+            <i class="ti ti-loader" style="animation:spin 1s linear infinite;font-size:18px"></i> Yuklanmoqda...
           </div>
         </div>
       </div>
@@ -3520,63 +3508,48 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
               <div class="admin-card-label">Buyurtmalar</div>
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(52,211,153,0.15);display:flex;align-items:center;justify-content:center;color:var(--green);font-size:16px"><i class="ti ti-shopping-cart"></i></div>
             </div>
-            <div class="admin-card-val" style="font-size:28px;font-weight:900;color:#6B7FFF">124</div>
-            <div class="admin-card-change pos" style="font-size:11px;margin-top:4px">↑ +12 bugun</div>
+            <div class="admin-card-val" id="statTotalOrders" style="font-size:28px;font-weight:900;color:#6B7FFF">0</div>
+            <div class="admin-card-change pos" id="statOrdersToday" style="font-size:11px;margin-top:4px">Kutilmoqda</div>
           </div>
           <div class="admin-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
               <div class="admin-card-label">Daromad</div>
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(52,211,153,0.15);display:flex;align-items:center;justify-content:center;color:var(--green);font-size:16px">💰</div>
             </div>
-            <div class="admin-card-val" style="font-size:28px;font-weight:900;color:#6B7FFF">45.2M</div>
-            <div class="admin-card-change pos" style="font-size:11px;margin-top:4px">↑ +8.4%</div>
+            <div class="admin-card-val" id="statTotalRevenue" style="font-size:22px;font-weight:900;color:#6B7FFF;line-height:1.2">0 so'm</div>
+            <div class="admin-card-change pos" id="statRevenueChange" style="font-size:11px;margin-top:4px">Tasdiqlangan</div>
           </div>
           <div class="admin-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
               <div class="admin-card-label">Foydalanuvchilar</div>
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(107,127,255,0.15);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:16px"><i class="ti ti-users"></i></div>
             </div>
-            <div class="admin-card-val" style="font-size:28px;font-weight:900;color:#6B7FFF">2,840</div>
-            <div class="admin-card-change pos" style="font-size:11px;margin-top:4px">↑ +94</div>
+            <div class="admin-card-val" id="statTotalUsers" style="font-size:28px;font-weight:900;color:#6B7FFF">0</div>
+            <div class="admin-card-change pos" id="statUsersChange" style="font-size:11px;margin-top:4px">Jami xaridorlar</div>
           </div>
           <div class="admin-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-              <div class="admin-card-label">Konversiya</div>
+              <div class="admin-card-label">Tasdiqlash foizi</div>
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(248,113,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--red);font-size:16px"><i class="ti ti-chart-bar"></i></div>
             </div>
-            <div class="admin-card-val" style="font-size:28px;font-weight:900;color:#6B7FFF">3.2%</div>
-            <div class="admin-card-change neg" style="font-size:11px;margin-top:4px">↓ -0.3%</div>
+            <div class="admin-card-val" id="statConversion" style="font-size:28px;font-weight:900;color:#6B7FFF">0%</div>
+            <div class="admin-card-change" id="statConversionChange" style="font-size:11px;margin-top:4px;color:var(--text3)">Tasdiqlangan/Jami</div>
           </div>
         </div>
         <!-- Area Chart -->
         <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:16px;margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-            <div style="font-size:14px;font-weight:700">Haftalik so'rovlar</div>
+            <div style="font-size:14px;font-weight:700">So'nggi 7 kunlik buyurtmalar</div>
             <div style="text-align:right;font-size:11px;color:var(--text2)">
-              <div>Jami: <span style="color:#fff;font-weight:600">752</span></div>
-              <div>O'rtacha kunlik: <span style="color:#fff;font-weight:600">107</span></div>
+              <div>Jami: <span style="color:#fff;font-weight:600" id="statChartTotal">0</span></div>
+              <div>O'rtacha kunlik: <span style="color:#fff;font-weight:600" id="statChartAverage">0</span></div>
             </div>
           </div>
-          <svg viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:90px">
-            <defs>
-              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="rgba(107,127,255,0.5)"/>
-                <stop offset="100%" stop-color="rgba(107,127,255,0.02)"/>
-              </linearGradient>
-            </defs>
-            <path d="M0,72 C20,65 35,55 50,58 C65,61 80,45 100,40 C120,35 130,50 150,35 C170,20 185,28 210,22 C230,17 250,38 270,32 C285,28 295,20 300,18 L300,100 L0,100 Z" fill="url(#areaGrad)"/>
-            <path d="M0,72 C20,65 35,55 50,58 C65,61 80,45 100,40 C120,35 130,50 150,35 C170,20 185,28 210,22 C230,17 250,38 270,32 C285,28 295,20 300,18" fill="none" stroke="#6B7FFF" stroke-width="2.5" stroke-linecap="round"/>
-            <circle cx="0" cy="72" r="3.5" fill="#6B7FFF"/><circle cx="50" cy="58" r="3.5" fill="#6B7FFF"/>
-            <circle cx="100" cy="40" r="3.5" fill="#6B7FFF"/><circle cx="150" cy="35" r="3.5" fill="#6B7FFF"/>
-            <circle cx="150" cy="35" r="6" fill="rgba(107,127,255,0.4)"/>
-            <circle cx="210" cy="22" r="3.5" fill="#6B7FFF"/><circle cx="270" cy="32" r="3.5" fill="#6B7FFF"/>
-            <circle cx="300" cy="18" r="3.5" fill="#6B7FFF"/>
-          </svg>
-          <div style="display:flex;justify-content:space-around;margin-top:6px">
-            <span style="font-size:10px;color:var(--text3)">Du</span><span style="font-size:10px;color:var(--text3)">Se</span>
-            <span style="font-size:10px;color:var(--text3)">Ch</span><span style="font-size:10px;color:var(--text3)">Pa</span>
-            <span style="font-size:10px;color:var(--text3)">Ju</span><span style="font-size:10px;color:var(--text3)">Sh</span>
-            <span style="font-size:10px;color:var(--text3)">Ya</span>
+          <div id="statChartContainer" style="width:100%;height:90px;display:flex;align-items:center;justify-content:center">
+            <!-- Dinamik SVG chart -->
+          </div>
+          <div style="display:flex;justify-content:space-around;margin-top:6px" id="statChartDays">
+            <!-- Dinamik kunlar ro'yxati -->
           </div>
         </div>
       </div>
@@ -5292,7 +5265,7 @@ function switchAdminTab(btn, tabId) {
   if(tabId==='adminProducts') renderAdminProducts();
   if(tabId==='adminUsers') renderUsersList();
   if(tabId==='adminSettings') loadSettingsUI();
-  if(tabId==='adminStats') buildChart();
+  if(tabId==='adminStats') loadAdminStats();
 }
 
 function renderAdminProducts() {
@@ -5767,24 +5740,128 @@ async function rejectChek() {
   document.getElementById('chekModal').classList.remove('open');
 }
 
-// ===== CHART =====
-function buildChart() {
-  const cb = document.getElementById('chartBars');
-  if(!cb) return;
-  if(cb.dataset.built) return;
-  cb.dataset.built = '1';
-  const days=['Du','Se','Ch','Pa','Ju','Sh','Ya'];
-  const vals=[38,55,42,70,88,65,95];
-  const maxV=Math.max(...vals);
-  days.forEach((d,i)=>{
-    const w=document.createElement('div');w.className='bar-wrap';
-    const b=document.createElement('div');b.className='bar'+(i===6?' highlight':'');
-    b.style.height=Math.round(vals[i]/maxV*50)+'px';
-    const l=document.createElement('div');l.className='bar-label';l.textContent=d;
-    w.appendChild(b);w.appendChild(l);cb.appendChild(w);
-  });
+// ===== CHART STATS =====
+async function loadAdminStats() {
+  const totalOrdersEl = document.getElementById('statTotalOrders');
+  const totalRevenueEl = document.getElementById('statTotalRevenue');
+  const totalUsersEl = document.getElementById('statTotalUsers');
+  const conversionEl = document.getElementById('statConversion');
+  const chartContainer = document.getElementById('statChartContainer');
+  const chartDays = document.getElementById('statChartDays');
+
+  if (chartContainer) {
+    chartContainer.innerHTML = `<div style="color:var(--text2);font-size:13px"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Yuklanmoqda...</div>`;
+  }
+
+  try {
+    const resOrders = await fetch('/api/admin/orders', {
+      headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' }
+    });
+    if (!resOrders.ok) throw new Error("Orders load failed");
+    const ordersData = await resOrders.json();
+    const orderList = Object.values(ordersData);
+
+    const resUsers = await fetch('/api/admin/users', {
+      headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' }
+    });
+    if (!resUsers.ok) throw new Error("Users load failed");
+    const usersList = await resUsers.json();
+
+    const totalOrders = orderList.length;
+    const confirmedOrders = orderList.filter(o => o.status === 'confirmed' || o.status === 'paid');
+    const confirmedCount = confirmedOrders.length;
+    const totalRevenue = confirmedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalUsers = usersList.length;
+
+    const confirmationRate = totalOrders > 0 ? ((confirmedCount / totalOrders) * 100).toFixed(1) : '0.0';
+
+    const startOfToday = new Date().setHours(0,0,0,0);
+    const ordersToday = orderList.filter(o => o.createdAt && o.createdAt >= startOfToday).length;
+
+    if (totalOrdersEl) totalOrdersEl.textContent = totalOrders;
+    if (totalRevenueEl) totalRevenueEl.innerHTML = formatPriceHTML(totalRevenue);
+    if (totalUsersEl) totalUsersEl.textContent = totalUsers;
+    if (conversionEl) conversionEl.textContent = confirmationRate + '%';
+    
+    const todayEl = document.getElementById('statOrdersToday');
+    if (todayEl) todayEl.textContent = `↑ +${ordersToday} bugun`;
+
+    const daysUz = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
+    const last7Days = [];
+    const orderCounts = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayName = daysUz[d.getDay()];
+      last7Days.push(dayName);
+
+      const startOfDay = new Date(d).setHours(0,0,0,0);
+      const endOfDay = new Date(d).setHours(23,59,59,999);
+      const count = orderList.filter(o => o.createdAt && o.createdAt >= startOfDay && o.createdAt <= endOfDay).length;
+      orderCounts.push(count);
+    }
+
+    const chartTotal = orderCounts.reduce((a,b)=>a+b, 0);
+    const chartAvg = (chartTotal / 7).toFixed(1);
+
+    document.getElementById('statChartTotal').textContent = chartTotal;
+    document.getElementById('statChartAverage').textContent = chartAvg;
+
+    if (chartDays) {
+      chartDays.innerHTML = last7Days.map(day => `<span style="font-size:10px;color:var(--text3);width:20px;text-align:center">${day}</span>`).join('');
+    }
+
+    const maxVal = Math.max(...orderCounts, 3);
+    const width = 300;
+    const height = 80;
+    const padding = 10;
+    
+    const points = orderCounts.map((count, idx) => {
+      const x = padding + (idx * (width - 2 * padding) / 6);
+      const y = height - padding - (count / maxVal * (height - 2 * padding));
+      return { x, y, count };
+    });
+
+    let pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      pathD += ` L ${points[i].x} ${points[i].y}`;
+    }
+
+    const areaD = `${pathD} L ${points[6].x} ${height} L ${points[0].x} ${height} Z`;
+
+    const svgHtml = `
+      <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(107,127,255,0.4)"/>
+            <stop offset="100%" stop-color="rgba(107,127,255,0.01)"/>
+          </linearGradient>
+        </defs>
+        <path d="${areaD}" fill="url(#areaGrad)"/>
+        <path d="${pathD}" fill="none" stroke="#6B7FFF" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="0" y1="${height - padding}" x2="${width}" y2="${height - padding}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+        <line x1="0" y1="${height/2}" x2="${width}" y2="${height/2}" stroke="rgba(255,255,255,0.03)" stroke-dasharray="3,3" stroke-width="1"/>
+        ${points.map(pt => `
+          <g>
+            <circle cx="${pt.x}" cy="${pt.y}" r="3.5" fill="#6B7FFF"/>
+            <circle cx="${pt.x}" cy="${pt.y}" r="6" fill="rgba(107,127,255,0.3)" style="opacity:0; transition: opacity 0.2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0"/>
+            ${pt.count > 0 ? `<text x="${pt.x}" y="${pt.y - 6}" font-size="8" fill="#A78BFA" font-weight="700" text-anchor="middle">${pt.count}</text>` : ''}
+          </g>
+        `).join('')}
+      </svg>
+    `;
+
+    if (chartContainer) {
+      chartContainer.innerHTML = svgHtml;
+    }
+  } catch (e) {
+    if (chartContainer) {
+      chartContainer.innerHTML = `<div style="color:var(--red);font-size:12px">Statistikani yuklashda xato</div>`;
+    }
+  }
 }
-document.addEventListener('DOMContentLoaded', buildChart);
+document.addEventListener('DOMContentLoaded', loadAdminStats);
 
 // ===== SAVE ON KEY ACTIONS =====
 // toggleFavById already saves via saveData() call inside it
