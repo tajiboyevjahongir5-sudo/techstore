@@ -2141,15 +2141,16 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .modal-sheet {
-  background: rgba(14, 14, 28, 0.96);
+  background: rgba(14, 14, 28, 0.98);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   border-radius: 28px 28px 0 0;
   padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   width: 100%;
   max-width: 430px;
   margin: 0 auto;
-  max-height: 90vh;
+  max-height: 92vh;
   overflow-y: auto;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
@@ -2175,6 +2176,15 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-top: 12px;
+  position: sticky;
+  bottom: -24px;
+  padding: 16px 0 calc(24px + env(safe-area-inset-bottom, 0px));
+  margin-left: -24px;
+  margin-right: -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+  background: rgba(14, 14, 28, 0.98);
+  z-index: 5;
 }
 
 .btn-cancel {
@@ -3038,8 +3048,8 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 @keyframes modalFadeIn {
-  0% { background: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
-  100% { background: rgba(5, 5, 12, 0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @keyframes sheetSlideUp {
