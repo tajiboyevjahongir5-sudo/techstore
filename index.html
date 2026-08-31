@@ -3576,29 +3576,12 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
           <div class="form-group" style="margin-bottom:0"><label class="form-label">Karta egasi</label><input class="form-input" id="settCardOwner" placeholder="Tojiboyev Jahongir"></div>
           <button class="settings-save-btn btn-cyan" onclick="saveCardSettings()"><i class="ti ti-device-floppy"></i> Ma'lumotlarni saqlash</button>
         </div>
-        <div class="settings-section card-purple">
+        <div class="settings-section card-purple" style="margin-bottom:0">
           <div class="settings-section-title">🔐 ADMIN PAROLI</div>
           <div class="form-group"><label class="form-label">Joriy parol</label><input class="form-input" type="password" id="settOldPass" placeholder="••••••"></div>
           <div class="form-group"><label class="form-label">Yangi parol</label><input class="form-input" type="password" id="settNewPass" placeholder="Yangi parol"></div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">Yangi parolni tasdiqlang</label><input class="form-input" type="password" id="settConfPass" placeholder="Qayta kiriting"></div>
           <button class="settings-save-btn btn-purple" onclick="savePasswordSettings()"><i class="ti ti-shield-lock"></i> Yangi parolni o'rnatish</button>
-        </div>
-        <div class="settings-section card-green">
-          <div class="settings-section-title">🤖 TELEGRAM BOT</div>
-          <div class="form-group"><label class="form-label">Bot Token</label><input class="form-input" id="settBotToken" placeholder="123456:ABC-DEF..."></div>
-          <div class="form-group"><label class="form-label">Admin Chat ID <span style="font-size:10px;color:var(--text2)">(rasmlar shu chatga yuklanadi)</span></label><input class="form-input" id="settAdminChatId" placeholder="Masalan: 123456789" type="number"></div>
-          <div class="form-group" style="margin-bottom:0"><label class="form-label">Admin Telegram ID'lar <span style="font-size:10px;color:var(--text2)">(vergul bilan ajrating, /admin buyrug'i uchun)</span></label><input class="form-input" id="settAdminTelegramIds" placeholder="123456789,987654321"></div>
-          <div style="font-size:11px;color:rgba(52,211,153,0.8);line-height:1.5;margin:8px 0 4px;display:flex;align-items:flex-start;gap:6px">
-            <span style="color:var(--green)">●</span> ID bilish uchun @userinfobot ga /start yuboring
-          </div>
-          <button class="settings-save-btn btn-green" onclick="saveBotSettings()"><i class="ti ti-robot"></i> Tizimni saqlash</button>
-        </div>
-        <div class="settings-section" style="background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(245,158,11,0.08));border:1px solid rgba(251,191,36,0.25);border-radius:20px;padding:16px;margin-top:4px">
-          <div class="settings-section-title">🔄 MAHSULOTLARNI QAYTA YUKLASH</div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:12px">
-            Firebase ga 20 ta default mahsulot yoziladi. Mavjud mahsulotlar <b style="color:var(--red)">o'chiriladi</b>!
-          </div>
-          <button class="settings-save-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706)" onclick="resetToDefaultProducts()"><i class="ti ti-refresh"></i> 20 ta mahsulotni yuklash</button>
         </div>
       </div>
     </div>
