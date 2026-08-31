@@ -4167,6 +4167,10 @@ async function loadProductsFromServer() {
     if (res.ok) {
       const data = await res.json();
       if (data && data.length) {
+        // Merge bannerImage from DEFAULT_PRODUCTS into server data
+        const bannerMap = {};
+        DEFAULT_PRODUCTS.forEach(dp => { if(dp.bannerImage) bannerMap[dp.id] = dp.bannerImage; });
+        data.forEach(p => { if(!p.bannerImage && bannerMap[p.id]) p.bannerImage = bannerMap[p.id]; });
         products = data;
         renderProducts(products);
         buildSlides();
