@@ -4010,9 +4010,18 @@ if(tg) {
 
   tg.BackButton.onClick(() => {
     const active = document.querySelector('.screen.active');
-    if(active && active.id !== 'home') {
-      showTab('home');
-      tg.BackButton.hide();
+    if(active) {
+      if(active.id === 'detail') {
+        showTab('home');
+      } else if(active.id === 'address') {
+        showTab('cart');
+      } else if(active.id === 'payment') {
+        showTab('address');
+      } else if(active.id === 'ordersHistory' || active.id === 'favorites') {
+        showTab('profile');
+      } else if(active.id !== 'home') {
+        showTab('home');
+      }
     }
   });
 }
@@ -4443,7 +4452,8 @@ function showTab(id) {
   if(actionsFixed) actionsFixed.classList.toggle('visible', id==='detail');
   // Telegram BackButton
   if(tg?.BackButton) {
-    if(id === 'home' || id === 'admin') tg.BackButton.hide();
+    const mainTabs = ['home', 'cart', 'profile', 'admin'];
+    if(mainTabs.includes(id)) tg.BackButton.hide();
     else tg.BackButton.show();
   }
 
