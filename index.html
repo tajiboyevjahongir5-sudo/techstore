@@ -351,7 +351,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .slider-banner {
-  height: 180px;
+  height: 200px;
   border-radius: 28px;
   position: relative;
   overflow: hidden;
@@ -476,12 +476,13 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .slide-img img {
-  width: 105px;
-  height: 105px;
-  object-fit: cover;
-  border-radius: 20px;
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
 }
 
 @keyframes bobbing {
@@ -7052,10 +7053,10 @@ function buildSlides() {
     const imgHtml = (p.images && p.images[0]) || p.image
       ? `<div class="slide-img">
            <img src="${p.images ? p.images[0] : p.image}" alt="${p.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-           <div class="slide-img-fallback" style="display:none;font-size:54px;justify-content:center;align-items:center;width:105px;height:105px;background:rgba(255,255,255,0.06);border-radius:20px;border:1.5px solid rgba(255,255,255,0.15)">${fallbackEmoji}</div>
+           <div class="slide-img-fallback" style="display:none;font-size:64px;justify-content:center;align-items:center;width:140px;height:140px">${fallbackEmoji}</div>
          </div>`
       : `<div class="slide-img">
-           <div class="slide-img-fallback" style="display:flex;font-size:54px;justify-content:center;align-items:center;width:105px;height:105px;background:rgba(255,255,255,0.06);border-radius:20px;border:1.5px solid rgba(255,255,255,0.15)">${fallbackEmoji}</div>
+           <div class="slide-img-fallback" style="display:flex;font-size:64px;justify-content:center;align-items:center;width:140px;height:140px">${fallbackEmoji}</div>
          </div>`;
 
     const slide = document.createElement('div');
