@@ -3468,25 +3468,25 @@ body.modal-open {
       <div class="screen-title">Admin Panel</div>
       <span style="font-size:10px;color:var(--green);background:rgba(34,216,126,0.1);padding:4px 10px;border-radius:20px;border:1px solid rgba(34,216,126,0.2)">● Admin</span>
     </div>
-    <div class="admin-wrap">
-      <div class="admin-tabs">
-        <button class="admin-tab active" onclick="switchAdminTab(this,'adminOrders')">
-          <div class="tab-icon"><i class="ti ti-receipt" style="font-size:18px"></i></div>Buyurtmalar
-        </button>
-        <button class="admin-tab" onclick="switchAdminTab(this,'adminProducts')">
-          <div class="tab-icon"><i class="ti ti-package" style="font-size:18px"></i></div>Mahsulotlar
-        </button>
-        <button class="admin-tab" onclick="switchAdminTab(this,'adminUsers')">
-          <div class="tab-icon"><i class="ti ti-users" style="font-size:18px"></i></div>Foydalanu...
-        </button>
-        <button class="admin-tab" onclick="switchAdminTab(this,'adminStats')">
-          <div class="tab-icon"><i class="ti ti-chart-bar" style="font-size:18px"></i></div>Statistika
-        </button>
-        <button class="admin-tab" onclick="switchAdminTab(this,'adminSettings')">
-          <div class="tab-icon"><i class="ti ti-settings" style="font-size:18px"></i></div>Sozlamalar
-        </button>
-      </div>
+    <div class="admin-tabs" style="position:sticky;top:0;z-index:50;background:rgba(7,7,18,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:12px 20px 0;margin:0 -0px;">
+      <button class="admin-tab active" onclick="switchAdminTab(this,'adminOrders')">
+        <div class="tab-icon"><i class="ti ti-receipt" style="font-size:18px"></i></div>Buyurtmalar
+      </button>
+      <button class="admin-tab" onclick="switchAdminTab(this,'adminProducts')">
+        <div class="tab-icon"><i class="ti ti-package" style="font-size:18px"></i></div>Mahsulotlar
+      </button>
+      <button class="admin-tab" onclick="switchAdminTab(this,'adminUsers')">
+        <div class="tab-icon"><i class="ti ti-users" style="font-size:18px"></i></div>Foydalanu...
+      </button>
+      <button class="admin-tab" onclick="switchAdminTab(this,'adminStats')">
+        <div class="tab-icon"><i class="ti ti-chart-bar" style="font-size:18px"></i></div>Statistika
+      </button>
+      <button class="admin-tab" onclick="switchAdminTab(this,'adminSettings')">
+        <div class="tab-icon"><i class="ti ti-settings" style="font-size:18px"></i></div>Sozlamalar
+      </button>
+    </div>
 
+    <div class="admin-wrap">
       <!-- ORDERS TAB -->
       <div id="adminOrders">
         <div class="section-head" style="padding:0 0 10px">
