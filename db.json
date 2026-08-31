@@ -773,41 +773,7 @@
       "telegramIds": ""
     }
   },
-  "users": {
-    "123456": {
-      "id": 123456,
-      "first_name": "John",
-      "last_name": "Doe",
-      "username": "johndoe",
-      "photo_url": "http://example.com/photo.jpg",
-      "joinedAt": 1788154063452,
-      "lastSeen": 1788154114965
-    },
-    "mock-user-999": {
-      "id": "mock-user-999",
-      "first_name": "Mock",
-      "last_name": "Foydalanuvchi",
-      "username": "mock_user",
-      "photo_url": "",
-      "joinedAt": 1788154064174,
-      "lastSeen": 1788154115386
-    }
-  },
-  "orders": {
-    "AUDIT-1001": {
-      "orderNum": "#AUDIT-1001",
-      "products": "iPhone 16 Pro Max",
-      "total": 15725019,
-      "basePrice": 15725000,
-      "suffix": 19,
-      "addr": "Tashkent, Uzbekistan",
-      "phone": "+998901234567",
-      "status": "rejected",
-      "userId": "123456",
-      "userName": "John Doe",
-      "chekImg": "data:image/png;base64,...",
-      "createdAt": 1788154118366
-    }
-  },
+  "users": {},
+  "orders": {},
   "pending_payments": {}
 }

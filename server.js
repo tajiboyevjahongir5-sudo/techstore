@@ -873,39 +873,28 @@ app.delete('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, r
 // Foydalanuvchini ro'yxatdan o'tkazish/yangilash (WebApp ochilganda)
 app.post('/api/users/register', apiRateLimiter, async (req, res) => {
   const initData = req.headers['x-telegram-init-data'];
+  if (!initData) return res.status(400).json({ error: "Init data missing" });
+  
   const hostname = req.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
   
-  let tgUser = null;
+  let isValid = verifyTelegramAuth(initData);
   
-  if (isLocal && !initData) {
-    // Localda brauzerdan mock kirish
-    tgUser = {
-      id: 'mock-user-999',
-      first_name: 'Mock',
-      last_name: 'Foydalanuvchi',
-      username: 'mock_user'
-    };
-  } else {
-    if (!initData) return res.status(400).json({ error: "Init data missing" });
-    
-    let isValid = verifyTelegramAuth(initData);
-    
-    // Agarda local bo'lsa va bot token hali sozlanmagan bo'lsa (initData bor, lekin token yo'q)
-    if (!isValid && isLocal && !BOT_TOKEN) {
-      isValid = true;
-    }
-    
-    if (!isValid) {
-      return res.status(401).json({ error: "Verifikatsiya muvaffaqiyatsiz tugadi" });
-    }
-    
-    try {
-      const urlParams = new URLSearchParams(initData);
-      tgUser = JSON.parse(urlParams.get('user') || '{}');
-    } catch(e) {
-      return res.status(400).json({ error: "Noto'g'ri user formati" });
-    }
+  // Agarda local bo'lsa va bot token hali sozlanmagan bo'lsa (initData bor, lekin token yo'q)
+  if (!isValid && isLocal && !BOT_TOKEN) {
+    isValid = true;
+  }
+  
+  if (!isValid) {
+    return res.status(401).json({ error: "Verifikatsiya muvaffaqiyatsiz tugadi" });
+  }
+  
+  let tgUser = null;
+  try {
+    const urlParams = new URLSearchParams(initData);
+    tgUser = JSON.parse(urlParams.get('user') || '{}');
+  } catch(e) {
+    return res.status(400).json({ error: "Noto'g'ri user formati" });
   }
   
   if (!tgUser || !tgUser.id) return res.status(400).json({ error: "User info missing" });
