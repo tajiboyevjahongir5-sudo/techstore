@@ -4465,11 +4465,11 @@ let sliderTimer = null;
 let sliderProgressTimer = null;
 
 const SLIDE_THEMES = [
-  { grad:'linear-gradient(135deg,#0f1035,#28147E,#3C1478)', badge:'rgba(107,127,255,0.3)', badgeBorder:'rgba(107,127,255,0.5)', badgeColor:'rgba(180,190,255,0.95)', cta:'linear-gradient(135deg,#6B7FFF,#A78BFA)', priceColor:'#A78BFA' },
-  { grad:'linear-gradient(135deg,#0a1f0f,#0e3d1c,#1a5c2a)', badge:'rgba(52,211,153,0.25)', badgeBorder:'rgba(52,211,153,0.4)', badgeColor:'rgba(150,255,200,0.95)', cta:'linear-gradient(135deg,#34D399,#059669)', priceColor:'#34D399' },
-  { grad:'linear-gradient(135deg,#1a0a0a,#4a1010,#6b1a1a)', badge:'rgba(248,113,113,0.25)', badgeBorder:'rgba(248,113,113,0.4)', badgeColor:'rgba(255,180,180,0.95)', cta:'linear-gradient(135deg,#F87171,#dc2626)', priceColor:'#F87171' },
-  { grad:'linear-gradient(135deg,#0a0f1a,#101a3d,#1a2a5c)', badge:'rgba(251,191,36,0.25)', badgeBorder:'rgba(251,191,36,0.4)', badgeColor:'rgba(255,230,140,0.95)', cta:'linear-gradient(135deg,#FBBF24,#d97706)', priceColor:'#FBBF24' },
-  { grad:'linear-gradient(135deg,#12041a,#2d0a4e,#4a1278)', badge:'rgba(167,139,250,0.3)', badgeBorder:'rgba(167,139,250,0.5)', badgeColor:'rgba(210,190,255,0.95)', cta:'linear-gradient(135deg,#A78BFA,#7c3aed)', priceColor:'#A78BFA' },
+  { grad:'linear-gradient(135deg,#1e1b4b,#4338ca,#312e81)', badge:'rgba(107,127,255,0.3)', badgeBorder:'rgba(107,127,255,0.5)', badgeColor:'rgba(180,190,255,0.95)', cta:'linear-gradient(135deg,#6B7FFF,#A78BFA)', priceColor:'#A78BFA' },
+  { grad:'linear-gradient(135deg,#064e3b,#047857,#022c22)', badge:'rgba(52,211,153,0.25)', badgeBorder:'rgba(52,211,153,0.4)', badgeColor:'rgba(150,255,200,0.95)', cta:'linear-gradient(135deg,#34D399,#059669)', priceColor:'#34D399' },
+  { grad:'linear-gradient(135deg,#4c0519,#be123c,#881337)', badge:'rgba(248,113,113,0.25)', badgeBorder:'rgba(248,113,113,0.4)', badgeColor:'rgba(255,180,180,0.95)', cta:'linear-gradient(135deg,#F87171,#dc2626)', priceColor:'#F87171' },
+  { grad:'linear-gradient(135deg,#451a03,#b45309,#78350f)', badge:'rgba(251,191,36,0.25)', badgeBorder:'rgba(251,191,36,0.4)', badgeColor:'rgba(255,230,140,0.95)', cta:'linear-gradient(135deg,#FBBF24,#d97706)', priceColor:'#FBBF24' },
+  { grad:'linear-gradient(135deg,#3b0764,#7c3aed,#581c87)', badge:'rgba(167,139,250,0.3)', badgeBorder:'rgba(167,139,250,0.5)', badgeColor:'rgba(210,190,255,0.95)', cta:'linear-gradient(135deg,#A78BFA,#7c3aed)', priceColor:'#A78BFA' },
 ];
 
 function getTopProducts() {
@@ -4486,6 +4486,7 @@ function buildSlides() {
   // remove old slides
   banner.querySelectorAll('.slide').forEach(s=>s.remove());
   dotsEl.innerHTML = '';
+  sliderIdx = 0; // Reset index to prevent out-of-bound errors on rebuild
 
   const tops = getTopProducts();
   if(!tops.length) return;
@@ -4494,10 +4495,17 @@ function buildSlides() {
     const theme = SLIDE_THEMES[i % SLIDE_THEMES.length];
     const priceM = (p.price/1000000).toFixed(1);
     const oldM = p.discount > 0 ? (p.price/1000000/(1-p.discount/100)).toFixed(1) : null;
-    const imgHtml = (p.images && p.images[0])
-      ? `<div class="slide-img"><img src="${p.images[0]}" alt="${p.name}"></div>`
-      : (p.image ? `<div class="slide-img"><img src="${p.image}" alt="${p.name}"></div>`
-      : `<div class="slide-img" style="font-size:72px">${p.emoji}</div>`);
+    const fallbackEmoji = p.emoji || '📦';
+    
+    // Robust image loader with instant fallback if Unsplash/CDN fails to load
+    const imgHtml = (p.images && p.images[0]) || p.image
+      ? `<div class="slide-img">
+           <img src="${p.images ? p.images[0] : p.image}" alt="${p.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+           <div class="slide-img-fallback" style="display:none;font-size:54px;justify-content:center;align-items:center;width:105px;height:105px;background:rgba(255,255,255,0.06);border-radius:20px;border:1.5px solid rgba(255,255,255,0.15)">${fallbackEmoji}</div>
+         </div>`
+      : `<div class="slide-img">
+           <div class="slide-img-fallback" style="display:flex;font-size:54px;justify-content:center;align-items:center;width:105px;height:105px;background:rgba(255,255,255,0.06);border-radius:20px;border:1.5px solid rgba(255,255,255,0.15)">${fallbackEmoji}</div>
+         </div>`;
 
     const slide = document.createElement('div');
     slide.className = 'slide' + (i===0?' active':'');
@@ -4538,10 +4546,14 @@ function goToSlide(idx) {
   const dots = document.querySelectorAll('.slider-dot');
   if(!slides.length) return;
 
-  // exit current
-  slides[sliderIdx].classList.remove('active');
-  slides[sliderIdx].classList.add('exit');
-  setTimeout(() => slides[sliderIdx]?.classList.remove('exit'), 560);
+  const currentIdx = sliderIdx; // Lock the current index in scope to clear exit class on the correct element
+  slides[currentIdx].classList.remove('active');
+  slides[currentIdx].classList.add('exit');
+  setTimeout(() => {
+    if (slides[currentIdx]) {
+      slides[currentIdx].classList.remove('exit');
+    }
+  }, 560);
 
   sliderIdx = (idx + slides.length) % slides.length;
   slides[sliderIdx].classList.add('active');
