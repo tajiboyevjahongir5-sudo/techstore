@@ -2133,9 +2133,9 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(5, 5, 12, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: 1000;
   align-items: flex-end;
 }
@@ -3039,7 +3039,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 
 @keyframes modalFadeIn {
   0% { background: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
-  100% { background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  100% { background: rgba(5, 5, 12, 0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 }
 
 @keyframes sheetSlideUp {
@@ -3173,6 +3173,12 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+body.modal-open {
+  overflow: hidden !important;
+  height: 100vh !important;
+  position: fixed !important;
+  width: 100% !important;
 }
 </style>
 
@@ -3916,6 +3922,26 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
     });
   }
 })();
+
+// ===== MODAL SCROLL LOCK HELPERS =====
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add('open');
+    document.body.classList.add('modal-open');
+  }
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.remove('open');
+    // Faqat boshqa ochiq modallar qolmagan taqdirdagina scroll lockni olib tashlaymiz
+    const openModals = document.querySelectorAll('.modal-overlay.open, .edit-modal-overlay.open, .chek-modal-overlay.open, .confirm-overlay.open');
+    if (openModals.length === 0) {
+      document.body.classList.remove('modal-open');
+    }
+  }
+}
 
 // ===== DATA (yuqorida e'lon qilinadi — hoisting muammosini hal qilish uchun) =====
 let adminUnlocked = false;
@@ -5043,10 +5069,10 @@ async function renderUsersList() {
 }
 
 function openDevModal() {
-  document.getElementById('devModal').classList.add('open');
+  openModal('devModal');
 }
 function closeDevModal() {
-  document.getElementById('devModal').classList.remove('open');
+  closeModal('devModal');
 }
 
 function openAdminContact() {
@@ -5417,9 +5443,9 @@ function openAddModal() {
     o.classList.toggle('selected', o.textContent.trim()==='Telefonlar');
   });
   renderSpecsFields('Telefonlar');
-  document.getElementById('addModal').classList.add('open');
+  openModal('addModal');
 }
-function closeAddModal(){document.getElementById('addModal').classList.remove('open')}
+function closeAddModal(){closeModal('addModal')}
 
 async function saveProduct() {
   const name = document.getElementById('prodName').value.trim() || 'Yangi mahsulot';
@@ -5479,9 +5505,9 @@ function openEditModal(id) {
   editProdImages = p.images ? [...p.images] : (p.image ? [p.image] : []);
   renderImgGrid(editProdImages, 'editImgGrid', 'editImgCount', 'removeEditImg');
   document.getElementById('editImgInput').value = '';
-  document.getElementById('editModal').classList.add('open');
+  openModal('editModal');
 }
-function closeEditModal(){document.getElementById('editModal').classList.remove('open')}
+function closeEditModal(){closeModal('editModal')}
 
 async function saveEditProduct() {
   const p = products.find(x=>x.id===editingProdId);
@@ -5527,7 +5553,7 @@ async function saveEditProduct() {
 // ===== DELETE PRODUCT =====
 function openConfirmDelete(id) {
   deletingProdId = id;
-  document.getElementById('confirmModal').classList.add('open');
+  openModal('confirmModal');
   document.getElementById('confirmDelBtn').onclick = async () => {
     try {
       const res = await fetch(`/api/admin/products/${deletingProdId}`, {
@@ -5551,7 +5577,7 @@ function openConfirmDelete(id) {
     }
   };
 }
-function closeConfirm(){document.getElementById('confirmModal').classList.remove('open')}
+function closeConfirm(){closeModal('confirmModal')}
 
 // ===== ADMIN CHEK MODAL =====
 // ===== ADMIN ORDERS LOADING =====
@@ -5663,9 +5689,9 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
       ${uid ? `<button onclick="openTgUserDirect('${uid}','${uname||''}')" style="width:100%;height:50px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.4);margin-bottom:10px">
         <i class="ti ti-brand-telegram" style="font-size:18px"></i> Telegram orqali bog'lanish
       </button>` : ''}
-      <button onclick="document.getElementById('chekModal').classList.remove('open')" style="width:100%;height:44px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text2);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Yopish</button>`;
+      <button onclick="closeModal('chekModal')" style="width:100%;height:44px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text2);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Yopish</button>`;
   }
-  document.getElementById('chekModal').classList.add('open');
+  openModal('chekModal');
 }
 
 async function approveChek() {
@@ -5695,7 +5721,7 @@ async function approveChek() {
   } catch (e) {
     showToast('Tarmoq xatosi', '✗', 'var(--red)');
   }
-  document.getElementById('chekModal').classList.remove('open');
+  closeModal('chekModal');
 }
 
 async function rejectChek() {
@@ -5722,7 +5748,7 @@ async function rejectChek() {
   } catch (e) {
     showToast('Tarmoq xatosi', '✗', 'var(--red)');
   }
-  document.getElementById('chekModal').classList.remove('open');
+  closeModal('chekModal');
 }
 
 // ===== CHART STATS =====
