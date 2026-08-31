@@ -104,8 +104,8 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .tab-nav {
   display: flex;
   background: rgba(10, 10, 20, 0.65);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-top: 1px solid rgba(167, 139, 250, 0.15);
   border-radius: 24px 24px 0 0;
   position: fixed;
@@ -366,7 +366,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   padding: 24px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 1;
 }
 
@@ -381,19 +381,19 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   inset: 0;
   z-index: 0;
   opacity: 0;
-  transform: scale(0.92) translate3d(0,0,0);
-  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: scale(0.88);
+  transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .slide.active .slide-bg {
   opacity: 1;
-  transform: scale(1) translate3d(0,0,0);
+  transform: scale(1);
 }
 
 .slide.exit .slide-bg {
   opacity: 0;
-  transform: scale(1.05) translate3d(0,0,0);
-  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: scale(1.08);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
 }
 
 .slide-text {
@@ -401,21 +401,25 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   flex: 1;
   position: relative;
   padding-right: 165px;
-  opacity: 0;
-  transform: translateY(24px) translate3d(0,0,0);
-  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: 0.05s;
 }
 
-.slide.active .slide-text {
-  opacity: 1;
-  transform: translateY(0) translate3d(0,0,0);
+/* Staggered text children animations */
+.slide-text > * {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.slide.exit .slide-text {
+.slide.active .slide-text > *:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 0.08s; }
+.slide.active .slide-text > *:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 0.16s; }
+.slide.active .slide-text > *:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 0.24s; }
+.slide.active .slide-text > *:nth-child(4) { opacity: 1; transform: translateY(0); transition-delay: 0.32s; }
+
+.slide.exit .slide-text > * {
   opacity: 0;
-  transform: translateY(-20px) translate3d(0,0,0);
-  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(-14px);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  transition-delay: 0s;
 }
 
 .slide-badge {
@@ -500,20 +504,20 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: translateY(-50%) translateX(45px) scale(0.82) rotate(6deg) translate3d(0,0,0);
-  transition: opacity 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.12s;
+  transform: translateY(-50%) translateX(55px) scale(0.7) rotate(10deg);
+  transition: opacity 0.9s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.18s;
 }
 
 .slide.active .slide-img {
   opacity: 1;
-  transform: translateY(-50%) translateX(0) scale(1) rotate(0deg) translate3d(0,0,0);
+  transform: translateY(-50%) translateX(0) scale(1) rotate(0deg);
 }
 
 .slide.exit .slide-img {
   opacity: 0;
-  transform: translateY(-50%) translateX(-45px) scale(0.82) rotate(-6deg) translate3d(0,0,0);
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(-50%) translateX(-55px) scale(0.7) rotate(-10deg);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
   transition-delay: 0s;
 }
 
@@ -7203,7 +7207,7 @@ function goToSlide(idx) {
     if (slides[currentIdx]) {
       slides[currentIdx].classList.remove('exit');
     }
-  }, 560);
+  }, 1000);
 
   sliderIdx = (idx + slides.length) % slides.length;
   slides[sliderIdx].classList.add('active');
