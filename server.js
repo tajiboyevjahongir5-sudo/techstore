@@ -614,27 +614,97 @@ app.delete('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, r
   }
 });
 
-// Foydalanuvchilar ro'yxatini olish
+// Foydalanuvchini ro'yxatdan o'tkazish/yangilash (WebApp ochilganda)
+app.post('/api/users/register', apiRateLimiter, async (req, res) => {
+  const initData = req.headers['x-telegram-init-data'];
+  if (!initData) return res.status(400).json({ error: "Init data missing" });
+  
+  if (!verifyTelegramAuth(initData)) {
+    return res.status(401).json({ error: "Verifikatsiya muvaffaqiyatsiz tugadi" });
+  }
+  
+  try {
+    const urlParams = new URLSearchParams(initData);
+    const tgUser = JSON.parse(urlParams.get('user') || '{}');
+    if (!tgUser.id) return res.status(400).json({ error: "User info missing" });
+    
+    const userPath = `users/${tgUser.id}`;
+    const existing = await firebaseGet(userPath);
+    
+    const userData = {
+      id: tgUser.id,
+      first_name: tgUser.first_name || '',
+      last_name: tgUser.last_name || '',
+      username: tgUser.username || '',
+      photo_url: tgUser.photo_url || '',
+      joinedAt: existing?.joinedAt || Date.now(),
+      lastSeen: Date.now()
+    };
+    
+    await firebasePatch(userPath, userData);
+    res.json({ success: true, user: userData });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Foydalanuvchilar (Mijozlar) ro'yxatini olish
 app.get('/api/admin/users', apiRateLimiter, verifyAdmin, async (req, res) => {
   try {
+    const usersData = await firebaseGet('users') || {};
     const ordersData = await firebaseGet('orders') || {};
-    const usersMap = new Map();
+    
+    let userList = Object.values(usersData);
+    
+    // Fallback: Agar users bo'limi bo'sh bo'lsa, buyurtmalardan foydalanuvchilarni yig'ish (backward compatibility)
+    if (userList.length === 0) {
+      const fallbackMap = new Map();
+      Object.values(ordersData).forEach(o => {
+        if (o.userId) {
+          const uidStr = String(o.userId);
+          fallbackMap.set(uidStr, {
+            id: o.userId,
+            first_name: o.userName || 'Foydalanuvchi',
+            last_name: '',
+            username: o.userUsername || '',
+            photo_url: o.userPhotoUrl || '',
+            joinedAt: o.createdAt || Date.now()
+          });
+        }
+      });
+      userList = Array.from(fallbackMap.values());
+    }
+    
+    // Har bir foydalanuvchining buyurtmalar soni va oxirgi telefon raqamini hisoblab chiqish
+    const userOrderCounts = {};
+    const userPhones = {};
     
     Object.values(ordersData).forEach(o => {
       if (o.userId) {
-        usersMap.set(String(o.userId), {
-          id: o.userId,
-          first_name: o.userName || 'Foydalanuvchi',
-          last_name: '',
-          username: o.userUsername || '',
-          phone: o.phone || '',
-          orderCount: (usersMap.get(String(o.userId))?.orderCount || 0) + 1,
-          joinedAt: o.createdAt || Date.now()
-        });
+        const uidStr = String(o.userId);
+        userOrderCounts[uidStr] = (userOrderCounts[uidStr] || 0) + 1;
+        if (o.phone) {
+          userPhones[uidStr] = o.phone;
+        }
       }
     });
     
-    res.json(Array.from(usersMap.values()));
+    const result = userList.map(u => {
+      const uidStr = String(u.id);
+      return {
+        id: u.id,
+        first_name: u.first_name || 'Foydalanuvchi',
+        last_name: u.last_name || '',
+        username: u.username || '',
+        photo_url: u.photo_url || '',
+        phone: userPhones[uidStr] || '',
+        orderCount: userOrderCounts[uidStr] || 0,
+        joinedAt: u.joinedAt || Date.now(),
+        lastSeen: u.lastSeen || Date.now()
+      };
+    });
+    
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

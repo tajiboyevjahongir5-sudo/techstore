@@ -4018,6 +4018,15 @@ function loadTelegramUser() {
       });
     }
     saveData();
+
+    // Serverga ro'yxatdan o'tkazish so'rovini yuborish
+    fetch('/api/users/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+      }
+    }).catch(err => console.warn("Foydalanuvchini serverda ro'yxatdan o'tkazishda xato:", err));
   } else {
     // Browser test mode fallback
     avatarEl.textContent = 'A';
