@@ -177,6 +177,21 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   animation: screenFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Admin panel: flex layout — header+tabs fixed, only content scrolls */
+#admin.screen.active {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100vh;
+  padding-bottom: 0;
+}
+#admin.screen.active .admin-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  padding-bottom: 120px;
+}
+
 @keyframes screenFadeIn {
   0% { opacity: 0; transform: translateY(16px); }
   100% { opacity: 1; transform: translateY(0); }
