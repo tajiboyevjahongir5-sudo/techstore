@@ -3570,18 +3570,11 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 
       <!-- SETTINGS TAB -->
       <div id="adminSettings" style="display:none">
-        <div class="settings-section card-cyan">
+        <div class="settings-section card-cyan" style="margin-bottom:0">
           <div class="settings-section-title">💳 KARTA MA'LUMOTLARI</div>
           <div class="form-group"><label class="form-label">Karta raqami</label><input class="form-input" id="settCardNumber" placeholder="9860 3501 4074 7741" maxlength="19"></div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">Karta egasi</label><input class="form-input" id="settCardOwner" placeholder="Tojiboyev Jahongir"></div>
           <button class="settings-save-btn btn-cyan" onclick="saveCardSettings()"><i class="ti ti-device-floppy"></i> Ma'lumotlarni saqlash</button>
-        </div>
-        <div class="settings-section card-purple" style="margin-bottom:0">
-          <div class="settings-section-title">🔐 ADMIN PAROLI</div>
-          <div class="form-group"><label class="form-label">Joriy parol</label><input class="form-input" type="password" id="settOldPass" placeholder="••••••"></div>
-          <div class="form-group"><label class="form-label">Yangi parol</label><input class="form-input" type="password" id="settNewPass" placeholder="Yangi parol"></div>
-          <div class="form-group" style="margin-bottom:0"><label class="form-label">Yangi parolni tasdiqlang</label><input class="form-input" type="password" id="settConfPass" placeholder="Qayta kiriting"></div>
-          <button class="settings-save-btn btn-purple" onclick="savePasswordSettings()"><i class="ti ti-shield-lock"></i> Yangi parolni o'rnatish</button>
         </div>
       </div>
     </div>
