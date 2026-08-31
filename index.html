@@ -3509,7 +3509,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(52,211,153,0.15);display:flex;align-items:center;justify-content:center;color:var(--green);font-size:16px"><i class="ti ti-shopping-cart"></i></div>
             </div>
             <div class="admin-card-val" id="statTotalOrders" style="font-size:28px;font-weight:900;color:#6B7FFF">0</div>
-            <div class="admin-card-change pos" id="statOrdersToday" style="font-size:11px;margin-top:4px">Kutilmoqda</div>
+            <div class="admin-card-change" id="statOrdersToday" style="font-size:11px;margin-top:4px">Kutilmoqda</div>
           </div>
           <div class="admin-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
@@ -3517,19 +3517,19 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(52,211,153,0.15);display:flex;align-items:center;justify-content:center;color:var(--green);font-size:16px">💰</div>
             </div>
             <div class="admin-card-val" id="statTotalRevenue" style="font-size:22px;font-weight:900;color:#6B7FFF;line-height:1.2">0 so'm</div>
-            <div class="admin-card-change pos" id="statRevenueChange" style="font-size:11px;margin-top:4px">Tasdiqlangan</div>
+            <div class="admin-card-change" id="statRevenueChange" style="font-size:11px;margin-top:4px;color:var(--text3)">Tasdiqlangan</div>
           </div>
           <div class="admin-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-              <div class="admin-card-label">Foydalanuvchilar</div>
+              <div class="admin-card-label">Mijozlar</div>
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(107,127,255,0.15);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:16px"><i class="ti ti-users"></i></div>
             </div>
             <div class="admin-card-val" id="statTotalUsers" style="font-size:28px;font-weight:900;color:#6B7FFF">0</div>
-            <div class="admin-card-change pos" id="statUsersChange" style="font-size:11px;margin-top:4px">Jami xaridorlar</div>
+            <div class="admin-card-change" id="statUsersChange" style="font-size:11px;margin-top:4px;color:var(--text3)">Jami xaridorlar</div>
           </div>
           <div class="admin-card">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-              <div class="admin-card-label">Tasdiqlash foizi</div>
+              <div class="admin-card-label">Konversiya</div>
               <div style="width:34px;height:34px;border-radius:10px;background:rgba(248,113,113,0.12);display:flex;align-items:center;justify-content:center;color:var(--red);font-size:16px"><i class="ti ti-chart-bar"></i></div>
             </div>
             <div class="admin-card-val" id="statConversion" style="font-size:28px;font-weight:900;color:#6B7FFF">0%</div>
@@ -3548,7 +3548,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
           <div id="statChartContainer" style="width:100%;height:90px;display:flex;align-items:center;justify-content:center">
             <!-- Dinamik SVG chart -->
           </div>
-          <div style="display:flex;justify-content:space-around;margin-top:6px" id="statChartDays">
+          <div style="display:flex;justify-content:space-between;margin-top:6px;padding:0 8px" id="statChartDays">
             <!-- Dinamik kunlar ro'yxati -->
           </div>
         </div>
@@ -5767,7 +5767,17 @@ async function loadAdminStats() {
     if (conversionEl) conversionEl.textContent = confirmationRate + '%';
     
     const todayEl = document.getElementById('statOrdersToday');
-    if (todayEl) todayEl.textContent = `↑ +${ordersToday} bugun`;
+    if (todayEl) {
+      if (ordersToday > 0) {
+        todayEl.className = 'admin-card-change pos';
+        todayEl.style.color = '';
+        todayEl.textContent = `↑ +${ordersToday} bugun`;
+      } else {
+        todayEl.className = 'admin-card-change';
+        todayEl.style.color = 'var(--text3)';
+        todayEl.textContent = '0 bugun';
+      }
+    }
 
     const daysUz = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
     const last7Days = [];
