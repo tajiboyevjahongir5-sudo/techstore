@@ -48,7 +48,8 @@ const GEMINI_FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest
 const TRANSIENT_STATUSES = [429, 500, 502, 503, 504];
 const AI_RETRY_DELAY_MS = 25000; // hammasi band bo'lsa, xabarni shuncha vaqtdan keyin qayta ishlaymiz
 const MAX_AI_RETRIES = 3;
-const AI_REQUEST_TIMEOUT_MS = 45000;   // bitta AI so'rovi shundan oshsa — bekor qilinadi
+const AI_REQUEST_TIMEOUT_MS = 25000;   // bitta AI so'rovi shundan oshsa — keyingi modelga o'tiladi
+const MODEL_COOLDOWN_MS = { busy: 5 * 60000, limit: 30 * 60000 }; // band/limitli model shuncha vaqt chetlab o'tiladi
 const TURN_TIMEOUT_MS = 150000;        // bitta javob tayyorlash umumiy chegarasi
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const MAX_HISTORY = 40;            // har bir chat uchun saqlanadigan xabarlar (matn ko'rinishida)
@@ -56,8 +57,8 @@ const MAX_TOOL_ROUNDS = 10;        // bir javob ichida asboblardan foydalanish c
 const MAX_PHOTOS_PER_CHAT = 12;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const CUSTOMER_HOURLY_LIMIT = 40;
-const ADMIN_DEBOUNCE_MS = 2500;    // admin rasm + matnni ketma-ket yuborsa, birga qayta ishlanadi
-const CUSTOMER_DEBOUNCE_MS = 1500;
+const PHOTO_DEBOUNCE_MS = 2500;    // izohsiz rasmdan keyin matn kelishini kutamiz (rasm + "shuni qo'sh")
+const TEXT_DEBOUNCE_MS = 700;     // ketma-ket yozilgan qisqa xabarlarni birlashtirish uchun
 const MAX_CHATS = 500;
 
 // ---------- Maxfiy ma'lumotlarni saqlash ----------
@@ -698,7 +699,7 @@ function createAssistant(deps) {
 
       clearTimeout(chat.timer);
       chat.timer = setTimeout(() => processChat(chat).catch(e => console.error('Assistant processChat:', e)),
-        role === 'admin' ? ADMIN_DEBOUNCE_MS : CUSTOMER_DEBOUNCE_MS);
+        (msg.photo || msg.document) && !msg.message ? PHOTO_DEBOUNCE_MS : TEXT_DEBOUNCE_MS);
     } catch (e) {
       console.error('Assistant onNewMessage error:', e.message);
     }
@@ -1019,56 +1020,67 @@ Qat'iy qoidalar:
     return out;
   }
 
-  async function chatCompletion(body) {
+  // Band yoki limiti tugagan modellarni bir muddat "eslab qolamiz", keyingi xabarlarda
+  // ularga urinib vaqt yo'qotmasdan darhol ishlayotgan modelga murojaat qilamiz.
+  const modelCooldown = new Map(); // model -> qachongacha chetlab o'tiladi (ms)
+
+  function modelOrder() {
     const models = [config.model];
     if (config.provider === 'gemini') GEMINI_FALLBACK_MODELS.forEach(m => { if (!models.includes(m)) models.push(m); });
+    const now = Date.now();
+    const ready = models.filter(m => !(modelCooldown.get(m) > now));
+    const cooling = models.filter(m => modelCooldown.get(m) > now).sort((a, b) => modelCooldown.get(a) - modelCooldown.get(b));
+    return [...ready, ...cooling];
+  }
+
+  async function chatCompletion(body) {
+    const models = modelOrder();
     let lastErr = null;
 
     for (const model of models) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        let res, data;
-        try {
-          const started = Date.now();
-          res = await fetch(aiBaseUrl() + '/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiKeyFor(config.provider)}` },
-            body: JSON.stringify({ ...body, model }),
-            signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-          });
-          data = await res.json().catch(() => ({}));
-          console.log(`🤖 Assistant: AI ${model} → ${res.status} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
-        } catch (e) {
-          // Tarmoq uzilishi yoki javob juda kechikdi — keyingi modelga o'tamiz
-          const timedOut = e.name === 'TimeoutError' || e.name === 'AbortError';
-          console.warn(`🤖 Assistant: AI ${model} → ${timedOut ? 'timeout' : e.message}`);
-          lastErr = Object.assign(new Error(timedOut ? 'AI juda uzoq javob bermadi' : 'AI serveriga ulanib bo\'lmadi'), { aiError: true, transient: true });
-          if (timedOut) break;
-          await sleep(1500);
-          continue;
-        }
-        if (res.ok) {
-          if (model !== config.model) console.log(`🤖 Assistant: ${config.model} band, ${model} ishlatildi`);
-          return data;
-        }
-
-        const detail = (Array.isArray(data) ? data[0] : data)?.error?.message || '';
-        const transient = TRANSIENT_STATUSES.includes(res.status);
-        lastErr = new Error(
-          res.status === 429 ? "AI bepul limiti tugadi yoki juda ko'p so'rov bo'ldi"
-            : res.status === 503 || res.status === 500 ? 'AI serveri hozir band'
-            : res.status === 401 || res.status === 403 ? "AI kaliti noto'g'ri yoki ruxsat yo'q"
-            : res.status === 404 ? `Model topilmadi: ${model}`
-            : `AI xatosi (${res.status}) ${detail.slice(0, 200)}`
-        );
-        lastErr.aiError = true;
-        lastErr.transient = transient;
-        console.warn(`🤖 Assistant: ${model} → ${res.status} ${detail.slice(0, 120)}`);
-
-        if (res.status === 404 && models.length > 1) break;      // bu model yo'q — keyingisiga
-        if (!transient) throw lastErr;                            // kalit xato va h.k. — qayta urinish foydasiz
-        if (res.status === 429) break;                            // limit — boshqa modelning limiti alohida
-        if (attempt === 0) await sleep(2000);                     // band — bir marta kutib qayta urinamiz
+      let res, data;
+      const started = Date.now();
+      try {
+        res = await fetch(aiBaseUrl() + '/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiKeyFor(config.provider)}` },
+          body: JSON.stringify({ ...body, model }),
+          signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+        });
+        data = await res.json().catch(() => ({}));
+        console.log(`🤖 Assistant: AI ${model} → ${res.status} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
+      } catch (e) {
+        // Tarmoq uzilishi yoki javob juda kechikdi — bu modelni bir muddat chetlab, keyingisiga o'tamiz
+        const timedOut = e.name === 'TimeoutError' || e.name === 'AbortError';
+        console.warn(`🤖 Assistant: AI ${model} → ${timedOut ? 'timeout' : e.message}`);
+        modelCooldown.set(model, Date.now() + MODEL_COOLDOWN_MS.busy);
+        lastErr = Object.assign(new Error(timedOut ? 'AI juda uzoq javob bermadi' : 'AI serveriga ulanib bo\'lmadi'), { aiError: true, transient: true });
+        continue;
       }
+      if (res.ok) {
+        modelCooldown.delete(model);
+        return data;
+      }
+
+      const detail = (Array.isArray(data) ? data[0] : data)?.error?.message || '';
+      const transient = TRANSIENT_STATUSES.includes(res.status);
+      lastErr = new Error(
+        res.status === 429 ? "AI bepul limiti tugadi yoki juda ko'p so'rov bo'ldi"
+          : res.status === 503 || res.status === 500 ? 'AI serveri hozir band'
+          : res.status === 401 || res.status === 403 ? "AI kaliti noto'g'ri yoki ruxsat yo'q"
+          : res.status === 404 ? `Model topilmadi: ${model}`
+          : `AI xatosi (${res.status}) ${detail.slice(0, 200)}`
+      );
+      lastErr.aiError = true;
+      lastErr.transient = transient;
+      console.warn(`🤖 Assistant: ${model} → ${res.status} ${detail.slice(0, 120)}`);
+
+      if (res.status === 404 && models.length > 1) {          // bu model yo'q — uzoq muddat chetlab o'tamiz
+        modelCooldown.set(model, Date.now() + 24 * 3600000);
+        continue;
+      }
+      if (!transient) throw lastErr;                            // kalit xato va h.k. — boshqa model ham yordam bermaydi
+      modelCooldown.set(model, Date.now() + (res.status === 429 ? MODEL_COOLDOWN_MS.limit : MODEL_COOLDOWN_MS.busy));
     }
     throw lastErr || new Error('AI javob bermadi');
   }
