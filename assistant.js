@@ -45,6 +45,8 @@ const GEMINI_FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest
 const TRANSIENT_STATUSES = [429, 500, 502, 503, 504];
 const AI_RETRY_DELAY_MS = 25000; // hammasi band bo'lsa, xabarni shuncha vaqtdan keyin qayta ishlaymiz
 const MAX_AI_RETRIES = 3;
+const AI_REQUEST_TIMEOUT_MS = 45000;   // bitta AI so'rovi shundan oshsa — bekor qilinadi
+const TURN_TIMEOUT_MS = 150000;        // bitta javob tayyorlash umumiy chegarasi
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const MAX_HISTORY = 40;            // har bir chat uchun saqlanadigan xabarlar (matn ko'rinishida)
 const MAX_TOOL_ROUNDS = 10;        // bir javob ichida asboblardan foydalanish chegarasi
@@ -1022,15 +1024,21 @@ Qat'iy qoidalar:
       for (let attempt = 0; attempt < 2; attempt++) {
         let res, data;
         try {
+          const started = Date.now();
           res = await fetch(aiBaseUrl() + '/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiKeyFor(config.provider)}` },
             body: JSON.stringify({ ...body, model }),
+            signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
           });
           data = await res.json().catch(() => ({}));
+          console.log(`🤖 Assistant: AI ${model} → ${res.status} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
         } catch (e) {
-          // Tarmoq uzilishi — qisqa kutib qayta urinamiz
-          lastErr = Object.assign(new Error('AI serveriga ulanib bo\'lmadi'), { aiError: true, transient: true });
+          // Tarmoq uzilishi yoki javob juda kechikdi — keyingi modelga o'tamiz
+          const timedOut = e.name === 'TimeoutError' || e.name === 'AbortError';
+          console.warn(`🤖 Assistant: AI ${model} → ${timedOut ? 'timeout' : e.message}`);
+          lastErr = Object.assign(new Error(timedOut ? 'AI juda uzoq javob bermadi' : 'AI serveriga ulanib bo\'lmadi'), { aiError: true, transient: true });
+          if (timedOut) break;
           await sleep(1500);
           continue;
         }
@@ -1077,15 +1085,31 @@ Qat'iy qoidalar:
     ];
     const actions = [];
     let finalText = '';
+    let emptyRetried = false;
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const data = await chatCompletion({ model: config.model, messages, tools, max_tokens: 4000 });
+      const body = { model: config.model, messages, tools };
+      // Gemini'da uzoq "fikrlash" javobni sekinlashtiradi va bo'sh javobga olib kelishi mumkin
+      if (config.provider === 'gemini') body.reasoning_effort = 'low';
+      const data = await chatCompletion(body);
       const choice = data.choices && data.choices[0];
       const msg = choice && choice.message;
-      if (!msg) break;
-      const text = typeof msg.content === 'string' ? msg.content.trim() : '';
+      if (!msg) {
+        console.warn('🤖 Assistant: AI javobida message yo\'q:', JSON.stringify(data).slice(0, 300));
+        break;
+      }
+      const text = typeof msg.content === 'string' ? msg.content.trim()
+        : Array.isArray(msg.content) ? msg.content.map(c => c.text || '').join('').trim() : '';
       if (text) finalText = text;
       const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
+      if (!text && !calls.length) {
+        console.warn(`🤖 Assistant: bo'sh javob (finish_reason=${choice.finish_reason})`);
+        if (!emptyRetried) {
+          // Bo'sh javob — bir marta qayta so'raymiz
+          emptyRetried = true;
+          continue;
+        }
+      }
       // Javob o'zgartirilmasdan qaytariladi (Gemini'ning thought_signature maydonlari saqlanishi uchun)
       messages.push(msg);
       if (!calls.length) break;
@@ -1104,6 +1128,27 @@ Qat'iy qoidalar:
       if (round === MAX_TOOL_ROUNDS - 1 && !finalText) finalText = 'Topshiriq juda murakkab chiqdi, iltimos qismlarga bo\'lib yozing.';
     }
     return { text: finalText, actions };
+  }
+
+  // Panel uchun: AI ishlayaptimi — oddiy so'rov yuborib tekshirish
+  async function testAI() {
+    if (!aiReady()) throw new Error('AI kaliti yoki model sozlanmagan');
+    const started = Date.now();
+    let reply = '';
+    if (config.provider === 'anthropic') {
+      const r = await getAnthropic().messages.create({
+        model: config.model, max_tokens: 200, output_config: { effort: 'low' },
+        messages: [{ role: 'user', content: "Bir jumlada o'zbekcha salom ayt." }],
+      });
+      reply = r.content.filter(b => b.type === 'text').map(b => b.text).join(' ');
+    } else {
+      const body = { model: config.model, messages: [{ role: 'user', content: "Bir jumlada o'zbekcha salom ayt." }] };
+      if (config.provider === 'gemini') body.reasoning_effort = 'low';
+      const data = await chatCompletion(body);
+      reply = data.choices?.[0]?.message?.content || '';
+      if (data.model) reply += ` [${String(data.model).replace(/^models\//, '')}]`;
+    }
+    return { reply: String(reply).trim() || "(bo'sh javob)", seconds: ((Date.now() - started) / 1000).toFixed(1) };
   }
 
   // Panel uchun: provayderdagi mavjud modellar ro'yxati
@@ -1236,11 +1281,20 @@ Qat'iy qoidalar:
       const { blocks, plain } = await buildUserContent(chat, msgs);
       if (!blocks.length) return;
 
-      const { text, actions } = await runAgent(chat, blocks);
+      // Javob tayyorlash hech qachon cheksiz osilib qolmasin
+      let turnTimer;
+      const { text, actions } = await Promise.race([
+        runAgent(chat, blocks),
+        new Promise((_, reject) => { turnTimer = setTimeout(() => reject(Object.assign(new Error('AI juda uzoq javob bermadi'), { aiError: true, transient: true })), TURN_TIMEOUT_MS); }),
+      ]).finally(() => clearTimeout(turnTimer));
       clearInterval(typingTimer);
       typingTimer = null;
 
-      const reply = text || (actions.length ? '✅ Bajarildi.' : '');
+      let reply = text || (actions.length ? '✅ Bajarildi.' : '');
+      if (!reply) {
+        // AI bo'sh javob qaytardi — jim qolmaymiz
+        reply = chat.role === 'admin' ? "⚠️ AI bo'sh javob qaytardi. Iltimos, savolni boshqacharoq yozing yoki panelda boshqa model tanlang." : 'Kechirasiz, savolingizni biroz aniqroq yozib bera olasizmi? 🙂';
+      }
       await sendHumanlike(chat, reply);
 
       chat.aiRetries = 0;
@@ -1291,7 +1345,7 @@ Qat'iy qoidalar:
   }
 
   return {
-    init, status, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels,
+    init, status, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
     // Testlar uchun ichki funksiyalar
     _internals: { getChat, processChat, executeTool, setClient: (c) => { client = c; } },
   };

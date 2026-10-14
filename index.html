@@ -3385,6 +3385,10 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .as-activity-item time { color:var(--text3); font-size:10.5px; flex-shrink:0; width:42px; margin-top:1px; }
 .as-empty { font-size:12px; color:var(--text3); text-align:center; padding:10px; }
 .as-mini-btn { flex-shrink:0; width:50px; border-radius:16px; border:1px solid rgba(167,139,250,0.35); background:rgba(167,139,250,0.12); color:var(--accent2); font-size:18px; display:flex; align-items:center; justify-content:center; }
+.as-btn-test { background:rgba(255,255,255,0.05) !important; border:1px solid rgba(167,139,250,0.35) !important; color:var(--accent2) !important; margin-top:10px !important; }
+.as-test-result { margin-top:12px; font-size:12.5px; line-height:1.5; padding:12px 14px; border-radius:14px; animation: as-pane-in .3s ease both; }
+.as-test-result.ok { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); }
+.as-test-result.err { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; }
 .btn-loading { pointer-events:none; opacity:.75; }
 .btn-loading .ti { animation: spin .8s linear infinite; }
 
@@ -4011,6 +4015,8 @@ body.modal-open {
             <textarea class="form-input as-textarea" id="asInstructions" rows="4" maxlength="3000" placeholder="Masalan: Toshkent bo'ylab yetkazib berish bepul, 1 kunda. Barcha mahsulotlarga 1 yil kafolat. Ish vaqti 9:00-21:00."></textarea>
           </div>
           <button class="settings-save-btn btn-purple" id="asSaveBtn" onclick="saveAssistantSettings()"><i class="ti ti-device-floppy"></i> Saqlash</button>
+          <button class="settings-save-btn as-btn-test" id="asTestBtn" onclick="testAssistantAI()"><i class="ti ti-robot"></i> AI'ni sinash</button>
+          <div class="as-test-result" id="asTestResult" style="display:none"></div>
         </div>
 
         <!-- Faoliyat -->
@@ -8133,6 +8139,22 @@ async function loadAssistantModels() {
     showToast(e.message, '✗', 'var(--red)');
   } finally {
     setBtnLoading('asLoadModelsBtn', false);
+  }
+}
+
+async function testAssistantAI() {
+  const box = document.getElementById('asTestResult');
+  setBtnLoading('asTestBtn', true, 'Tekshirilmoqda...');
+  try {
+    const data = await assistantApi('/test-ai', {});
+    box.className = 'as-test-result ok';
+    box.innerHTML = `✅ AI ishlayapti (${escHtml(data.seconds)} s):<br><b>${escHtml(data.reply)}</b>`;
+  } catch (e) {
+    box.className = 'as-test-result err';
+    box.innerHTML = `❌ ${escHtml(e.message)}`;
+  } finally {
+    box.style.display = 'block';
+    setBtnLoading('asTestBtn', false);
   }
 }
 

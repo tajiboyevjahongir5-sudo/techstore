@@ -1115,6 +1115,7 @@ app.post('/api/admin/assistant/verify-code', apiRateLimiter, verifyAdmin, assist
 
 app.post('/api/admin/assistant/verify-password', apiRateLimiter, verifyAdmin, assistantRoute(req => assistant.verifyPassword(req.body.password)));
 
+app.post('/api/admin/assistant/test-ai', apiRateLimiter, verifyAdmin, assistantRoute(() => assistant.testAI()));
 app.get('/api/admin/assistant/models', apiRateLimiter, verifyAdmin, assistantRoute(() => assistant.listModels()));
 
 app.post('/api/admin/assistant/disconnect', apiRateLimiter, verifyAdmin, assistantRoute(() => assistant.disconnect()));
