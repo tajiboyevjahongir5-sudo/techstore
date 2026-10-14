@@ -17,7 +17,7 @@
   --bg: #050833;
   --bg2: rgba(18, 18, 36, 0.85);
   --bg3: rgba(255, 255, 255, 0.06);
-  --card: rgba(255, 255, 255, 0.05);
+  --card: rgba(17, 20, 66, 0.94);       /* yaxlit to'q fon — orqadagi naqsh matn orasidan ko'rinmasin */
   --border: rgba(255, 255, 255, 0.12);
   --accent: #6B7FFF;
   --accent2: #A78BFA;
@@ -28,7 +28,7 @@
   --green: #10B981;
   --orange: #FBBF24;
   --red: #EF4444;
-  --glass: rgba(255, 255, 255, 0.05);
+  --glass: rgba(20, 23, 74, 0.92);
   --glass-border: rgba(255, 255, 255, 0.12);
   --blur: none;
   --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -3760,6 +3760,13 @@ body.in-tg #detail .pd-hero { margin-top: calc(8px + max(env(safe-area-inset-top
 }
 .prod-card .prod-info > * { position: relative; }
 
+/* Boshqa sahifalar: matnlar yaxlit fonli kartada */
+.profile-head-card { padding: 16px; border-radius: 22px; background: var(--card); border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+.empty-state { margin: 24px 20px; padding: 44px 22px; border-radius: 28px; background: var(--card); border: 1px solid var(--glass-border); box-shadow: 0 14px 40px rgba(0,0,0,0.3); }
+
+/* Admin panel kartalari ham yaxlit asos rangda (gradientlar ustida qoladi) */
+.settings-section.card-cyan, .settings-section.card-purple, .settings-section.card-green, .as-log-card, .as-hero, .admin-card { background-color: #121548; }
+
 body.modal-open {
   overflow: hidden !important;
   height: 100vh !important;
@@ -4442,7 +4449,7 @@ body.modal-open {
       </div>
     </div>
     <div style="padding:20px;padding-bottom:80px">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.08)">
+      <div class="profile-head-card" style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
         <div id="profileAvatar" style="width:64px;height:64px;border-radius:20px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#fff;box-shadow:0 6px 20px rgba(107,127,255,0.35);overflow:hidden;flex-shrink:0"></div>
         <div><div id="profileName" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:700;margin-bottom:3px">—</div><div id="profileUsername" style="font-size:12px;color:var(--text2)"></div></div>
       </div>
