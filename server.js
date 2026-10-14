@@ -45,7 +45,18 @@ let BOT_TOKEN = process.env.BOT_TOKEN || "";
 let ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
 let CARD_NUMBER = process.env.CARD_NUMBER || "9860 3501 4074 7741";
 let CARD_OWNER = process.env.CARD_OWNER || "Tojiboyev Jahongir";
-const APP_URL   = process.env.APP_URL || `https://your-app.railway.app`;
+const APP_URL   = process.env.APP_URL
+  || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `https://your-app.railway.app`);
+
+// Bot chatidagi pastki "Menu" tugmasini doim do'konning haqiqiy manziliga o'rnatamiz
+// (BotFather'da eski/boshqa havola qolib ketgan bo'lsa ham ustidan yoziladi)
+function setShopMenuButton(bot, chatId) {
+  const form = {
+    menu_button: JSON.stringify({ type: 'web_app', text: "🛍️ Do'kon", web_app: { url: APP_URL } })
+  };
+  if (chatId) form.chat_id = chatId;
+  return bot.setChatMenuButton(form).catch(err => console.error('Menu tugmasini o\'rnatishda xato:', err.message));
+}
 
 const DEFAULT_PRODUCTS = [
   {id:1,  name:'iPhone 16 Pro Max',       brand:'Apple',   price:18500000, discount:15, emoji:'📱', image:'https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=600&auto=format&fit=crop', images:['https://images.unsplash.com/photo-1695048133142-1a20484d2569?q=80&w=600&auto=format&fit=crop'], cat:'Telefonlar',    rating:4.9, reviews:248, desc:'Professional darajadagi kamera tizimi, A18 Pro chip va titan rama bilan jihozlangan.',      specs:[['Ekran','6.9 OLED'],['Protsessor','A18 Pro'],['Kamera','48MP Triple'],['Batareya','4685 mAh'],['Rang','Titanium']]},
@@ -1295,6 +1306,7 @@ function initializeTelegramBot() {
     botInstance = bot;
     global.telegramBotInstance = bot;
     bot.getMe().then(me => { botUsername = me.username || ''; }).catch(() => {});
+    setShopMenuButton(bot).then(() => console.log(`🔘 Menu tugmasi o'rnatildi: ${APP_URL}`));
     
     bot.on('polling_error', (err) => {
       console.error('Polling xatosi:', err.code, err.message);
@@ -1304,6 +1316,8 @@ function initializeTelegramBot() {
       const chatId    = msg.chat.id;
       const firstName = msg.from?.first_name || 'Foydalanuvchi';
       console.log(`/start - ${firstName} (${chatId})`);
+      // Shu chat uchun alohida eski tugma qolgan bo'lsa ham almashtiriladi
+      setShopMenuButton(bot, chatId);
 
       bot.sendMessage(chatId,
         `👋 Salom, <b>${firstName}</b>!\n\n🛒 <b>TechStore</b>ga xush kelibsiz!\n\nQuyidagi tugma orqali do'konni oching:`,
