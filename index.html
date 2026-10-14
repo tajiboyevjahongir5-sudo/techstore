@@ -3327,6 +3327,162 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+/* ===== YORDAMCHI ADMIN ===== */
+.as-tab-dot { position:absolute; top:8px; right:14px; width:8px; height:8px; border-radius:50%; background:var(--text3); display:none; }
+.as-tab-dot.on { display:block; background:var(--green); box-shadow:0 0 8px var(--green); animation: pulse-dot 2s ease-in-out infinite; }
+.admin-tab { position: relative; }
+@keyframes pulse-dot { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.35); opacity:.6; } }
+.as-hero { display:flex; gap:14px; align-items:center; padding:16px; margin-bottom:14px; border-radius:22px; background:linear-gradient(135deg, rgba(107,127,255,0.14), rgba(167,139,250,0.06)); border:1px solid rgba(167,139,250,0.25); }
+.as-hero-icon { width:52px; height:52px; flex-shrink:0; border-radius:16px; background:var(--grad); display:flex; align-items:center; justify-content:center; font-size:26px; color:#fff; box-shadow:0 8px 24px rgba(107,127,255,0.35); animation: as-float 4s ease-in-out infinite; }
+@keyframes as-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+.as-hero-title { font-size:16px; font-weight:800; }
+.as-hero-sub { font-size:11.5px; color:var(--text2); line-height:1.45; margin-top:3px; }
+.as-state { flex-shrink:0; font-size:10px; font-weight:700; padding:5px 10px; border-radius:20px; background:rgba(255,255,255,0.08); color:var(--text2); border:1px solid rgba(255,255,255,0.12); white-space:nowrap; }
+.as-state.ok { color:var(--green); background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.3); }
+.as-state.warn { color:var(--orange); background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.3); }
+.as-state.err { color:var(--red); background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); }
+.as-warn { display:flex; gap:10px; align-items:flex-start; font-size:11.5px; line-height:1.5; color:var(--text2); padding:12px 14px; margin-bottom:14px; border-radius:16px; background:rgba(251,191,36,0.07); border:1px solid rgba(251,191,36,0.25); }
+.as-warn .ti { color:var(--orange); font-size:16px; flex-shrink:0; margin-top:1px; }
+.as-card { animation: cardSlideUpIn .45s cubic-bezier(0.16,1,0.3,1) backwards; }
+.as-card:nth-of-type(2) { animation-delay:.05s; } .as-card:nth-of-type(3) { animation-delay:.1s; } .as-card:nth-of-type(4) { animation-delay:.15s; }
+.as-account { display:flex; gap:12px; align-items:center; margin-bottom:14px; }
+.as-account-ava { width:46px; height:46px; border-radius:50%; background:var(--grad); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; flex-shrink:0; }
+.as-account-name { font-size:15px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.as-account-meta { font-size:12px; color:var(--text2); margin-top:2px; }
+.as-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+.as-stat { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:10px 6px; text-align:center; }
+.as-stat b { display:block; font-size:18px; font-weight:800; }
+.as-stat span { font-size:9.5px; color:var(--text3); }
+.as-toggle-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid rgba(255,255,255,0.06); cursor:pointer; }
+.as-toggle-row b { display:block; font-size:13px; }
+.as-toggle-row small { display:block; font-size:11px; color:var(--text3); margin-top:2px; }
+.as-switch { appearance:none; -webkit-appearance:none; width:46px; height:26px; flex-shrink:0; border-radius:20px; background:rgba(255,255,255,0.12); position:relative; cursor:pointer; transition:background .25s ease; }
+.as-switch::after { content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); transition:transform .3s cubic-bezier(0.34,1.56,0.64,1); }
+.as-switch:checked { background:var(--green); }
+.as-switch:checked::after { transform:translateX(20px); }
+.as-btn-danger { background:rgba(239,68,68,0.12) !important; border:1px solid rgba(239,68,68,0.35) !important; color:#fca5a5 !important; }
+.as-steps { display:flex; align-items:center; margin:0 4px 18px; }
+.as-step-dot { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:var(--text3); transition:all .35s ease; flex-shrink:0; }
+.as-step-dot.active { background:linear-gradient(135deg,#06b6d4,#0891b2); color:#fff; border-color:transparent; box-shadow:0 0 14px rgba(6,182,212,0.5); transform:scale(1.08); }
+.as-step-dot.done { background:var(--green); color:#fff; border-color:transparent; }
+.as-step-line { flex:1; height:2px; margin:0 6px; background:rgba(255,255,255,0.1); position:relative; overflow:hidden; border-radius:2px; }
+.as-step-line::after { content:''; position:absolute; inset:0; background:var(--green); transform:scaleX(0); transform-origin:left; transition:transform .45s ease; }
+.as-step-line.done::after { transform:scaleX(1); }
+.as-pane { display:none; }
+.as-pane.active { display:block; animation: as-pane-in .35s cubic-bezier(0.16,1,0.3,1) both; }
+@keyframes as-pane-in { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:none; } }
+.as-help { font-size:12px; line-height:1.6; color:var(--text2); background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:12px 14px; margin-bottom:14px; }
+.as-help a { color:#67e8f9; }
+.as-code-input { text-align:center; font-size:24px !important; letter-spacing:10px; font-weight:800; }
+.as-link-btn { background:none; border:none; color:var(--text2); font-size:12px; margin:12px auto 0; display:block; }
+.as-hint { font-size:11px; color:var(--text3); margin-top:6px; line-height:1.45; }
+.as-select { appearance:none; -webkit-appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--text2) 50%),linear-gradient(135deg,var(--text2) 50%,transparent 50%); background-position:calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size:5px 5px; background-repeat:no-repeat; padding-right:32px; font-size:13px !important; }
+.as-select option { background:#12123a; color:#fff; }
+.as-textarea { resize:vertical; min-height:90px; font-family:inherit; font-size:13px !important; line-height:1.5; }
+.as-log-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); }
+.as-activity { display:flex; flex-direction:column; gap:8px; }
+.as-activity-item { display:flex; gap:10px; align-items:flex-start; font-size:12px; line-height:1.45; animation: as-pane-in .3s ease both; }
+.as-activity-item time { color:var(--text3); font-size:10.5px; flex-shrink:0; width:42px; margin-top:1px; }
+.as-empty { font-size:12px; color:var(--text3); text-align:center; padding:10px; }
+.btn-loading { pointer-events:none; opacity:.75; }
+.btn-loading .ti { animation: spin .8s linear infinite; }
+
+/* ===== ANIMATSIYA VA TEZLIK YAXSHILANISHLARI ===== */
+/* Mahsulot kartalari: kirish animatsiyasi CSS orqali (JS faqat kechikishni beradi) */
+#productsGrid .prod-card {
+  animation: cardSlideUpIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 250px;
+}
+.prod-card:active { transform: scale(0.97); transition-duration: 0.12s; }
+@media (hover: none) {
+  /* Telefonlarda "yopishib qoladigan" hover effektini o'chiramiz */
+  .prod-card:hover { transform: none; }
+  .prod-card:hover .prod-img img { transform: none; }
+}
+
+/* Rasm yuklanayotganda shimmer, yuklangach silliq paydo bo'lish */
+.prod-img img { transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.prod-img.is-loading img { opacity: 0; }
+.prod-img.is-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255,255,255,0.03) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.03) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+
+/* Sevimli tugmasi "pop" effekti */
+.fav-btn-card.fav-pop { animation: favPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.fav-btn-card.fav-pop.active::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid var(--red);
+  animation: favRing 0.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes favPop { 0% { transform: scale(1); } 35% { transform: scale(0.75); } 70% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes favRing { from { transform: scale(0.8); opacity: 0.9; } to { transform: scale(1.7); opacity: 0; } }
+
+/* Slayder progressi — GPU transform */
+.slider-progress { width: 100%; transform: scaleX(0); transform-origin: left center; will-change: transform; }
+
+/* Tugmalardagi to'lqin (ripple) effekti */
+.add-btn, .checkout-btn, .settings-save-btn, .add-prod-btn, .btn-save, .btn-approve, .btn-reject,
+.home-btn, .send-pay-btn, .addr-next-btn, .detail-add-btn, .admin-tab, .cat-chip {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  animation: rippleWave 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  pointer-events: none;
+}
+@keyframes rippleWave { to { transform: scale(2.6); opacity: 0; } }
+
+/* Admin bo'limlari almashganda silliq o'tish */
+.tab-anim { animation: tabContentIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+@keyframes tabContentIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Kategoriya chiplari */
+.cat-chip.active { animation: chipPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes chipPop { 0% { transform: scale(0.92); } 100% { transform: scale(1); } }
+
+/* Toast — prujinali paydo bo'lish, uzun matn sig'ishi */
+.toast { white-space: normal; max-width: calc(100vw - 32px); width: max-content; transition: opacity 0.3s ease, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); transform: translateX(-50%) translateY(-16px) scale(0.96); }
+.toast.show { transform: translateX(-50%) translateY(8px) scale(1); }
+
+/* Modal yopilish animatsiyasi */
+@keyframes modalFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes sheetSlideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@keyframes boxPopOut { from { transform: scale(1); opacity: 1; } to { transform: scale(0.9); opacity: 0; } }
+.modal-overlay.open.closing, .chek-modal-overlay.open.closing, .confirm-overlay.open.closing, .edit-modal-overlay.open.closing {
+  animation: modalFadeOut 0.23s ease forwards;
+}
+.modal-overlay.open.closing .modal-sheet, .chek-modal-overlay.open.closing .chek-sheet, .edit-modal-overlay.open.closing .modal-sheet {
+  animation: sheetSlideDown 0.23s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.confirm-overlay.open.closing .confirm-box { animation: boxPopOut 0.2s ease forwards; }
+
+/* Harakatni kamaytirish sozlamasi yoqilgan qurilmalar uchun */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body.modal-open {
   overflow: hidden !important;
   height: 100vh !important;
@@ -3360,7 +3516,7 @@ body.modal-open {
     <div class="search-wrap">
       <div class="search-bar">
         <i class="ti ti-search"></i>
-        <input type="text" placeholder="Mahsulot qidirish..." id="searchInput" oninput="filterProducts()">
+        <input type="text" placeholder="Mahsulot qidirish..." id="searchInput" oninput="onSearchInput()">
         <button class="filter-btn"><i class="ti ti-adjustments-horizontal"></i></button>
       </div>
     </div>
@@ -3377,6 +3533,10 @@ body.modal-open {
       <div class="cat-chip" onclick="filterCat(this,'Kompyuterlar')">💻 Kompyuterlar</div>
       <div class="cat-chip" onclick="filterCat(this,'Audio')">🎧 Audio</div>
       <div class="cat-chip" onclick="filterCat(this,'Aksessuarlar')">⌨️ Aksessuarlar</div>
+      <div class="cat-chip" onclick="filterCat(this,'Kameralar')">📷 Kameralar</div>
+      <div class="cat-chip" onclick="filterCat(this,'O\'yinlar')">🎮 O'yinlar</div>
+      <div class="cat-chip" onclick="filterCat(this,'Dronlar')">🚁 Dronlar</div>
+      <div class="cat-chip" onclick="filterCat(this,'Smart TV')">📺 Smart TV</div>
     </div>
     <div class="section-head"><div class="section-title">Mahsulotlar</div><div class="see-all" id="noResultsMsg" style="display:none;color:var(--text2)">Topilmadi</div></div>
     <div class="products-grid" id="productsGrid"></div>
@@ -3634,6 +3794,9 @@ body.modal-open {
       <button class="admin-tab" onclick="switchAdminTab(this,'adminStats')">
         <div class="tab-icon"><i class="ti ti-chart-bar" style="font-size:18px"></i></div>Statistika
       </button>
+      <button class="admin-tab" onclick="switchAdminTab(this,'adminAssistant')">
+        <div class="tab-icon"><i class="ti ti-robot" style="font-size:18px"></i></div>Yordamchi<span class="as-tab-dot" id="asTabDot"></span>
+      </button>
       <button class="admin-tab" onclick="switchAdminTab(this,'adminSettings')">
         <div class="tab-icon"><i class="ti ti-settings" style="font-size:18px"></i></div>Sozlamalar
       </button>
@@ -3727,6 +3890,123 @@ body.modal-open {
         </div>
       </div>
 
+      <!-- ASSISTANT TAB (Yordamchi admin) -->
+      <div id="adminAssistant" style="display:none">
+        <div class="as-hero">
+          <div class="as-hero-icon"><i class="ti ti-robot"></i></div>
+          <div style="flex:1;min-width:0">
+            <div class="as-hero-title">Yordamchi admin</div>
+            <div class="as-hero-sub">Telegram akkauntni ulang — AI shu akkaunt orqali siz bilan muloqot qiladi, buyruqlaringizni bajaradi va xaridorlarga javob beradi.</div>
+          </div>
+          <span class="as-state" id="asState">…</span>
+        </div>
+
+        <div class="as-warn" id="asPersistWarn" style="display:none">
+          <i class="ti ti-info-circle"></i>
+          <div>Serverda <b>SESSION_SECRET</b> o'zgaruvchisi o'rnatilmagan. Sessiya faqat serverda saqlanadi va qayta deploy qilinganda akkauntni qayta ulash kerak bo'ladi.</div>
+        </div>
+
+        <!-- Ulangan akkaunt -->
+        <div class="settings-section card-green as-card" id="asConnectedCard" style="display:none">
+          <div class="settings-section-title"><i class="ti ti-brand-telegram"></i> ULANGAN AKKAUNT</div>
+          <div class="as-account">
+            <div class="as-account-ava" id="asAccAva">?</div>
+            <div style="flex:1;min-width:0">
+              <div class="as-account-name" id="asAccName">—</div>
+              <div class="as-account-meta" id="asAccMeta">—</div>
+            </div>
+          </div>
+          <div class="as-stats">
+            <div class="as-stat"><b id="asStatAdmin">0</b><span>Admin xabarlari</span></div>
+            <div class="as-stat"><b id="asStatCust">0</b><span>Xaridor xabarlari</span></div>
+            <div class="as-stat"><b id="asStatActions">0</b><span>Bajarilgan amal</span></div>
+          </div>
+          <label class="as-toggle-row">
+            <span><b>Yordamchi faol</b><small>O'chirilsa hech kimga javob bermaydi</small></span>
+            <input type="checkbox" class="as-switch" id="asEnabled" onchange="saveAssistantToggles()">
+          </label>
+          <label class="as-toggle-row">
+            <span><b>Xaridorlarga javob berish</b><small>Mahsulotlar haqida maslahat berib, sotishga harakat qiladi</small></span>
+            <input type="checkbox" class="as-switch" id="asReplyCustomers" onchange="saveAssistantToggles()">
+          </label>
+          <button class="settings-save-btn as-btn-danger" onclick="disconnectAssistant()"><i class="ti ti-logout"></i> Akkauntni uzish</button>
+        </div>
+
+        <!-- Akkaunt ulash -->
+        <div class="settings-section card-cyan as-card" id="asConnectCard" style="display:none">
+          <div class="settings-section-title"><i class="ti ti-brand-telegram"></i> TELEGRAM AKKAUNTNI ULASH</div>
+          <div class="as-steps">
+            <div class="as-step-dot active" id="asDot1">1</div><div class="as-step-line" id="asLine1"></div>
+            <div class="as-step-dot" id="asDot2">2</div><div class="as-step-line" id="asLine2"></div>
+            <div class="as-step-dot" id="asDot3">3</div>
+          </div>
+
+          <div class="as-pane active" id="asPane1">
+            <div class="as-help">
+              1. <a href="https://my.telegram.org/apps" target="_blank" rel="noopener">my.telegram.org/apps</a> saytiga yordamchi akkaunt raqami bilan kiring.<br>
+              2. "API development tools" bo'limida ilova yarating va <b>api_id</b>, <b>api_hash</b> ni nusxalang.<br>
+              3. Yordamchi uchun alohida akkaunt ishlatish tavsiya etiladi.
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">API ID</label><input class="form-input" id="asApiId" inputmode="numeric" placeholder="1234567"></div>
+              <div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="asPhone" inputmode="tel" placeholder="+998901234567"></div>
+            </div>
+            <div class="form-group"><label class="form-label">API Hash</label><input class="form-input" id="asApiHash" autocomplete="off" placeholder="0123456789abcdef0123456789abcdef"></div>
+            <button class="settings-save-btn btn-cyan" id="asSendCodeBtn" onclick="assistantSendCode()"><i class="ti ti-send"></i> Kod yuborish</button>
+          </div>
+
+          <div class="as-pane" id="asPane2">
+            <div class="as-help" id="asCodeHelp">Telegram ilovasiga kelgan 5 xonali kodni kiriting.</div>
+            <div class="form-group"><input class="form-input as-code-input" id="asCode" inputmode="numeric" maxlength="6" placeholder="• • • • •" onkeydown="if(event.key==='Enter')assistantVerifyCode()"></div>
+            <button class="settings-save-btn btn-cyan" id="asVerifyCodeBtn" onclick="assistantVerifyCode()"><i class="ti ti-check"></i> Tasdiqlash</button>
+            <button class="as-link-btn" onclick="assistantStep(1)">← Raqamni o'zgartirish</button>
+          </div>
+
+          <div class="as-pane" id="asPane3">
+            <div class="as-help" id="asPwdHelp">Akkauntda ikki bosqichli himoya (2FA) yoqilgan. Parolni kiriting.</div>
+            <div class="form-group"><input class="form-input" type="password" id="asPassword" placeholder="2FA parol" onkeydown="if(event.key==='Enter')assistantVerifyPassword()"></div>
+            <button class="settings-save-btn btn-cyan" id="asVerifyPwdBtn" onclick="assistantVerifyPassword()"><i class="ti ti-key"></i> Kirish</button>
+          </div>
+        </div>
+
+        <!-- AI sozlamalari -->
+        <div class="settings-section card-purple as-card">
+          <div class="settings-section-title"><i class="ti ti-settings"></i> AI SOZLAMALARI</div>
+          <div class="form-group">
+            <label class="form-label">Anthropic API kaliti</label>
+            <input class="form-input" type="password" id="asAiKey" autocomplete="off" placeholder="sk-ant-...">
+            <div class="as-hint" id="asAiKeyHint"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Model</label>
+              <select class="form-input as-select" id="asModel">
+                <option value="claude-opus-5-5">Claude Opus 5.5 (eng aqlli)</option>
+                <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (tez)</option>
+                <option value="claude-haiku-5-5">Claude Haiku 5.5 (arzon)</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Yordamchi ismi</label><input class="form-input" id="asName" maxlength="60" placeholder="TechStore yordamchisi"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Buyruq bera oladigan adminlar (Telegram ID)</label>
+            <input class="form-input" id="asAdminIds" inputmode="numeric" placeholder="123456789, 987654321">
+            <div class="as-hint">Faqat shu ID'lardan kelgan xabarlar admin buyrug'i sifatida bajariladi. Qolgan barcha yozuvchilar — xaridor (mahsulot qo'sha olmaydi).</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Do'kon haqida qo'shimcha ma'lumot</label>
+            <textarea class="form-input as-textarea" id="asInstructions" rows="4" maxlength="3000" placeholder="Masalan: Toshkent bo'ylab yetkazib berish bepul, 1 kunda. Barcha mahsulotlarga 1 yil kafolat. Ish vaqti 9:00-21:00."></textarea>
+          </div>
+          <button class="settings-save-btn btn-purple" id="asSaveBtn" onclick="saveAssistantSettings()"><i class="ti ti-device-floppy"></i> Saqlash</button>
+        </div>
+
+        <!-- Faoliyat -->
+        <div class="settings-section as-card as-log-card">
+          <div class="settings-section-title"><i class="ti ti-list-details"></i> SO'NGGI FAOLIYAT</div>
+          <div id="asActivity" class="as-activity"><div class="as-empty">Hali faoliyat yo'q</div></div>
+        </div>
+      </div>
+
       <!-- SETTINGS TAB -->
       <div id="adminSettings" style="display:none">
         <div class="settings-section card-cyan" style="margin-bottom:0">
@@ -3763,6 +4043,9 @@ body.modal-open {
             <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Audio')">Audio</div>
             <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Aksessuarlar')">Aksessuarlar</div>
             <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Kameralar')">Kameralar</div>
+            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','O\'yinlar')">O'yinlar</div>
+            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Dronlar')">Dronlar</div>
+            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Smart TV')">Smart TV</div>
           </div>
         </div>
         <input type="hidden" id="prodCat" value="Telefonlar">
@@ -4080,19 +4363,26 @@ body.modal-open {
 function openModal(id) {
   const el = document.getElementById(id);
   if (el) {
+    clearTimeout(el._closeTimer);
+    el.classList.remove('closing');
     el.classList.add('open');
     document.body.classList.add('modal-open');
   }
 }
 function closeModal(id) {
   const el = document.getElementById(id);
-  if (el) {
-    el.classList.remove('open');
-    // Faqat boshqa ochiq modallar qolmagan taqdirdagina scroll lockni olib tashlaymiz
-    const openModals = document.querySelectorAll('.modal-overlay.open, .edit-modal-overlay.open, .chek-modal-overlay.open, .confirm-overlay.open');
-    if (openModals.length === 0) {
-      document.body.classList.remove('modal-open');
-    }
+  if (el && el.classList.contains('open')) {
+    // Yopilish animatsiyasi tugagach modalni yashiramiz
+    el.classList.add('closing');
+    clearTimeout(el._closeTimer);
+    el._closeTimer = setTimeout(() => {
+      el.classList.remove('open', 'closing');
+      // Faqat boshqa ochiq modallar qolmagan taqdirdagina scroll lockni olib tashlaymiz
+      const openModals = document.querySelectorAll('.modal-overlay.open, .edit-modal-overlay.open, .chek-modal-overlay.open, .confirm-overlay.open');
+      if (openModals.length === 0) {
+        document.body.classList.remove('modal-open');
+      }
+    }, 230);
   }
 }
 
@@ -4628,12 +4918,15 @@ function showAdminTab() {
 function showToast(msg, icon='✓', color='var(--green)') {
   const t = document.getElementById('toast');
   t.innerHTML = `<span style="color:${color}">${icon}</span> ${msg}`;
+  t.classList.remove('show');
+  void t.offsetWidth;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.remove('show'), 2400);
 }
 
 // ===== PRODUCTS GRID =====
-function renderProducts(list) {
+function renderProducts(list, opts = {}) {
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
   if(!list || !list.length) {
@@ -4641,6 +4934,8 @@ function renderProducts(list) {
     return;
   }
   document.getElementById('noResultsMsg').style.display='none';
+  const frag = document.createDocumentFragment();
+  const stagger = opts.quick ? 0.02 : 0.045;
   list.forEach((p, idx) => {
     const isFav = favorites.has(p.id);
     const priceStr = formatPriceHTML(p.price);
@@ -4648,13 +4943,12 @@ function renderProducts(list) {
     const oldPriceStr = oldPrice ? formatPriceHTML(oldPrice) : null;
     const card = document.createElement('div');
     card.className = 'prod-card';
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(24px)';
-    card.style.animation = `cardSlideUpIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) ${idx * 0.04}s forwards`;
+    // Faqat birinchi kartalar ketma-ket chiqadi, qolganlari kutib turmaydi
+    card.style.animationDelay = `${Math.min(idx, 8) * stagger}s`;
     card.dataset.id = p.id;
     card.dataset.cat = p.cat;
     card.innerHTML = `
-      <div class="prod-img">${p.image?`<img src="${p.image}" alt="${p.name}">`:p.emoji}${p.discount>0?`<span class="prod-badge">-${p.discount}%</span>`:''}
+      <div class="prod-img${p.image?' is-loading':''}">${p.image?`<img src="${p.image}" alt="${p.name}" loading="${idx<4?'eager':'lazy'}" decoding="async" onload="imgLoaded(this)" onerror="imgLoaded(this)">`:p.emoji}${p.discount>0?`<span class="prod-badge">-${p.discount}%</span>`:''}
         <button class="fav-btn-card ${isFav?'active':''}" onclick="toggleFav(event,${p.id})"><i class="ti ti-heart${isFav?'-filled':''}" style="color:${isFav?'var(--red)':'rgba(255,255,255,0.7)'}"></i></button>
       </div>
       <div class="prod-info">
@@ -4673,19 +4967,31 @@ function renderProducts(list) {
       if(e.target.closest('.add-btn')||e.target.closest('.fav-btn-card')) return;
       openDetail(p.id);
     });
-    grid.appendChild(card);
+    frag.appendChild(card);
   });
+  grid.appendChild(frag);
+}
+
+function imgLoaded(img) {
+  img.parentElement?.classList.remove('is-loading');
+}
+
+// Qidiruv har bir harfda emas, yozish to'xtaganda ishlaydi
+let searchDebounceTimer = null;
+function onSearchInput() {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => filterProducts(true), 180);
 }
 
 // ===== SEARCH & FILTER =====
-function filterProducts() {
+function filterProducts(quick) {
   const q = document.getElementById('searchInput').value.toLowerCase();
   const filtered = products.filter(p => {
     const matchCat = currentCat==='all' || p.cat===currentCat;
     const matchQ = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
     return matchCat && matchQ;
   });
-  renderProducts(filtered);
+  renderProducts(filtered, { quick: !!quick });
 }
 
 function filterCat(el, cat) {
@@ -4841,7 +5147,15 @@ function toggleFavDetail() {
 function toggleFav(e, id) {
   e.stopPropagation();
   toggleFavById(id);
-  filterProducts();
+  // Butun ro'yxatni qayta chizmasdan faqat shu tugmani yangilaymiz
+  const btn = e.target.closest('.fav-btn-card');
+  if (!btn) { filterProducts(); return; }
+  const isFav = favorites.has(id);
+  btn.classList.toggle('active', isFav);
+  btn.innerHTML = `<i class="ti ti-heart${isFav?'-filled':''}" style="color:${isFav?'var(--red)':'rgba(255,255,255,0.7)'}"></i>`;
+  btn.classList.remove('fav-pop');
+  void btn.offsetWidth;
+  btn.classList.add('fav-pop');
 }
 
 function toggleFavById(id) {
@@ -5433,17 +5747,24 @@ function updateProfileCounts() {
 
 // ===== ADMIN =====
 function switchAdminTab(btn, tabId) {
+  currentAdminTab = tabId;
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['adminOrders','adminProducts','adminUsers','adminStats','adminSettings'].forEach(id=>{
+  ['adminOrders','adminProducts','adminUsers','adminStats','adminAssistant','adminSettings'].forEach(id=>{
     const el = document.getElementById(id);
-    if(el) el.style.display = id===tabId?'block':'none';
+    if(!el) return;
+    el.style.display = id===tabId?'block':'none';
+    if(id===tabId) { el.classList.remove('tab-anim'); void el.offsetWidth; el.classList.add('tab-anim'); }
   });
+  btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  const wrap = document.querySelector('#admin .admin-wrap');
+  if (wrap) wrap.scrollTop = 0;
   if(tabId==='adminOrders') loadAdminOrders();
   if(tabId==='adminProducts') renderAdminProducts();
   if(tabId==='adminUsers') renderUsersList();
   if(tabId==='adminSettings') loadSettingsUI();
   if(tabId==='adminStats') loadAdminStats();
+  if(tabId==='adminAssistant') loadAssistantStatus(); else stopAssistantPolling();
 }
 
 function renderAdminProducts() {
@@ -5553,10 +5874,29 @@ function renderImgGrid(images, gridId, countId, removeCallback) {
 }
 
 // Rasmni o'qish (original sifat saqlanadi)
-function compressImage(file) {
+// Rasmni 1200px gacha kichraytirib JPEG ga siqamiz — katalog tezroq yuklanadi
+function compressImage(file, maxSide = 1200, quality = 0.84) {
   return new Promise(res => {
     const reader = new FileReader();
-    reader.onload = e => res(e.target.result);
+    reader.onload = e => {
+      const original = e.target.result;
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        try {
+          const out = canvas.toDataURL('image/jpeg', quality);
+          res(out.length < original.length ? out : original);
+        } catch (err) {
+          res(original);
+        }
+      };
+      img.onerror = () => res(original);
+      img.src = original;
+    };
     reader.readAsDataURL(file);
   });
 }
@@ -5623,7 +5963,7 @@ async function saveProduct() {
   const desc = document.getElementById('prodDesc').value.trim();
   const specs = getSpecsFromFields();
   if(!specs.length) specs.push(['Narx',(price/1000000).toFixed(1)+'M so\'m'],['Brend',brand]);
-  const catEmojis = {'Telefonlar':'📱','Kompyuterlar':'💻','Audio':'🎧','Aksessuarlar':'⌚','Kameralar':'📷'};
+  const catEmojis = {'Telefonlar':'📱','Kompyuterlar':'💻','Audio':'🎧','Aksessuarlar':'⌚','Kameralar':'📷',"O'yinlar":'🎮','Dronlar':'🚁','Smart TV':'📺'};
   const newProd = {
     id: Date.now(), name, brand, price, discount,
     emoji: newProdImages.length ? null : (catEmojis[cat]||'📦'),
@@ -7266,21 +7606,22 @@ function startSliderProgress() {
   clearInterval(sliderProgressTimer);
   const bar = document.getElementById('sliderProgress');
   if(!bar) return;
-  let w = 0;
+  // Har 50ms da JS bilan emas, bitta GPU-transform animatsiyasi bilan
   bar.style.transition = 'none';
-  bar.style.width = '0%';
-  const step = 100 / (SLIDE_INTERVAL / 50);
-  sliderProgressTimer = setInterval(() => {
-    w += step;
-    bar.style.width = Math.min(w,100) + '%';
-    if(w >= 100) {
-      clearInterval(sliderProgressTimer);
-    }
-  }, 50);
+  bar.style.transform = 'scaleX(0)';
+  void bar.offsetWidth;
+  bar.style.transition = `transform ${SLIDE_INTERVAL}ms linear`;
+  bar.style.transform = 'scaleX(1)';
+  if (document.hidden) return; // fon rejimida slayder aylanmaydi
   sliderTimer = setTimeout(() => {
     goToSlide(sliderIdx + 1);
   }, SLIDE_INTERVAL);
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clearTimeout(sliderTimer);
+  else if (document.querySelector('#sliderBanner .slide')) startSliderProgress();
+});
 
 // Swipe support for slider
 (function(){
@@ -7485,8 +7826,11 @@ const SVG_ICONS = {
   'circle-plus': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0"/><path d="M9 12l6 0"/><path d="M12 9l0 6"/></svg>',
 };
 
-function applyIconFallback() {
-  document.querySelectorAll('i[class*="ti-"]').forEach(el => {
+function applyIconFallback(root) {
+  root = root || document;
+  const list = root.querySelectorAll ? [...root.querySelectorAll('i[class*="ti-"]')] : [];
+  if (root.matches && root.matches('i[class*="ti-"]')) list.push(root);
+  list.forEach(el => {
     if(el.dataset.iconApplied) return; // ikki marta ishlamasin
     const cls = [...el.classList].find(c => c.startsWith('ti-') && c !== 'ti');
     if(!cls) return;
@@ -7499,6 +7843,264 @@ function applyIconFallback() {
   });
 }
 
+// ===== YORDAMCHI ADMIN (Telegram akkaunt + AI) =====
+let assistantStatus = null;
+let assistantPollTimer = null;
+
+function escHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+async function assistantApi(pathPart, body) {
+  const res = await fetch('/api/admin/assistant' + pathPart, {
+    method: body ? 'POST' : 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (data.status) renderAssistantStatus(data.status);
+    throw new Error(data.error || 'Xatolik yuz berdi');
+  }
+  return data;
+}
+
+function setBtnLoading(id, loading, loadingText) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.html = btn.innerHTML;
+    btn.classList.add('btn-loading');
+    btn.innerHTML = `<i class="ti ti-loader"></i> ${loadingText || 'Kuting...'}`;
+  } else if (btn.dataset.html) {
+    btn.classList.remove('btn-loading');
+    btn.innerHTML = btn.dataset.html;
+  }
+}
+
+function assistantStep(n) {
+  [1, 2, 3].forEach(i => {
+    document.getElementById('asPane' + i).classList.toggle('active', i === n);
+    const dot = document.getElementById('asDot' + i);
+    dot.classList.toggle('active', i === n);
+    dot.classList.toggle('done', i < n);
+  });
+  document.getElementById('asLine1').classList.toggle('done', n > 1);
+  document.getElementById('asLine2').classList.toggle('done', n > 2);
+  const focusId = n === 2 ? 'asCode' : n === 3 ? 'asPassword' : null;
+  if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 250);
+}
+
+function renderAssistantStatus(st) {
+  if (!st) return;
+  assistantStatus = st;
+  const stateEl = document.getElementById('asState');
+  const map = {
+    connected: [st.enabled ? '● Faol' : '● Pauza', st.enabled ? 'ok' : 'warn'],
+    connecting: ['Ulanmoqda…', 'warn'],
+    awaiting_code: ['Kod kutilmoqda', 'warn'],
+    awaiting_password: ['2FA parol', 'warn'],
+    error: ['Xatolik', 'err'],
+    disconnected: ['Ulanmagan', '']
+  };
+  const [label, cls] = map[st.state] || ['—', ''];
+  stateEl.textContent = label;
+  stateEl.className = 'as-state ' + cls;
+  document.getElementById('asTabDot').classList.toggle('on', st.state === 'connected' && st.enabled);
+  document.getElementById('asPersistWarn').style.display = st.persistent ? 'none' : 'flex';
+
+  const connected = st.state === 'connected';
+  document.getElementById('asConnectedCard').style.display = connected ? 'block' : 'none';
+  document.getElementById('asConnectCard').style.display = connected ? 'none' : 'block';
+
+  if (connected && st.account) {
+    const a = st.account;
+    const name = [a.firstName, a.lastName].filter(Boolean).join(' ') || 'Akkaunt';
+    document.getElementById('asAccAva').textContent = name.charAt(0).toUpperCase();
+    document.getElementById('asAccName').textContent = name;
+    document.getElementById('asAccMeta').textContent = [a.username ? '@' + a.username : '', a.phone ? '+' + String(a.phone).replace(/^\+/, '') : ''].filter(Boolean).join(' · ');
+    document.getElementById('asStatAdmin').textContent = st.stats?.adminMessages || 0;
+    document.getElementById('asStatCust').textContent = st.stats?.customerMessages || 0;
+    document.getElementById('asStatActions').textContent = st.stats?.actions || 0;
+    document.getElementById('asEnabled').checked = !!st.enabled;
+    document.getElementById('asReplyCustomers').checked = !!st.replyToCustomers;
+  } else {
+    if (st.state === 'awaiting_password') assistantStep(3);
+    else if (st.state === 'awaiting_code') assistantStep(2);
+    else if (!document.getElementById('asPane1').classList.contains('active') && st.state !== 'awaiting_code') assistantStep(1);
+    if (st.apiId && !document.getElementById('asApiId').value) document.getElementById('asApiId').value = st.apiId;
+    if (st.phone && !document.getElementById('asPhone').value) document.getElementById('asPhone').value = st.phone;
+  }
+  if (st.state === 'error' && st.error) {
+    document.getElementById('asCodeHelp').textContent = st.error;
+  }
+
+  // AI sozlamalari (foydalanuvchi tahrirlayotgan bo'lsa ustidan yozmaymiz)
+  const active = document.activeElement?.id || '';
+  if (active !== 'asModel') document.getElementById('asModel').value = st.model;
+  if (active !== 'asName') document.getElementById('asName').value = st.name || '';
+  if (active !== 'asAdminIds') document.getElementById('asAdminIds').value = (st.adminIds || '').split(',').filter(Boolean).join(', ');
+  if (active !== 'asInstructions') document.getElementById('asInstructions').value = st.extraInstructions || '';
+  const hint = document.getElementById('asAiKeyHint');
+  hint.innerHTML = st.aiKeySource === 'panel' ? `✅ Kalit saqlangan: <b>${escHtml(st.aiKeyMasked)}</b> (yangisini kiritsangiz almashadi)`
+    : st.aiKeySource === 'env' ? '✅ Kalit server muhitidan (ANTHROPIC_API_KEY) olinmoqda'
+    : '⚠️ Kalit kiritilmagan. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style="color:#c4b5fd">console.anthropic.com</a> dan oling.';
+
+  const act = document.getElementById('asActivity');
+  if (st.activity && st.activity.length) {
+    act.innerHTML = st.activity.map(x => {
+      const t = new Date(x.ts);
+      const hh = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+      return `<div class="as-activity-item"><time>${hh}</time><span>${escHtml(x.text)}</span></div>`;
+    }).join('');
+  } else {
+    act.innerHTML = `<div class="as-empty">${st.error ? '⚠️ ' + escHtml(st.error) : "Hali faoliyat yo'q"}</div>`;
+  }
+}
+
+async function loadAssistantStatus() {
+  try {
+    renderAssistantStatus(await assistantApi(''));
+  } catch (e) {
+    document.getElementById('asState').textContent = 'Xatolik';
+  }
+  stopAssistantPolling();
+  // Tab ochiq turganda holat yangilanib tursin (sahifa yashirin bo'lsa so'rov yuborilmaydi)
+  assistantPollTimer = setInterval(() => {
+    if (document.hidden || currentAdminTab !== 'adminAssistant' || !document.getElementById('admin').classList.contains('active')) return;
+    assistantApi('').then(renderAssistantStatus).catch(() => {});
+  }, 10000);
+}
+
+function stopAssistantPolling() {
+  clearInterval(assistantPollTimer);
+  assistantPollTimer = null;
+}
+
+async function assistantSendCode() {
+  const apiId = document.getElementById('asApiId').value.trim();
+  const apiHash = document.getElementById('asApiHash').value.trim();
+  const phone = document.getElementById('asPhone').value.trim();
+  if (!apiId || !apiHash || !phone) { showToast("Barcha maydonlarni to'ldiring", '⚠️', 'var(--orange)'); return; }
+  setBtnLoading('asSendCodeBtn', true, 'Yuborilmoqda...');
+  try {
+    const data = await assistantApi('/send-code', { apiId, apiHash, phone });
+    document.getElementById('asCodeHelp').textContent = data.viaApp
+      ? "Kod Telegram ilovasiga yuborildi (\"Telegram\" rasmiy chatini tekshiring)."
+      : 'Kod SMS orqali yuborildi.';
+    renderAssistantStatus(data.status);
+    assistantStep(2);
+    showToast('Kod yuborildi', '📨', 'var(--accent)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  } finally {
+    setBtnLoading('asSendCodeBtn', false);
+  }
+}
+
+async function assistantVerifyCode() {
+  const code = document.getElementById('asCode').value.trim();
+  if (code.length < 5) { showToast('Kodni kiriting', '⚠️', 'var(--orange)'); return; }
+  setBtnLoading('asVerifyCodeBtn', true, 'Tekshirilmoqda...');
+  try {
+    const data = await assistantApi('/verify-code', { code });
+    document.getElementById('asCode').value = '';
+    if (data.needPassword) {
+      document.getElementById('asPwdHelp').textContent = 'Akkauntda 2FA himoya yoqilgan. Parolni kiriting' + (data.hint ? ` (eslatma: ${data.hint})` : '') + '.';
+      assistantStep(3);
+    } else {
+      showToast('Akkaunt ulandi!', '🤖', 'var(--green)');
+    }
+    renderAssistantStatus(data.status);
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  } finally {
+    setBtnLoading('asVerifyCodeBtn', false);
+  }
+}
+
+async function assistantVerifyPassword() {
+  const password = document.getElementById('asPassword').value;
+  if (!password) return;
+  setBtnLoading('asVerifyPwdBtn', true, 'Tekshirilmoqda...');
+  try {
+    const data = await assistantApi('/verify-password', { password });
+    document.getElementById('asPassword').value = '';
+    renderAssistantStatus(data.status);
+    showToast('Akkaunt ulandi!', '🤖', 'var(--green)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  } finally {
+    setBtnLoading('asVerifyPwdBtn', false);
+  }
+}
+
+async function disconnectAssistant() {
+  if (!confirm("Yordamchi akkauntni uzasizmi? Sessiya yopiladi va yordamchi javob berishni to'xtatadi.")) return;
+  try {
+    const data = await assistantApi('/disconnect', {});
+    renderAssistantStatus(data.status);
+    assistantStep(1);
+    showToast('Akkaunt uzildi', '✓', 'var(--orange)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  }
+}
+
+async function saveAssistantToggles() {
+  try {
+    const data = await assistantApi('/settings', {
+      enabled: document.getElementById('asEnabled').checked,
+      replyToCustomers: document.getElementById('asReplyCustomers').checked
+    });
+    renderAssistantStatus(data.status);
+    showToast('Saqlandi', '✓', 'var(--green)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  }
+}
+
+async function saveAssistantSettings() {
+  const body = {
+    model: document.getElementById('asModel').value,
+    name: document.getElementById('asName').value.trim(),
+    adminIds: document.getElementById('asAdminIds').value.replace(/\s+/g, ''),
+    extraInstructions: document.getElementById('asInstructions').value.trim()
+  };
+  const key = document.getElementById('asAiKey').value.trim();
+  if (key) body.aiKey = key;
+  setBtnLoading('asSaveBtn', true, 'Saqlanmoqda...');
+  try {
+    const data = await assistantApi('/settings', body);
+    document.getElementById('asAiKey').value = '';
+    renderAssistantStatus(data.status);
+    showToast('AI sozlamalari saqlandi', '🤖', 'var(--accent)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  } finally {
+    setBtnLoading('asSaveBtn', false);
+  }
+}
+
+// ===== TUGMALAR UCHUN RIPPLE EFFEKTI (bitta umumiy listener) =====
+const RIPPLE_SELECTOR = '.add-btn, .checkout-btn, .settings-save-btn, .add-prod-btn, .btn-save, .btn-approve, .btn-reject, .home-btn, .send-pay-btn, .addr-next-btn, .detail-add-btn, .admin-tab, .cat-chip';
+document.addEventListener('pointerdown', (e) => {
+  const target = e.target.closest(RIPPLE_SELECTOR);
+  if (!target || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const rect = target.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const wave = document.createElement('span');
+  wave.className = 'ripple-wave';
+  wave.style.width = wave.style.height = size + 'px';
+  wave.style.left = (e.clientX - rect.left - size / 2) + 'px';
+  wave.style.top = (e.clientY - rect.top - size / 2) + 'px';
+  target.appendChild(wave);
+  wave.addEventListener('animationend', () => wave.remove(), { once: true });
+}, { passive: true });
+
 async function initFirebaseAndLoad() {
   await loadData();
 }
@@ -7506,7 +8108,14 @@ async function initFirebaseAndLoad() {
 // Har doim SVG ishlatamiz (CDN yo'q)
 document.addEventListener('DOMContentLoaded', () => {
   applyIconFallback();
-  const obs = new MutationObserver(() => applyIconFallback());
+  // Butun sahifani emas, faqat yangi qo'shilgan elementlarni tekshiramiz
+  const obs = new MutationObserver(mutations => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType === 1 && node.namespaceURI !== 'http://www.w3.org/2000/svg') applyIconFallback(node);
+      }
+    }
+  });
   obs.observe(document.body, { childList:true, subtree:true });
 
   // ===== INIT =====
@@ -7517,7 +8126,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateCartBadge();
   updateProfileCounts();
   updatePaymentCard();
-  buildChart();
+  // (buildChart chaqiruvi olib tashlandi — funksiya mavjud emas edi va qolgan init kodini to'xtatardi)
 
   // Telefon raqami uchun maska (+998 (XX) XXX-XX-XX) va uni o'chirib bo'lmasligi
   const phoneInput = document.getElementById('addrPhone');

@@ -3,6 +3,8 @@ const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 const crypto = require('crypto');
 const fs = require('fs');
+const compression = require('compression');
+const { createAssistant, CATEGORY_ENUM } = require('./assistant');
 
 const DB_FILE = path.join(__dirname, 'db.json');
 
@@ -296,13 +298,86 @@ async function firebaseDelete(path) {
 }
 
 
+// ===== MAHSULOTLAR KESHI (har so'rovda Firebase'ga murojaat qilmaslik uchun) =====
+const PRODUCTS_TTL_MS = 30 * 1000;
+let productsCache = null;
+let productsCacheAt = 0;
+let productsWriteChain = Promise.resolve();
+
+async function getProducts(force = false) {
+  if (!force && productsCache && Date.now() - productsCacheAt < PRODUCTS_TTL_MS) return productsCache;
+  const data = await firebaseGet('products');
+  const list = Array.isArray(data) ? data.filter(Boolean) : (data && typeof data === 'object' ? Object.values(data).filter(Boolean) : []);
+  productsCache = list;
+  productsCacheAt = Date.now();
+  return list;
+}
+
+// Mahsulotlar ro'yxatini ketma-ket o'zgartirish (admin panel va yordamchi bir vaqtda yozsa ham yo'qolmasin)
+function mutateProducts(fn) {
+  const run = productsWriteChain.then(async () => {
+    const current = await getProducts(true);
+    const { list, result } = await fn([...current]);
+    await firebasePut('products', list);
+    productsCache = list;
+    productsCacheAt = Date.now();
+    return result;
+  });
+  productsWriteChain = run.catch(() => {});
+  return run;
+}
+
+// ===== BUYURTMA HOLATINI O'ZGARTIRISH (panel va yordamchi uchun umumiy) =====
+async function setOrderStatus(orderId, status) {
+  const orderPath = `orders/${orderId}`;
+  const order = await firebaseGet(orderPath);
+  if (!order) return { error: "Buyurtma topilmadi" };
+
+  await firebasePatch(orderPath, { status });
+
+  if (order.userId && BOT_TOKEN && global.telegramBotInstance) {
+    const userMsg = status === 'confirmed'
+      ? `✅ <b>Buyurtmangiz tasdiqlandi!</b>\n\n` +
+        `📦 Buyurtma: <b>#${orderId}</b>\n` +
+        `🚀 Admin siz bilan tez orada bog'lanadi va mahsulot yetkaziladi!\n\n` +
+        `<i>TechStore — Ishonchli xarid</i>`
+      : `❌ <b>Buyurtmangiz rad etildi!</b>\n\nSiz yuborgan to'lov tasdiqlanmadi. Muammo bo'lsa admin bilan bog'laning.`;
+    global.telegramBotInstance.sendMessage(order.userId, userMsg, { parse_mode: 'HTML' })
+      .catch(err => console.error("Foydalanuvchiga xabar yuborishda xato:", err.message));
+  }
+
+  const p = pendingPayments.find(x => x.orderNum === '#' + orderId);
+  if (p) await deletePendingPaymentFromDb(p);
+  return { success: true };
+}
+
 // ===== EXPRESS =====
+app.disable('x-powered-by');
+app.use(compression());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname)));
+
+// Server fayllari va maxfiy ma'lumotlar statik tarzda berilmasin
+const PRIVATE_FILES = new Set(['/server.js', '/assistant.js', '/db.json', '/package.json', '/package-lock.json']);
+app.use((req, res, next) => {
+  if (PRIVATE_FILES.has(req.path) || req.path.startsWith('/.') || req.path.startsWith('/node_modules')) {
+    return res.status(404).end();
+  }
+  next();
+});
 
 app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// Rasmlar va ikonalar keshlanadi, index.html esa har doim yangilanadi
+app.use(express.static(path.join(__dirname), {
+  index: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+    else res.setHeader('Cache-Control', 'public, max-age=604800');
+  }
+}));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -311,8 +386,16 @@ app.get('/health', (req, res) => {
 // ===== RATE LIMITER MIDDLEWARE (DDoS & Spamdan himoya) =====
 const requestTracker = new Map(); // IP -> Array of timestamps
 
+// Eski IP yozuvlarini vaqti-vaqti bilan tozalash (xotira o'smasligi uchun)
+setInterval(() => {
+  const cutoff = Date.now() - 60 * 1000;
+  for (const [ip, timestamps] of requestTracker) {
+    if (!timestamps.length || timestamps[timestamps.length - 1] < cutoff) requestTracker.delete(ip);
+  }
+}, 5 * 60 * 1000).unref();
+
 function apiRateLimiter(req, res, next) {
-  const ip = req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress;
+  const ip = String(req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress || '').split(',')[0].trim();
   const hostname = req.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || ip === '::1' || ip === '127.0.0.1' || ip.endsWith('127.0.0.1');
 
@@ -321,7 +404,7 @@ function apiRateLimiter(req, res, next) {
   }
 
   const now = Date.now();
-  const limit = 20; // 1 daqiqada maksimal 20 ta so'rov
+  const limit = 40; // 1 daqiqada maksimal 40 ta so'rov
   const windowMs = 60 * 1000; // 1 daqiqa (60000 ms)
 
   if (!requestTracker.has(ip)) {
@@ -539,8 +622,7 @@ app.get('/api/unique-suffix', apiRateLimiter, (req, res) => {
 // Mahsulotlarni olish
 app.get('/api/products', apiRateLimiter, async (req, res) => {
   try {
-    const products = await firebaseGet('products');
-    res.json(products || []);
+    res.json(await getProducts());
   } catch (e) {
     res.status(500).json({ error: "Mahsulotlarni yuklashda xatolik yuz berdi" });
   }
@@ -568,7 +650,7 @@ app.post('/api/orders', apiRateLimiter, async (req, res) => {
   // 1) Narxni bazadan qayta tekshirish (Price tampering mudofaasi)
   let dbProducts = [];
   try {
-    dbProducts = await firebaseGet('products') || [];
+    dbProducts = await getProducts();
   } catch(e) {
     console.error("Failed to fetch products for verification:", e);
     return res.status(500).json({ error: "Mahsulotlar narxini tekshirishda xatolik yuz berdi" });
@@ -657,60 +739,13 @@ app.get('/api/admin/orders', apiRateLimiter, verifyAdmin, async (req, res) => {
   }
 });
 
-// Buyurtmani tasdiqlash
-app.post('/api/admin/orders/:orderId/approve', apiRateLimiter, verifyAdmin, async (req, res) => {
-  const { orderId } = req.params;
-  const orderPath = `orders/${orderId}`;
-  
+// Buyurtmani tasdiqlash / rad etish
+app.post('/api/admin/orders/:orderId/:action(approve|reject)', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const { orderId, action } = req.params;
   try {
-    const order = await firebaseGet(orderPath);
-    if (!order) return res.status(404).json({ error: "Buyurtma topilmadi" });
-    
-    // Statusni yangilash
-    await firebasePatch(orderPath, { status: 'confirmed' });
-    
-    // Foydalanuvchiga Telegram xabar yuborish
-    if (order.userId && BOT_TOKEN && global.telegramBotInstance) {
-      const userMsg = `✅ <b>Buyurtmangiz tasdiqlandi!</b>\n\n` +
-        `📦 Buyurtma: <b>#${orderId}</b>\n` +
-        `🚀 Admin siz bilan tez orada bog'lanadi va mahsulot yetkaziladi!\n\n` +
-        `<i>TechStore — Ishonchli xarid</i>`;
-      
-      global.telegramBotInstance.sendMessage(order.userId, userMsg, { parse_mode: 'HTML' })
-        .catch(err => console.error("Foydalanuvchiga tasdiqlash yuborishda xato:", err.message));
-    }
-    
-    // Kutilayotgan to'lovlardan o'chirish
-    const p = pendingPayments.find(x => x.orderNum === '#' + orderId);
-    if (p) await deletePendingPaymentFromDb(p);
-    
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Buyurtmani rad etish
-app.post('/api/admin/orders/:orderId/reject', apiRateLimiter, verifyAdmin, async (req, res) => {
-  const { orderId } = req.params;
-  const orderPath = `orders/${orderId}`;
-  
-  try {
-    const order = await firebaseGet(orderPath);
-    if (!order) return res.status(404).json({ error: "Buyurtma topilmadi" });
-    
-    await firebasePatch(orderPath, { status: 'rejected' });
-    
-    if (order.userId && BOT_TOKEN && global.telegramBotInstance) {
-      const userMsg = `❌ <b>Buyurtmangiz rad etildi!</b>\n\nSiz yuborgan to'lov tasdiqlanmadi. Muammo bo'lsa admin bilan bog'laning.`;
-      global.telegramBotInstance.sendMessage(order.userId, userMsg, { parse_mode: 'HTML' })
-        .catch(err => console.error("Foydalanuvchiga rad etish yuborishda xato:", err.message));
-    }
-    
-    const p = pendingPayments.find(x => x.orderNum === '#' + orderId);
-    if (p) await deletePendingPaymentFromDb(p);
-    
-    res.json({ success: true });
+    const result = await setOrderStatus(orderId, action === 'approve' ? 'confirmed' : 'rejected');
+    if (result.error) return res.status(404).json(result);
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -761,8 +796,8 @@ app.post('/api/admin/settings', apiRateLimiter, verifyAdmin, async (req, res) =>
 app.post('/api/admin/products/reset', apiRateLimiter, verifyAdmin, async (req, res) => {
   try {
     const { products: defaultProducts } = req.body;
-    if (defaultProducts) {
-      await firebasePut('products', defaultProducts);
+    if (Array.isArray(defaultProducts)) {
+      await mutateProducts(() => ({ list: defaultProducts }));
       res.json({ success: true });
     } else {
       res.status(400).json({ error: "Standart mahsulotlar ro'yxati yuborilmadi" });
@@ -778,59 +813,87 @@ function sanitizeInput(val) {
   return val.replace(/</g, '&lt;').replace(/>/g, '&gt;').trim();
 }
 
-// Product validator and sanitizer
-function validateAndSanitizeProduct(req, res, next) {
-  const { name, brand, price, discount, cat, desc, specs, images } = req.body;
-  
+// Mahsulotni tekshirish va tozalash (panel ham, yordamchi admin ham shu funksiyadan o'tadi)
+function buildProduct(body) {
+  const { name, brand, price, discount, cat, desc, specs, images } = body;
+
   if (!name || typeof name !== 'string' || name.trim() === '') {
-    return res.status(400).json({ error: "Mahsulot nomi kiritilishi shart!" });
+    return { error: "Mahsulot nomi kiritilishi shart!" };
   }
   if (!brand || typeof brand !== 'string' || brand.trim() === '') {
-    return res.status(400).json({ error: "Brand nomi kiritilishi shart!" });
+    return { error: "Brand nomi kiritilishi shart!" };
   }
-  
+
   const parsedPrice = parseInt(price);
   if (isNaN(parsedPrice) || parsedPrice <= 0) {
-    return res.status(400).json({ error: "Mahsulot narxi musbat son bo'lishi shart!" });
+    return { error: "Mahsulot narxi musbat son bo'lishi shart!" };
   }
-  
+
   const parsedDiscount = parseInt(discount) || 0;
   if (parsedDiscount < 0 || parsedDiscount > 100) {
-    return res.status(400).json({ error: "Chegirma 0 va 100 oralig'ida bo'lishi shart!" });
+    return { error: "Chegirma 0 va 100 oralig'ida bo'lishi shart!" };
   }
-  
-  const allowedCats = ['Telefonlar', 'Kompyuterlar', 'Audio', 'Aksessuarlar', 'Kameralar'];
-  if (!cat || !allowedCats.includes(cat)) {
-    return res.status(400).json({ error: "Noto'g'ri mahsulot kategoriyasi!" });
+
+  if (!cat || !CATEGORY_ENUM.includes(cat)) {
+    return { error: "Noto'g'ri mahsulot kategoriyasi!" };
   }
-  
-  req.sanitizedProduct = {
-    id: req.body.id ? Number(req.body.id) : (Date.now() + Math.floor(Math.random() * 1000)),
-    name: sanitizeInput(name),
-    brand: sanitizeInput(brand),
-    price: parsedPrice,
-    discount: parsedDiscount,
-    cat: cat,
-    desc: sanitizeInput(desc || 'Tavsif yo\'q.'),
-    rating: Number(req.body.rating) || 5.0,
-    reviews: Number(req.body.reviews) || 0,
-    specs: Array.isArray(specs) ? specs.map(pair => [sanitizeInput(pair[0]), sanitizeInput(pair[1])]) : [],
-    emoji: req.body.emoji ? sanitizeInput(req.body.emoji) : null,
-    image: req.body.image && typeof req.body.image === 'string' ? req.body.image : null,
-    images: Array.isArray(images) ? images.filter(img => typeof img === 'string') : []
+
+  const cleanImages = Array.isArray(images) ? images.filter(img => typeof img === 'string').slice(0, 5) : [];
+  const mainImage = body.image && typeof body.image === 'string' ? body.image : (cleanImages[0] || null);
+
+  return {
+    product: {
+      id: body.id ? Number(body.id) : (Date.now() + Math.floor(Math.random() * 1000)),
+      name: sanitizeInput(name),
+      brand: sanitizeInput(brand),
+      price: parsedPrice,
+      discount: parsedDiscount,
+      cat: cat,
+      desc: sanitizeInput(desc || 'Tavsif yo\'q.'),
+      rating: Number(body.rating) || 5.0,
+      reviews: Number(body.reviews) || 0,
+      specs: Array.isArray(specs) ? specs.filter(pair => Array.isArray(pair)).map(pair => [sanitizeInput(pair[0]), sanitizeInput(pair[1])]) : [],
+      emoji: body.emoji ? sanitizeInput(body.emoji) : null,
+      image: mainImage,
+      images: cleanImages.length ? cleanImages : (mainImage ? [mainImage] : [])
+    }
   };
-  
+}
+
+function validateAndSanitizeProduct(req, res, next) {
+  const { product, error } = buildProduct(req.body);
+  if (error) return res.status(400).json({ error });
+  req.sanitizedProduct = product;
   next();
+}
+
+async function addProduct(data) {
+  const { product, error } = buildProduct(data);
+  if (error) return { error };
+  await mutateProducts(list => ({ list: [product, ...list.filter(p => p.id !== product.id)] }));
+  return { product };
+}
+
+async function updateProduct(id, data) {
+  return mutateProducts(list => {
+    const idx = list.findIndex(p => String(p.id) === String(id));
+    if (idx === -1) return { list, result: { error: "Mahsulot topilmadi" } };
+    const { product, error } = buildProduct({ ...list[idx], ...data, id: list[idx].id });
+    if (error) return { list, result: { error } };
+    list[idx] = { ...list[idx], ...product };
+    return { list, result: { product: list[idx] } };
+  });
+}
+
+async function deleteProduct(id) {
+  return mutateProducts(list => ({ list: list.filter(p => String(p.id) !== String(id)), result: { success: true } }));
 }
 
 // Mahsulot qo'shish
 app.post('/api/admin/products', apiRateLimiter, verifyAdmin, validateAndSanitizeProduct, async (req, res) => {
   const newProduct = req.sanitizedProduct;
   try {
-    let prods = await firebaseGet('products') || [];
-    prods = prods.filter(p => p && p.id !== newProduct.id);
-    prods.unshift(newProduct);
-    await firebasePut('products', prods);
+    await mutateProducts(list => ({ list: [newProduct, ...list.filter(p => p.id !== newProduct.id)] }));
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -840,18 +903,16 @@ app.post('/api/admin/products', apiRateLimiter, verifyAdmin, validateAndSanitize
 // Mahsulotni yangilash
 app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, validateAndSanitizeProduct, async (req, res) => {
   const { id } = req.params;
-  const updatedProduct = req.sanitizedProduct;
-  updatedProduct.id = Number(id);
+  const updatedProduct = { ...req.sanitizedProduct, id: Number(id) };
   try {
-    let prods = await firebaseGet('products') || [];
-    const idx = prods.findIndex(p => p && String(p.id) === String(id));
-    if (idx !== -1) {
-      prods[idx] = { ...prods[idx], ...updatedProduct };
-      await firebasePut('products', prods);
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ error: "Mahsulot topilmadi" });
-    }
+    const result = await mutateProducts(list => {
+      const idx = list.findIndex(p => String(p.id) === String(id));
+      if (idx === -1) return { list, result: false };
+      list[idx] = { ...list[idx], ...updatedProduct };
+      return { list, result: true };
+    });
+    if (result) res.json({ success: true });
+    else res.status(404).json({ error: "Mahsulot topilmadi" });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -859,11 +920,8 @@ app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, validateAndSanit
 
 // Mahsulotni o'chirish
 app.delete('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res) => {
-  const { id } = req.params;
   try {
-    let prods = await firebaseGet('products') || [];
-    prods = prods.filter(p => p && String(p.id) !== String(id));
-    await firebasePut('products', prods);
+    await deleteProduct(req.params.id);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -982,6 +1040,83 @@ app.get('/api/admin/users', apiRateLimiter, verifyAdmin, async (req, res) => {
   }
 });
 
+// ===== YORDAMCHI ADMIN (Telegram akkaunt + AI) =====
+async function getStoreStats() {
+  const [orders, users, prods] = await Promise.all([
+    firebaseGet('orders').then(o => o || {}),
+    firebaseGet('users').then(u => u || {}),
+    getProducts()
+  ]);
+  const list = Object.values(orders);
+  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+  const confirmed = list.filter(o => o.status === 'confirmed');
+  const today = list.filter(o => (o.createdAt || 0) >= startOfDay.getTime());
+  return {
+    products: prods.length,
+    orders_total: list.length,
+    orders_pending: list.filter(o => o.status === 'pending').length,
+    orders_confirmed: confirmed.length,
+    orders_rejected: list.filter(o => o.status === 'rejected').length,
+    revenue_confirmed: confirmed.reduce((s, o) => s + (Number(o.total) || 0), 0),
+    orders_today: today.length,
+    revenue_today: today.filter(o => o.status === 'confirmed').reduce((s, o) => s + (Number(o.total) || 0), 0),
+    customers: Object.keys(users).length
+  };
+}
+
+let botUsername = '';
+
+const assistant = createAssistant({
+  loadConfig: () => firebaseGet('settings/assistant'),
+  saveConfig: (cfg) => firebasePut('settings/assistant', cfg),
+  getShopInfo: () => ({ botUsername, adminIds: ADMIN_IDS, adminContact: '@Jahongir_1220', appUrl: APP_URL }),
+  notifyAdminsViaBot: async (text) => {
+    if (!botInstance) return;
+    await Promise.all(ADMIN_IDS.map(id => botInstance.sendMessage(id, text).catch(() => {})));
+  },
+  store: {
+    listProducts: () => getProducts(),
+    getProduct: async (id) => (await getProducts()).find(p => String(p.id) === String(id)) || null,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    listOrders: () => firebaseGet('orders'),
+    setOrderStatus,
+    getStats: getStoreStats
+  }
+});
+
+function assistantRoute(handler) {
+  return async (req, res) => {
+    try {
+      const data = await handler(req);
+      res.json({ success: true, ...(data || {}), status: assistant.status() });
+    } catch (e) {
+      console.error('Assistant API error:', e.message);
+      res.status(400).json({ error: e.errorMessage ? `Telegram: ${e.errorMessage}` : e.message, status: assistant.status() });
+    }
+  };
+}
+
+app.get('/api/admin/assistant', apiRateLimiter, verifyAdmin, (req, res) => {
+  res.json(assistant.status());
+});
+
+app.post('/api/admin/assistant/settings', apiRateLimiter, verifyAdmin, assistantRoute(req => assistant.updateSettings(req.body || {})));
+
+app.post('/api/admin/assistant/send-code', apiRateLimiter, verifyAdmin, assistantRoute(req => assistant.sendCode({
+  apiId: req.body.apiId,
+  apiHash: req.body.apiHash,
+  phone: req.body.phone,
+  ownerId: req.adminUser?.id
+})));
+
+app.post('/api/admin/assistant/verify-code', apiRateLimiter, verifyAdmin, assistantRoute(req => assistant.verifyCode(req.body.code)));
+
+app.post('/api/admin/assistant/verify-password', apiRateLimiter, verifyAdmin, assistantRoute(req => assistant.verifyPassword(req.body.password)));
+
+app.post('/api/admin/assistant/disconnect', apiRateLimiter, verifyAdmin, assistantRoute(() => assistant.disconnect()));
+
 // ===== TELEGRAM BOT (POLLING) =====
 let botInstance = null;
 
@@ -1014,6 +1149,7 @@ function initializeTelegramBot() {
     });
     botInstance = bot;
     global.telegramBotInstance = bot;
+    bot.getMe().then(me => { botUsername = me.username || ''; }).catch(() => {});
     
     bot.on('polling_error', (err) => {
       console.error('Polling xatosi:', err.code, err.message);
@@ -1146,6 +1282,7 @@ app.listen(PORT, async () => {
   await loadSettingsFromDb();
   await loadPendingPayments();
   initializeTelegramBot();
+  await assistant.init();
   
   console.log(`👑 Admin IDs: ${ADMIN_IDS.join(', ') || 'belgilanmagan'}`);
 });
