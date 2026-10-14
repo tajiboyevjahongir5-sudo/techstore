@@ -40,6 +40,12 @@ const PROVIDERS = {
   },
 };
 const DEFAULT_PROVIDER = 'gemini';
+// Gemini modeli band (503) yoki limiti tugagan (429) bo'lsa, navbatdagi modelga o'tamiz
+const GEMINI_FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const TRANSIENT_STATUSES = [429, 500, 502, 503, 504];
+const AI_RETRY_DELAY_MS = 25000; // hammasi band bo'lsa, xabarni shuncha vaqtdan keyin qayta ishlaymiz
+const MAX_AI_RETRIES = 3;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const MAX_HISTORY = 40;            // har bir chat uchun saqlanadigan xabarlar (matn ko'rinishida)
 const MAX_TOOL_ROUNDS = 10;        // bir javob ichida asboblardan foydalanish chegarasi
 const MAX_PHOTOS_PER_CHAT = 12;
@@ -994,24 +1000,51 @@ Qat'iy qoidalar:
   }
 
   async function chatCompletion(body) {
-    const res = await fetch(aiBaseUrl() + '/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiKeyFor(config.provider)}` },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const detail = (Array.isArray(data) ? data[0] : data)?.error?.message || '';
-      const err = new Error(
-        res.status === 429 ? "AI bepul limiti tugadi, birozdan keyin urinib ko'ring"
-          : res.status === 401 || res.status === 403 ? "AI kaliti noto'g'ri yoki ruxsat yo'q"
-          : res.status === 404 ? `Model topilmadi: ${config.model}`
-          : `AI xatosi (${res.status}) ${detail.slice(0, 200)}`
-      );
-      err.aiError = true;
-      throw err;
+    const models = [config.model];
+    if (config.provider === 'gemini') GEMINI_FALLBACK_MODELS.forEach(m => { if (!models.includes(m)) models.push(m); });
+    let lastErr = null;
+
+    for (const model of models) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let res, data;
+        try {
+          res = await fetch(aiBaseUrl() + '/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiKeyFor(config.provider)}` },
+            body: JSON.stringify({ ...body, model }),
+          });
+          data = await res.json().catch(() => ({}));
+        } catch (e) {
+          // Tarmoq uzilishi — qisqa kutib qayta urinamiz
+          lastErr = Object.assign(new Error('AI serveriga ulanib bo\'lmadi'), { aiError: true, transient: true });
+          await sleep(1500);
+          continue;
+        }
+        if (res.ok) {
+          if (model !== config.model) console.log(`🤖 Assistant: ${config.model} band, ${model} ishlatildi`);
+          return data;
+        }
+
+        const detail = (Array.isArray(data) ? data[0] : data)?.error?.message || '';
+        const transient = TRANSIENT_STATUSES.includes(res.status);
+        lastErr = new Error(
+          res.status === 429 ? "AI bepul limiti tugadi yoki juda ko'p so'rov bo'ldi"
+            : res.status === 503 || res.status === 500 ? 'AI serveri hozir band'
+            : res.status === 401 || res.status === 403 ? "AI kaliti noto'g'ri yoki ruxsat yo'q"
+            : res.status === 404 ? `Model topilmadi: ${model}`
+            : `AI xatosi (${res.status}) ${detail.slice(0, 200)}`
+        );
+        lastErr.aiError = true;
+        lastErr.transient = transient;
+        console.warn(`🤖 Assistant: ${model} → ${res.status} ${detail.slice(0, 120)}`);
+
+        if (res.status === 404 && models.length > 1) break;      // bu model yo'q — keyingisiga
+        if (!transient) throw lastErr;                            // kalit xato va h.k. — qayta urinish foydasiz
+        if (res.status === 429) break;                            // limit — boshqa modelning limiti alohida
+        if (attempt === 0) await sleep(2000);                     // band — bir marta kutib qayta urinamiz
+      }
     }
-    return data;
+    throw lastErr || new Error('AI javob bermadi');
   }
 
   async function runOpenAICompat(chat, userBlocks) {
@@ -1133,8 +1166,6 @@ Qat'iy qoidalar:
     return { text: finalText, actions };
   }
 
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
   // Xaridorlarga javob odamdek: xatboshilar alohida xabar bo'lib, orada "yozmoqda..." bilan
   async function sendHumanlike(chat, reply) {
     if (!reply) return;
@@ -1158,6 +1189,7 @@ Qat'iy qoidalar:
     chat.processing = true;
     const msgs = chat.pending.splice(0);
     let typingTimer = null;
+    let retryScheduled = false;
     try {
       // Xaridorlar uchun soatlik limit (AI xarajatlarini cheklash)
       if (chat.role === 'customer') {
@@ -1197,6 +1229,7 @@ Qat'iy qoidalar:
       const reply = text || (actions.length ? '✅ Bajarildi.' : '');
       await sendHumanlike(chat, reply);
 
+      chat.aiRetries = 0;
       chat.history.push({ role: 'user', content: plain || '[media]' });
       chat.history.push({ role: 'assistant', content: (reply || '…') + (actions.length ? `\n[Bajarilgan amallar: ${actions.join('; ')}]` : '') });
       if (chat.history.length > MAX_HISTORY) chat.history.splice(0, chat.history.length - MAX_HISTORY);
@@ -1209,16 +1242,36 @@ Qat'iy qoidalar:
         : e.aiError ? e.message
         : e.message;
       lastError = msg;
-      if (chat.role === 'admin') {
-        await client.sendMessage(chat.peer, { message: `⚠️ Xatolik: ${msg}`, parseMode: false }).catch(() => {});
+      const transient = e.transient || e instanceof Anthropic.RateLimitError || e instanceof Anthropic.InternalServerError
+        || (e instanceof Anthropic.APIError && [429, 500, 502, 503, 504, 529].includes(e.status));
+
+      if (transient && (chat.aiRetries || 0) < MAX_AI_RETRIES) {
+        // AI vaqtincha band: xabarni yo'qotmaymiz, birozdan keyin o'zimiz qayta urinamiz
+        chat.aiRetries = (chat.aiRetries || 0) + 1;
+        chat.pending.unshift(...msgs);
+        if (chat.role === 'customer' && chat.hits.length) chat.hits.pop();
+        retryScheduled = true;
+        if (chat.aiRetries === 1) {
+          const note = chat.role === 'admin'
+            ? `⏳ ${msg}. Xabaringizni saqlab qo'ydim, ${Math.round(AI_RETRY_DELAY_MS / 1000)} soniyadan keyin o'zim qayta urinaman.`
+            : 'Bir daqiqa, hozir javob beraman 🙏';
+          await client.sendMessage(chat.peer, { message: note, parseMode: false }).catch(() => {});
+        }
+      } else {
+        chat.aiRetries = 0;
+        if (chat.role === 'admin') {
+          await client.sendMessage(chat.peer, { message: `⚠️ Xatolik: ${msg}`, parseMode: false }).catch(() => {});
+        } else if (transient) {
+          await client.sendMessage(chat.peer, { message: "Uzr, hozir javob bera olmayapman. Birozdan keyin yana yozing yoki admin bilan bog'laning 🙏", parseMode: false }).catch(() => {});
+        }
       }
     } finally {
       if (typingTimer) clearInterval(typingTimer);
       chat.processing = false;
-      // Qayta ishlash davomida yangi xabarlar kelgan bo'lsa
+      // Qayta ishlash davomida yangi xabarlar kelgan bo'lsa (yoki AI band bo'lib qayta urinish kerak bo'lsa)
       if (chat.pending.length) {
         clearTimeout(chat.timer);
-        chat.timer = setTimeout(() => processChat(chat).catch(() => {}), 500);
+        chat.timer = setTimeout(() => processChat(chat).catch(() => {}), retryScheduled ? AI_RETRY_DELAY_MS : 500);
       }
     }
   }
