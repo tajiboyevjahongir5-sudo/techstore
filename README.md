@@ -24,7 +24,7 @@ Admin panel → **Yordamchi** bo'limi:
 
 1. [my.telegram.org/apps](https://my.telegram.org/apps) dan yordamchi akkaunt uchun `api_id` va `api_hash` oling.
 2. API ID, API Hash va telefon raqamini kiritib **Kod yuborish** ni bosing, Telegramga kelgan kodni (va 2FA parolni, bo'lsa) kiriting.
-3. **AI sozlamalari**da provayderni tanlang (standart — bepul **Google Gemini**; kalitni [aistudio.google.com/apikey](https://aistudio.google.com/apikey) dan oling, karta kerak emas) va kalitni kiriting. Shu yerda va buyruq bera oladigan admin Telegram ID'larini tekshiring (panelga kirgan admin avtomatik qo'shiladi).
+3. **AI sozlamalari**da provayderni tanlang (standart — bepul **Google Gemini**; kalitni [aistudio.google.com/apikey](https://aistudio.google.com/apikey) dan oling, karta kerak emas) va kalitni kiriting. Shu yerda buyruq bera oladigan admin Telegram ID'larini tekshiring (panelga kirgan admin avtomatik qo'shiladi).
 
 Shundan so'ng:
 
