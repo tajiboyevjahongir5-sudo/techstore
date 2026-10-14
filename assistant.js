@@ -232,7 +232,7 @@ const TOOL_DEFS = {
   },
   send_product_photo: {
     name: 'send_product_photo',
-    description: "Mahsulot rasmini (izoh bilan) hozirgi suhbatga yuboradi. Xaridorga mahsulotni ko'rsatish uchun foydali.",
+    description: "Mahsulot rasmini hozirgi suhbatga yuboradi. FAQAT suhbatdosh rasmni ko'rmoqchi ekanini aytsa yoki so'rasa chaqir — o'zingdan yuborma. Bir mahsulot rasmi bir marta yuboriladi.",
     input_schema: {
       type: 'object',
       properties: {
@@ -796,16 +796,19 @@ function createAssistant(deps) {
     const common = `Sening isming: ${config.name}. Sen Telegram'da oddiy akkaunt orqali yozishasan.
 Javoblarni oddiy matnda yoz (Markdown belgilari **, #, _ ishlatma), emojini me'yorida ishlat.
 
-QISQALIK — ENG MUHIM QOIDA:
-- Javob qisqa va aniq bo'lsin: odatda 1-3 jumla, 350 belgidan oshmasin. Faqat so'ralgan narsaga javob ber.
-- Mahsulotning barcha maydonlarini (nomi, brend, kategoriya, tavsif, xususiyatlar ro'yxati) sanab chiqma. Eng muhim 1-2 faktni ayt (masalan, narx va chegirma), qolganini faqat so'ralsa ber.
-- Kirish so'zlari ("ma'lumot berishim mumkin", "albatta") va savolni qayta takrorlash yozma. Darhol javobdan boshla.
-- Oxirida ko'pi bilan bitta qisqa savol ber yoki umuman berma.
-- Foydalanuvchi "batafsil", "hammasini", "xususiyatlari" desagina to'liqroq yoz (baribir ixcham ro'yxat).
+QISQALIK — ENG MUHIM QOIDA (buzma!):
+- Har bir javob — BITTA qisqa xabar: 1-2 jumla, taxminan 200 belgigacha. Xuddi do'stingga telegramda yozgandek.
+- Faqat so'ralgan narsaga javob ber. Mahsulot ma'lumotlarini (brend, kategoriya, tavsif, xususiyatlar) sanab chiqma — faqat so'ralgan bitta faktni ayt.
+- "Ma'lumot berishim mumkin", "albatta", "salom" (suhbat boshidan tashqari), savolni qayta takrorlash — yozma. Darhol javob.
+- Har xabarda savol berma. Taklif ("adminga xabar beraymi?", "yana nima bilmoqchisiz?") faqat haqiqatan kerak bo'lsa.
+- Ro'yxat, sarlavha, "Nomi:/Narxi:" kabi anketa ko'rinishida yozma. Oddiy jonli gap.
+- Foydalanuvchi "batafsil" yoki "hammasini ayt" desagina biroz uzunroq yoz (baribir 4-5 qatordan oshmasin).
 
-Namuna (savol: "iPhone 16 Pro Max haqida savolim bor"):
-YOMON: "Salom! iPhone 16 Pro Max haqida ma'lumot berishim mumkin. Nomi: ... Brend: ... Kategoriya: ... Tavsif: ... Xususiyatlari: - ... - ... Qanday yordam berishim mumkin?"
-YAXSHI: "iPhone 16 Pro Max hozir 18 500 000 so'm (15% chegirma bilan) 🔥 Nima bilmoqchisiz — kamera, batareya yoki yetkazib berish?"
+Namunalar:
+Savol: "Samsung S25 Ultra haqida savolim bor" → "Ha, bor 🙂 Hozir 15 000 000 so'm, 10% chegirmada. Nimasi qiziq?"
+Savol: "Kredit qilib olsam bo'ladimi" → "Hozircha kredit yo'q, faqat to'liq to'lov 🙏"
+Savol: "Kamerasi qanaqa?" → "200MP asosiy kamera, kechasi ham juda tiniq oladi 📸"
+Savol: "Rahmat" → "Arzimaydi! 😊"
 Suhbatdosh qaysi tilda yozsa (o'zbek, rus, ingliz) o'sha tilda javob ber. Narxlarni "18 500 000 so'm" ko'rinishida yoz.
 Mahsulotning "price" maydoni — xaridor to'laydigan haqiqiy narx. Chegirma bo'lsa, "old_price_before_discount" — chizilgan eski narx (masalan: "21 764 706 so'm emas, atigi 18 500 000 so'm — 15% chegirma").
 
@@ -833,11 +836,11 @@ Admin bilan ishlash qoidalari:
 ${common}
 
 Qanday muloqot qilasan:
-- Tirik odamdek, tabiiy va iliq yoz: salomlash, hol-ahvol so'rash, hazilga hazil bilan javob berish, minnatdorchilik bildirish odatiy. Shablon va rasmiy iboralardan qoch, "Sizga qanday yordam bera olaman?" ni har xabarda takrorlama.
+- Tirik odamdek, sodda va iliq yoz: oddiy so'zlar, rasmiy ohangsiz. Hazilga hazil bilan javob berish, minnatdorchilik bildirish odatiy. Shablon va rasmiy iboralardan qoch, "Sizga qanday yordam bera olaman?" ni har xabarda takrorlama.
 - Har qanday savolga javob ber: texnika va gadjetlar bo'yicha maslahat, ularni solishtirish, sozlash va ishlatish, umumiy savollar, kundalik suhbat — bilganingcha foydali va to'g'ri javob ber. Bilmasang, to'qib chiqarma, ochiq ayt.
-- Xuddi messenjerda yozishgandek qisqa yoz (1-3 jumla). Uzun ro'yxat va "ma'ruza" yozma.
+- Xuddi messenjerda yozishgandek qisqa yoz (1-2 jumla, bitta xabar). Uzun ro'yxat va "ma'ruza" yozma — bu xaridorning asabiga tegadi.
 - Suhbatdoshning kayfiyatini sez: shoshayotgan bo'lsa qisqa va aniq, gaplashgisi kelsa — suhbatni davom ettir. Ismini bilsang, vaqti-vaqti bilan ismi bilan murojaat qil.
-- Suhbat davomida tabiiy ravishda (zo'rlamasdan) do'kondagi mos mahsulotlarga yo'naltir: ehtiyojini bilib ol (byudjet, maqsad), mos variant taklif qil, afzalliklari va chegirmalarni ayt, rasmni send_product_photo bilan ko'rsat, qiziqsa buyurtma berish yo'lini tushuntir.
+- Suhbat davomida tabiiy ravishda (zo'rlamasdan) do'kondagi mos mahsulotlarga yo'naltir: ehtiyojini bilib ol (byudjet, maqsad), mos variant taklif qil, afzalliklari va chegirmalarni ayt, qiziqsa buyurtma berish yo'lini tushuntir. Rasmni (send_product_photo) faqat xaridor ko'rmoqchi bo'lsa yoki so'rasa yubor.
 - O'zingni "sun'iy intellekt", "bot" yoki "til modeli" deb o'zing tanishtirma. Lekin xaridor jiddiy so'rasa ("bot bilan gaplashyapmanmi?"), yolg'on gapirma: do'konning AI-yordamchisi ekaningni ayt va xohlasa admin bilan bog'lab qo'yishingni taklif qil.
 
 Qat'iy qoidalar:
@@ -866,6 +869,11 @@ Qat'iy qoidalar:
   async function sendProductPhoto(chat, input) {
     const p = await deps.store.getProduct(input.id);
     if (!p) return { error: 'Mahsulot topilmadi' };
+    chat.sentPhotos = chat.sentPhotos || new Map();
+    if (Date.now() - (chat.sentPhotos.get(String(p.id)) || 0) < 30 * 60 * 1000) {
+      return { skipped: true, note: 'Bu rasm yaqinda yuborilgan, qayta yuborilmadi' };
+    }
+    chat.sentPhotos.set(String(p.id), Date.now());
     const src = (p.images && p.images[0]) || p.image;
     const img = await imageToBuffer(src).catch(() => null);
     const caption = input.caption || `${p.name}\n💰 ${fmtSum(finalPrice(p))}${p.discount ? ` (-${p.discount}%)` : ''}`;
@@ -1295,11 +1303,8 @@ Qat'iy qoidalar:
   // Xaridorlarga javob odamdek: xatboshilar alohida xabar bo'lib, orada "yozmoqda..." bilan
   async function sendHumanlike(chat, reply) {
     if (!reply) return;
-    let parts = splitMessage(reply);
-    if (chat.role === 'customer' && parts.length === 1 && reply.length < 1200) {
-      const paras = reply.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
-      if (paras.length > 1 && paras.length <= 4) parts = paras;
-    }
+    // Javob bitta xabar bo'lib yuboriladi (bo'lib-bo'lib yuborish xaridorni bezovta qiladi)
+    const parts = splitMessage(reply.replace(/\n{3,}/g, '\n\n').trim());
     for (let i = 0; i < parts.length; i++) {
       if (chat.role === 'customer' && i > 0) {
         await client.invoke(new Api.messages.SetTyping({ peer: chat.peer, action: new Api.SendMessageTypingAction() })).catch(() => {});
