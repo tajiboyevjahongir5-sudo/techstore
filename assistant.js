@@ -15,7 +15,10 @@ const { computeCheck } = require('telegram/Password');
 const { CustomFile } = require('telegram/client/uploads');
 const Anthropic = require('@anthropic-ai/sdk');
 
-const DATA_DIR = path.join(__dirname, '.data');
+// Railway Volume ulangan bo'lsa, maxfiy fayl ham o'sha yerda saqlanadi
+const DATA_DIR = (process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR)
+  ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR, '.data')
+  : path.join(__dirname, '.data');
 const LOCAL_SECRETS_FILE = path.join(DATA_DIR, 'assistant-secrets.json');
 const TELEGRAM_SERVICE_ID = '777000'; // Telegram rasmiy xabarlari (login kodlari) — hech qachon javob bermaymiz
 
@@ -648,7 +651,8 @@ function createAssistant(deps) {
       hasAiKey: aiReady(),
       aiKeySource: panelKey ? 'panel' : (fromEnv ? 'env' : null),
       aiKeyMasked: panelKey ? panelKey.slice(0, 6) + '…' + panelKey.slice(-4) : '',
-      persistent: !!secretKey(),
+      storage: deps.getStorageInfo ? deps.getStorageInfo() : { persistent: true, mode: 'unknown' },
+      persistent: (deps.getStorageInfo ? deps.getStorageInfo().persistent : true) && (!!secretKey() || (deps.getStorageInfo && deps.getStorageInfo().mode === 'volume')),
       stats: { ...stats, chats: chats.size },
       activity: activity.slice(0, 15),
     };

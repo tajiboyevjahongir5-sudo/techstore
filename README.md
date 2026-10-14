@@ -18,6 +18,13 @@ npm start
 | `GEMINI_API_KEY` | Ixtiyoriy. Bepul Google Gemini kaliti (admin panelda ham kiritish mumkin). |
 | `ANTHROPIC_API_KEY` | Ixtiyoriy. Anthropic Claude kaliti (pullik). |
 
+## Ma'lumotlarni saqlash (muhim)
+
+Railway har deploy'da server diskini tozalaydi. Ma'lumotlar (mahsulotlar, buyurtmalar, yordamchi akkaunti, API kalitlar) o'chmasligi uchun:
+
+- **Tavsiya:** Railway'da servisga **Volume** ulang (mount path: `/data`). Server `RAILWAY_VOLUME_MOUNT_PATH` ni avtomatik aniqlaydi va hamma narsani o'sha yerda saqlaydi.
+- Volume bo'lmasa, Firebase ishlatiladi. Firebase'ga yozib bo'lmasa, admin panel → Yordamchi bo'limida qizil ogohlantirish chiqadi.
+
 ## Yordamchi admin
 
 Admin panel → **Yordamchi** bo'limi:

@@ -6,7 +6,25 @@ const fs = require('fs');
 const compression = require('compression');
 const { createAssistant, CATEGORY_ENUM } = require('./assistant');
 
-const DB_FILE = path.join(__dirname, 'db.json');
+// ===== SAQLASH JOYI =====
+// Railway'da Volume (doimiy disk) ulangan bo'lsa, barcha ma'lumotlar o'sha yerda saqlanadi va
+// deploy'da o'chmaydi. Aks holda Firebase ishlatiladi; Firebase ham ishlamasa — vaqtinchalik fayl.
+const VOLUME_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || '';
+const REPO_DB_FILE = path.join(__dirname, 'db.json');
+const DB_FILE = VOLUME_DIR ? path.join(VOLUME_DIR, 'db.json') : REPO_DB_FILE;
+let storageMode = VOLUME_DIR ? 'volume' : 'firebase'; // 'volume' | 'firebase' | 'ephemeral'
+let storageError = '';
+
+function getStorageInfo() {
+  return { mode: storageMode, persistent: storageMode !== 'ephemeral', error: storageError, volume: VOLUME_DIR || null };
+}
+
+function switchToLocalStorage(reason) {
+  if (storageMode !== 'firebase') return;
+  storageMode = 'ephemeral';
+  storageError = reason;
+  console.error(`❌ Firebase'ga yozib bo'lmadi (${reason}). Ma'lumotlar vaqtinchalik faylda saqlanadi va deploy'da O'CHADI! Railway'da Volume ulang yoki Firebase qoidalarini tuzating.`);
+}
 
 // ===== SERVER CRASH BO'LMASIN =====
 process.on('uncaughtException', (err) => {
@@ -230,10 +248,48 @@ function initializeDbFile() {
   }
 }
 
-initializeDbFile();
+// Server ishga tushganda: saqlash joyini aniqlash
+async function prepareStorage() {
+  if (VOLUME_DIR) {
+    fs.mkdirSync(VOLUME_DIR, { recursive: true });
+    if (!fs.existsSync(DB_FILE)) {
+      // Volume birinchi marta ulanganda: mavjud ma'lumotlarni Firebase'dan (bo'lmasa repodagi fayldan) ko'chiramiz
+      let seed = null;
+      try {
+        const res = await fetch(`${DB_URL}/.json`, { signal: AbortSignal.timeout(15000) });
+        if (res.ok) seed = await res.json();
+      } catch (e) { /* Firebase ishlamasa repodagi fayldan */ }
+      if (!seed || typeof seed !== 'object') {
+        try { seed = JSON.parse(fs.readFileSync(REPO_DB_FILE, 'utf8')); } catch (e) { seed = {}; }
+      }
+      fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2), 'utf8');
+      console.log(`💾 Volume'ga boshlang'ich ma'lumotlar ko'chirildi: ${DB_FILE}`);
+    }
+    console.log(`💾 Saqlash: Railway Volume (${VOLUME_DIR}) — deploy'da o'chmaydi`);
+  } else {
+    // Firebase'ga yozish ishlayaptimi — sinab ko'ramiz
+    try {
+      const res = await fetch(`${DB_URL}/_health.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ts: Date.now() }),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) {
+        const body = (await res.text().catch(() => '')).slice(0, 120);
+        throw new Error(`HTTP ${res.status} ${body}`);
+      }
+      console.log('💾 Saqlash: Firebase (ishlayapti)');
+    } catch (e) {
+      switchToLocalStorage(e.message);
+    }
+  }
+  initializeDbFile();
+}
 
 // ===== FIREBASE REST CLIENT =====
 async function firebaseGet(path) {
+  if (storageMode !== 'firebase') return getNestedValue(readLocalDb(), path) ?? null;
   try {
     const res = await fetch(`${DB_URL}/${path}.json`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -247,6 +303,7 @@ async function firebaseGet(path) {
 
 async function firebasePut(path, data) {
   try {
+    if (storageMode !== 'firebase') throw new Error('local');
     const res = await fetch(`${DB_URL}/${path}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -255,7 +312,10 @@ async function firebasePut(path, data) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error(`Firebase PUT error at ${path}: ${e.message} - falling back to local db.json`);
+    if (e.message !== 'local') {
+      console.error(`Firebase PUT error at ${path}: ${e.message} - falling back to local db.json`);
+      switchToLocalStorage(e.message);
+    }
     let dbData = readLocalDb();
     dbData = setNestedValue(dbData, path, data);
     writeLocalDb(dbData);
@@ -265,6 +325,7 @@ async function firebasePut(path, data) {
 
 async function firebasePatch(path, data) {
   try {
+    if (storageMode !== 'firebase') throw new Error('local');
     const res = await fetch(`${DB_URL}/${path}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -273,7 +334,10 @@ async function firebasePatch(path, data) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error(`Firebase PATCH error at ${path}: ${e.message} - falling back to local db.json`);
+    if (e.message !== 'local') {
+      console.error(`Firebase PATCH error at ${path}: ${e.message} - falling back to local db.json`);
+      switchToLocalStorage(e.message);
+    }
     let dbData = readLocalDb();
     dbData = patchNestedValue(dbData, path, data);
     writeLocalDb(dbData);
@@ -283,13 +347,17 @@ async function firebasePatch(path, data) {
 
 async function firebaseDelete(path) {
   try {
+    if (storageMode !== 'firebase') throw new Error('local');
     const res = await fetch(`${DB_URL}/${path}.json`, {
       method: 'DELETE'
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.error(`Firebase DELETE error at ${path}: ${e.message} - falling back to local db.json`);
+    if (e.message !== 'local') {
+      console.error(`Firebase DELETE error at ${path}: ${e.message} - falling back to local db.json`);
+      switchToLocalStorage(e.message);
+    }
     let dbData = readLocalDb();
     dbData = deleteNestedValue(dbData, path);
     writeLocalDb(dbData);
@@ -447,6 +515,7 @@ async function loadPendingPayments() {
 
 async function registerPendingPaymentInDb(payment) {
   try {
+    if (storageMode !== 'firebase') throw new Error('local');
     const res = await fetch(`${DB_URL}/pending_payments.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1070,6 +1139,8 @@ const assistant = createAssistant({
   loadConfig: () => firebaseGet('settings/assistant'),
   saveConfig: (cfg) => firebasePut('settings/assistant', cfg),
   getShopInfo: () => ({ botUsername, adminIds: ADMIN_IDS, adminContact: '@Jahongir_1220', appUrl: APP_URL }),
+  getStorageInfo,
+  dataDir: VOLUME_DIR ? path.join(VOLUME_DIR, '.data') : null,
   notifyAdminsViaBot: async (text) => {
     if (!botInstance) return;
     await Promise.all(ADMIN_IDS.map(id => botInstance.sendMessage(id, text).catch(() => {})));
@@ -1282,6 +1353,7 @@ app.listen(PORT, async () => {
   console.log(`📱 APP_URL: ${APP_URL}`);
   
   // Database sync on startup
+  await prepareStorage();
   await loadSettingsFromDb();
   await loadPendingPayments();
   initializeTelegramBot();

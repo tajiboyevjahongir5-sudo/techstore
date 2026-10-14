@@ -3342,6 +3342,9 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .as-state.warn { color:var(--orange); background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.3); }
 .as-state.err { color:var(--red); background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); }
 .as-warn { display:flex; gap:10px; align-items:flex-start; font-size:11.5px; line-height:1.5; color:var(--text2); padding:12px 14px; margin-bottom:14px; border-radius:16px; background:rgba(251,191,36,0.07); border:1px solid rgba(251,191,36,0.25); }
+.as-warn-red { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.35); }
+.as-warn-red .ti { color:var(--red) !important; }
+.as-warn code { background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:5px; font-size:11px; word-break:break-all; }
 .as-warn .ti { color:var(--orange); font-size:16px; flex-shrink:0; margin-top:1px; }
 .as-card { animation: cardSlideUpIn .45s cubic-bezier(0.16,1,0.3,1) backwards; }
 .as-card:nth-of-type(2) { animation-delay:.05s; } .as-card:nth-of-type(3) { animation-delay:.1s; } .as-card:nth-of-type(4) { animation-delay:.15s; }
@@ -7929,7 +7932,19 @@ function renderAssistantStatus(st) {
   stateEl.textContent = label;
   stateEl.className = 'as-state ' + cls;
   document.getElementById('asTabDot').classList.toggle('on', st.state === 'connected' && st.enabled);
-  document.getElementById('asPersistWarn').style.display = st.persistent ? 'none' : 'flex';
+  const warn = document.getElementById('asPersistWarn');
+  const stg = st.storage || {};
+  if (!stg.persistent) {
+    warn.style.display = 'flex';
+    warn.classList.add('as-warn-red');
+    warn.innerHTML = `<i class="ti ti-info-circle"></i><div><b>Ma'lumotlar saqlanmayapti!</b> Firebase bazaga yozib bo'lmadi${stg.error ? ` (<code>${escHtml(stg.error)}</code>)` : ''}. Shu sababli har deploy'da ulangan akkaunt, API kalit, <b>yangi mahsulotlar va buyurtmalar</b> o'chib ketadi.<br><br><b>Yechim (1 daqiqa):</b> Railway → loyiha → servis ustida <b>Attach Volume</b> (yoki Ctrl/⌘+K → "Volume") → Mount path: <code>/data</code> → Deploy. Shundan so'ng hamma narsa doimiy diskda saqlanadi.</div>`;
+  } else if (!st.persistent) {
+    warn.style.display = 'flex';
+    warn.classList.remove('as-warn-red');
+    warn.innerHTML = `<i class="ti ti-info-circle"></i><div>Serverda <b>SESSION_SECRET</b> o'zgaruvchisi o'rnatilmagan. Sessiya faqat serverda saqlanadi va qayta deploy qilinganda akkauntni qayta ulash kerak bo'ladi.</div>`;
+  } else {
+    warn.style.display = 'none';
+  }
 
   const connected = st.state === 'connected';
   document.getElementById('asConnectedCard').style.display = connected ? 'block' : 'none';
