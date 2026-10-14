@@ -710,6 +710,100 @@ app.get('/api/products', apiRateLimiter, async (req, res) => {
   }
 });
 
+// ===== MAHSULOTNI ULASHISH =====
+function escHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fmtSom(n) {
+  return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + " so'm";
+}
+
+// Mahsulot rasmi ochiq URL orqali (Telegram ulashilgan xabarga rasmni shu yerdan oladi)
+app.get('/api/products/:id/image', async (req, res) => {
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.id));
+    const src = p && ((p.images && p.images[0]) || p.image);
+    if (!src) return res.status(404).end();
+    const m = String(src).match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
+    let buf, type;
+    if (m) {
+      buf = Buffer.from(m[2], 'base64');
+      type = m[1];
+    } else if (/^https?:\/\//i.test(src)) {
+      const r = await fetch(src, { headers: { Accept: 'image/jpeg,image/*' }, signal: AbortSignal.timeout(15000) });
+      if (!r.ok) return res.status(502).end();
+      buf = Buffer.from(await r.arrayBuffer());
+      type = (r.headers.get('content-type') || 'image/jpeg').split(';')[0];
+    } else {
+      return res.status(404).end();
+    }
+    res.setHeader('Content-Type', type);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.end(buf);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
+// Ulashish uchun bot tomonidan tayyorlangan xabar (rasm + matn + botga olib boruvchi tugma)
+app.post('/api/share/:id', apiRateLimiter, async (req, res) => {
+  try {
+    const initData = req.headers['x-telegram-init-data'];
+    if (!initData || !verifyTelegramAuth(initData)) return res.status(401).json({ error: 'Telegram orqali oching' });
+    const user = JSON.parse(new URLSearchParams(initData).get('user') || '{}');
+    if (!user.id) return res.status(400).json({ error: 'Foydalanuvchi topilmadi' });
+    if (!botInstance || !botUsername) return res.status(503).json({ error: 'Bot ishlamayapti' });
+
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.id));
+    if (!p) return res.status(404).json({ error: 'Mahsulot topilmadi' });
+
+    const d = Number(p.discount) || 0;
+    const oldPrice = d > 0 && d < 100 ? Math.round(p.price / (1 - d / 100)) : null;
+    const desc = String(p.desc || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    const shortDesc = desc.length > 160 ? desc.slice(0, 157).trim() + '…' : desc;
+    const specs = (p.specs || []).slice(0, 3).map(([k, v]) => `▫️ ${escHtml(k)}: <b>${escHtml(v)}</b>`).join('\n');
+    const caption = [
+      `${d > 0 ? '🔥' : '✨'} <b>${escHtml(p.name)}</b>`,
+      '',
+      oldPrice
+        ? `💰 <b>${fmtSom(p.price)}</b>  <s>${fmtSom(oldPrice)}</s>  (−${d}%)`
+        : `💰 <b>${fmtSom(p.price)}</b>`,
+      shortDesc ? `\n${escHtml(shortDesc)}` : '',
+      specs ? `\n${specs}` : '',
+      '',
+      "🚚 BTS orqali tekin yetkazib berish",
+      "🛡 Xavfsiz to'lov · avtomatik tasdiqlash",
+      '',
+      `🛍 <b>TechStore</b> — @${botUsername}`
+    ].filter(x => x !== null).join('\n').replace(/\n{3,}/g, '\n\n').slice(0, 1000);
+
+    const productLink = `https://t.me/${botUsername}?start=p_${p.id}`;
+    const reply_markup = { inline_keyboard: [[{ text: "🛍 Do'konda ko'rish", url: productLink }]] };
+    const imageUrl = `${APP_URL}/api/products/${p.id}/image`;
+    const hasImage = !!((p.images && p.images[0]) || p.image);
+
+    const result = hasImage
+      ? { type: 'photo', id: `p${p.id}`, photo_url: imageUrl, thumbnail_url: imageUrl, caption, parse_mode: 'HTML', reply_markup }
+      : { type: 'article', id: `p${p.id}`, title: p.name, input_message_content: { message_text: caption, parse_mode: 'HTML' }, reply_markup };
+
+    const prepared = await botInstance._request('savePreparedInlineMessage', {
+      form: {
+        user_id: user.id,
+        result: JSON.stringify(result),
+        allow_user_chats: true,
+        allow_group_chats: true,
+        allow_channel_chats: true,
+        allow_bot_chats: false
+      }
+    });
+    res.json({ id: prepared.id, link: productLink });
+  } catch (e) {
+    console.error('Share xato:', e.message);
+    res.status(500).json({ error: 'Ulashishni tayyorlab bo\'lmadi' });
+  }
+});
+
 // Buyurtma holatini olish (Foydalanuvchi tekshirishi uchun polling)
 app.get('/api/orders/:orderId', apiRateLimiter, async (req, res) => {
   const { orderId } = req.params;
@@ -1318,6 +1412,26 @@ function initializeTelegramBot() {
       console.log(`/start - ${firstName} (${chatId})`);
       // Shu chat uchun alohida eski tugma qolgan bo'lsa ham almashtiriladi
       setShopMenuButton(bot, chatId);
+
+      // Ulashilgan havola orqali kelgan: /start p_<mahsulotID> — shu mahsulotni darhol ochamiz
+      const payload = (msg.text || '').split(' ')[1] || '';
+      const pm = payload.match(/^p_(\d+)$/);
+      if (pm) {
+        getProducts().then(list => {
+          const p = list.find(x => String(x.id) === pm[1]);
+          if (!p) throw new Error('not found');
+          bot.sendMessage(chatId,
+            `👋 Salom, <b>${escHtml(firstName)}</b>!\n\n${p.discount > 0 ? '🔥' : '✨'} <b>${escHtml(p.name)}</b>\n💰 <b>${fmtSom(p.price)}</b>\n\nMahsulotni ko'rish uchun tugmani bosing 👇`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: { inline_keyboard: [[{ text: "🛍 Mahsulotni ochish", web_app: { url: `${APP_URL}?product=${p.id}` } }]] }
+            }
+          );
+        }).catch(() => bot.sendMessage(chatId, "Bu mahsulot endi mavjud emas. Do'kondagi boshqa mahsulotlarni ko'ring 👇", {
+          reply_markup: { inline_keyboard: [[{ text: "🛍️ Do'konni ochish", web_app: { url: APP_URL } }]] }
+        }));
+        return;
+      }
 
       bot.sendMessage(chatId,
         `👋 Salom, <b>${firstName}</b>!\n\n🛒 <b>TechStore</b>ga xush kelibsiz!\n\nQuyidagi tugma orqali do'konni oching:`,

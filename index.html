@@ -3579,6 +3579,14 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
 .pd-perk-accent .ti { color: #fff !important; }
 .pd-perk .ti { font-size: 18px; color: var(--accent2); }
 
+.pd-share-btn { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; margin: -8px 0 24px; padding: 12px 14px; border-radius: 18px; cursor: pointer; font-family: inherit; color: #fff; background: linear-gradient(135deg, rgba(41,168,235,0.18), rgba(0,136,204,0.08)); border: 1px solid rgba(41,168,235,0.35); transition: transform .2s ease; }
+.pd-share-btn:active { transform: scale(0.97); }
+.pd-share-btn.loading { opacity: .7; pointer-events: none; }
+.pd-share-ico { width: 40px; height: 40px; flex-shrink: 0; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: linear-gradient(135deg, #29a8eb, #0088cc); box-shadow: 0 6px 16px rgba(0,136,204,0.35); }
+.pd-share-txt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.pd-share-txt b { font-size: 14px; }
+.pd-share-txt small { font-size: 11.5px; color: var(--text2); }
+.pd-share-btn > .ti { color: var(--text3); font-size: 16px; }
 .pd-section { margin-bottom: 24px; }
 .pd-section-title { font-size: 13px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
 .pd-desc { font-size: 14.5px; line-height: 1.7; color: var(--text2); }
@@ -3719,6 +3727,11 @@ body.modal-open {
         <button class="pd-perk" onclick="showPerkInfo('payment')"><i class="ti ti-shield-lock"></i><span>Xavfsiz<br>to'lov</span></button>
         <button class="pd-perk pd-perk-accent" onclick="askAboutProduct()"><i class="ti ti-message-circle"></i><span>Savol<br>berish</span></button>
       </div>
+      <button class="pd-share-btn pd-anim" style="--d:6" id="pdShareBtn" onclick="shareProduct()">
+        <span class="pd-share-ico"><i class="ti ti-send"></i></span>
+        <span class="pd-share-txt"><b>Do'stlarga ulashish</b><small>Rasm va havola bilan chiroyli xabar</small></span>
+        <i class="ti ti-chevron-right"></i>
+      </button>
 
       <div class="pd-section pd-anim" style="--d:6" id="pdDescSection">
         <div class="pd-section-title">Tavsif</div>
@@ -5406,11 +5419,25 @@ function updateDetailCartBtn() {
   btn.querySelector('span').textContent = inCart ? "Savatga o'tish" : "Savatga qo'shish";
 }
 
-function shareProduct() {
+async function shareProduct() {
   const p = products.find(x => x.id === currentDetailId);
   if (!p) return;
+  // Telegram 8.0+: bot tayyorlagan rasm + matn + tugmali xabar, chat tanlash oynasi bilan
+  if (tg && tg.shareMessage && tg.isVersionAtLeast && tg.isVersionAtLeast('8.0') && tg.initData) {
+    const btn = document.getElementById('pdShareBtn');
+    btn && btn.classList.add('loading');
+    try {
+      const res = await fetch(`/api/share/${p.id}`, { method: 'POST', headers: { 'X-Telegram-Init-Data': tg.initData } });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.id) {
+        tg.shareMessage(data.id, (sent) => { if (sent) showToast('Ulashildi! Rahmat 💜', '📤', 'var(--green)'); });
+        return;
+      }
+    } catch (e) { /* oddiy ulashishga o'tamiz */ }
+    finally { btn && btn.classList.remove('loading'); }
+  }
   const text = `${p.name} — ${formatPrice(p.price)}${p.discount > 0 ? ` (-${p.discount}%)` : ''}\nTechStore'da 🛍️`;
-  const link = window.BOT_LINK || location.origin;
+  const link = window.BOT_LINK ? `${window.BOT_LINK}?start=p_${p.id}` : location.origin;
   const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
   if (tg && tg.openTelegramLink) tg.openTelegramLink(url);
   else window.open(url, '_blank');
@@ -8534,6 +8561,16 @@ document.addEventListener('pointerdown', (e) => {
 
 async function initFirebaseAndLoad() {
   await loadData();
+  openProductFromLink();
+}
+
+// Ulashilgan havola orqali kelganda (?product=ID yoki startapp=p_ID) shu mahsulot ochiladi
+function openProductFromLink() {
+  const fromUrl = new URLSearchParams(location.search).get('product');
+  const startParam = tg?.initDataUnsafe?.start_param || '';
+  const m = startParam.match(/^p_(\d+)$/);
+  const id = Number(fromUrl || (m && m[1]));
+  if (id && products.some(x => x.id === id)) openDetail(id);
 }
 
 // Har doim SVG ishlatamiz (CDN yo'q)
