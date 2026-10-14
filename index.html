@@ -3384,6 +3384,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .as-activity-item { display:flex; gap:10px; align-items:flex-start; font-size:12px; line-height:1.45; animation: as-pane-in .3s ease both; }
 .as-activity-item time { color:var(--text3); font-size:10.5px; flex-shrink:0; width:42px; margin-top:1px; }
 .as-empty { font-size:12px; color:var(--text3); text-align:center; padding:10px; }
+.as-mini-btn { flex-shrink:0; width:50px; border-radius:16px; border:1px solid rgba(167,139,250,0.35); background:rgba(167,139,250,0.12); color:var(--accent2); font-size:18px; display:flex; align-items:center; justify-content:center; }
 .btn-loading { pointer-events:none; opacity:.75; }
 .btn-loading .ti { animation: spin .8s linear infinite; }
 
@@ -3973,21 +3974,33 @@ body.modal-open {
         <div class="settings-section card-purple as-card">
           <div class="settings-section-title"><i class="ti ti-settings"></i> AI SOZLAMALARI</div>
           <div class="form-group">
-            <label class="form-label">Anthropic API kaliti</label>
-            <input class="form-input" type="password" id="asAiKey" autocomplete="off" placeholder="sk-ant-...">
+            <label class="form-label">AI provayder</label>
+            <select class="form-input as-select" id="asProvider" onchange="onAssistantProviderChange()">
+              <option value="gemini">Google Gemini — bepul</option>
+              <option value="anthropic">Anthropic Claude — pullik</option>
+              <option value="custom">Boshqa (OpenAI-mos API)</option>
+            </select>
+          </div>
+          <div class="as-help" id="asProviderHelp"></div>
+          <div class="form-group" id="asBaseUrlGroup" style="display:none">
+            <label class="form-label">API manzili (base URL)</label>
+            <input class="form-input" id="asBaseUrl" autocomplete="off" placeholder="https://api.groq.com/openai/v1">
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="asAiKeyLabel">API kaliti</label>
+            <input class="form-input" type="password" id="asAiKey" autocomplete="off" placeholder="API kalit">
             <div class="as-hint" id="asAiKeyHint"></div>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Model</label>
-              <select class="form-input as-select" id="asModel">
-                <option value="claude-opus-5-5">Claude Opus 5.5 (eng aqlli)</option>
-                <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (tez)</option>
-                <option value="claude-haiku-5-5">Claude Haiku 5.5 (arzon)</option>
-              </select>
+          <div class="form-group">
+            <label class="form-label">Model</label>
+            <div style="display:flex;gap:8px">
+              <input class="form-input" id="asModel" list="asModelList" autocomplete="off" placeholder="gemini-flash-latest" style="flex:1">
+              <button class="as-mini-btn" id="asLoadModelsBtn" onclick="loadAssistantModels()" title="Mavjud modellarni yuklash"><i class="ti ti-loader"></i></button>
             </div>
-            <div class="form-group"><label class="form-label">Yordamchi ismi</label><input class="form-input" id="asName" maxlength="60" placeholder="TechStore yordamchisi"></div>
+            <datalist id="asModelList"></datalist>
+            <div class="as-hint" id="asModelHint"></div>
           </div>
+          <div class="form-group"><label class="form-label">Yordamchi ismi</label><input class="form-input" id="asName" maxlength="60" placeholder="TechStore yordamchisi"></div>
           <div class="form-group">
             <label class="form-label">Buyruq bera oladigan adminlar (Telegram ID)</label>
             <input class="form-input" id="asAdminIds" inputmode="numeric" placeholder="123456789, 987654321">
@@ -7940,14 +7953,18 @@ function renderAssistantStatus(st) {
 
   // AI sozlamalari (foydalanuvchi tahrirlayotgan bo'lsa ustidan yozmaymiz)
   const active = document.activeElement?.id || '';
-  if (active !== 'asModel') document.getElementById('asModel').value = st.model;
+  if (active !== 'asProvider') document.getElementById('asProvider').value = st.provider || 'gemini';
+  if (active !== 'asBaseUrl') document.getElementById('asBaseUrl').value = st.customBaseUrl || '';
+  renderAssistantProviderHelp();
+  if (active !== 'asModel') document.getElementById('asModel').value = st.model || '';
   if (active !== 'asName') document.getElementById('asName').value = st.name || '';
   if (active !== 'asAdminIds') document.getElementById('asAdminIds').value = (st.adminIds || '').split(',').filter(Boolean).join(', ');
   if (active !== 'asInstructions') document.getElementById('asInstructions').value = st.extraInstructions || '';
   const hint = document.getElementById('asAiKeyHint');
+  const envKey = st.providers?.[st.provider]?.envKey || '';
   hint.innerHTML = st.aiKeySource === 'panel' ? `✅ Kalit saqlangan: <b>${escHtml(st.aiKeyMasked)}</b> (yangisini kiritsangiz almashadi)`
-    : st.aiKeySource === 'env' ? '✅ Kalit server muhitidan (ANTHROPIC_API_KEY) olinmoqda'
-    : '⚠️ Kalit kiritilmagan. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style="color:#c4b5fd">console.anthropic.com</a> dan oling.';
+    : st.aiKeySource === 'env' ? `✅ Kalit server muhitidan (${escHtml(envKey)}) olinmoqda`
+    : '⚠️ Kalit kiritilmagan.';
 
   const act = document.getElementById('asActivity');
   if (st.activity && st.activity.length) {
@@ -8063,9 +8080,78 @@ async function saveAssistantToggles() {
   }
 }
 
+const AS_PROVIDER_INFO = {
+  gemini: {
+    keyLabel: 'Gemini API kaliti',
+    placeholder: 'AIza...',
+    help: `<b>Bepul.</b> <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> sahifasida Google akkaunt bilan kirib <b>"Create API key"</b> ni bosing — karta talab qilinmaydi. Bepul tarifda kunlik so'rovlar soni cheklangan; ko'p yozishma bo'lsa <b>gemini-flash-lite-latest</b> modelini tanlang (limiti kattaroq).`
+  },
+  anthropic: {
+    keyLabel: 'Anthropic API kaliti',
+    placeholder: 'sk-ant-...',
+    help: `Pullik, eng aqlli variant. Kalitni <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> dan oling.`
+  },
+  custom: {
+    keyLabel: 'API kaliti',
+    placeholder: 'API kalit',
+    help: `OpenAI formatini qo'llaydigan har qanday xizmat (masalan Groq: <b>https://api.groq.com/openai/v1</b>, OpenRouter: <b>https://openrouter.ai/api/v1</b>). Tanlangan model rasm va "function calling" ni qo'llashi kerak.`
+  }
+};
+
+function renderAssistantProviderHelp() {
+  const prov = document.getElementById('asProvider').value;
+  const info = AS_PROVIDER_INFO[prov] || AS_PROVIDER_INFO.gemini;
+  document.getElementById('asProviderHelp').innerHTML = info.help;
+  document.getElementById('asAiKeyLabel').textContent = info.keyLabel;
+  document.getElementById('asAiKey').placeholder = info.placeholder;
+  document.getElementById('asBaseUrlGroup').style.display = prov === 'custom' ? 'block' : 'none';
+}
+
+function onAssistantProviderChange() {
+  const prov = document.getElementById('asProvider').value;
+  renderAssistantProviderHelp();
+  const def = assistantStatus?.providers?.[prov]?.defaultModel || '';
+  document.getElementById('asModel').value = prov === assistantStatus?.provider ? assistantStatus.model : def;
+  document.getElementById('asModelList').innerHTML = '';
+  document.getElementById('asAiKeyHint').innerHTML = assistantStatus?.providers?.[prov]?.hasKey ? '✅ Bu provayder uchun kalit saqlangan' : '⚠️ Kalit kiritilmagan.';
+}
+
+async function loadAssistantModels() {
+  if (document.getElementById('asProvider').value !== assistantStatus?.provider) {
+    showToast("Avval provayderni saqlang", '⚠️', 'var(--orange)');
+    return;
+  }
+  setBtnLoading('asLoadModelsBtn', true, '');
+  try {
+    const data = await assistantApi('/models');
+    document.getElementById('asModelList').innerHTML = (data.models || []).map(m => `<option value="${escHtml(m)}">`).join('');
+    document.getElementById('asModelHint').textContent = data.models?.length
+      ? `${data.models.length} ta model topildi — maydonga bosib tanlang.`
+      : 'Model topilmadi.';
+    showToast('Modellar yuklandi', '✓', 'var(--green)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  } finally {
+    setBtnLoading('asLoadModelsBtn', false);
+  }
+}
+
 async function saveAssistantSettings() {
+  const prov = document.getElementById('asProvider').value;
+  const typedModel = document.getElementById('asModel').value.trim();
+  // Provayder almashsa, avval uni saqlaymiz (kalit shu provayderga yoziladi)
+  if (prov !== assistantStatus?.provider) {
+    try {
+      renderAssistantStatus((await assistantApi('/settings', { provider: prov })).status);
+      if (typedModel) document.getElementById('asModel').value = typedModel;
+    } catch (e) {
+      showToast(e.message, '✗', 'var(--red)');
+      return;
+    }
+  }
   const body = {
-    model: document.getElementById('asModel').value,
+    customBaseUrl: document.getElementById('asBaseUrl').value.trim(),
+    model: document.getElementById('asModel').value.trim(),
     name: document.getElementById('asName').value.trim(),
     adminIds: document.getElementById('asAdminIds').value.replace(/\s+/g, ''),
     extraInstructions: document.getElementById('asInstructions').value.trim()

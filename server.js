@@ -1115,6 +1115,8 @@ app.post('/api/admin/assistant/verify-code', apiRateLimiter, verifyAdmin, assist
 
 app.post('/api/admin/assistant/verify-password', apiRateLimiter, verifyAdmin, assistantRoute(req => assistant.verifyPassword(req.body.password)));
 
+app.get('/api/admin/assistant/models', apiRateLimiter, verifyAdmin, assistantRoute(() => assistant.listModels()));
+
 app.post('/api/admin/assistant/disconnect', apiRateLimiter, verifyAdmin, assistantRoute(() => assistant.disconnect()));
 
 // ===== TELEGRAM BOT (POLLING) =====

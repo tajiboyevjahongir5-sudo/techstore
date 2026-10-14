@@ -19,8 +19,27 @@ const DATA_DIR = path.join(__dirname, '.data');
 const LOCAL_SECRETS_FILE = path.join(DATA_DIR, 'assistant-secrets.json');
 const TELEGRAM_SERVICE_ID = '777000'; // Telegram rasmiy xabarlari (login kodlari) — hech qachon javob bermaymiz
 
-const DEFAULT_MODEL = 'claude-opus-5-5';
-const ALLOWED_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+// AI provayderlari. Gemini — Google AI Studio'ning bepul kaliti bilan ishlaydi.
+const PROVIDERS = {
+  gemini: {
+    label: 'Google Gemini (bepul)',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    defaultModel: 'gemini-flash-latest',
+    envKey: 'GEMINI_API_KEY',
+  },
+  anthropic: {
+    label: 'Anthropic Claude',
+    defaultModel: 'claude-opus-5-5',
+    envKey: 'ANTHROPIC_API_KEY',
+  },
+  custom: {
+    label: 'Boshqa (OpenAI-mos API)',
+    baseUrl: '',
+    defaultModel: '',
+    envKey: 'CUSTOM_AI_API_KEY',
+  },
+};
+const DEFAULT_PROVIDER = 'gemini';
 const MAX_HISTORY = 24;            // har bir chat uchun saqlanadigan xabarlar (matn ko'rinishida)
 const MAX_TOOL_ROUNDS = 10;        // bir javob ichida asboblardan foydalanish chegarasi
 const MAX_PHOTOS_PER_CHAT = 12;
@@ -321,7 +340,9 @@ function createAssistant(deps) {
   let config = {
     enabled: true,
     replyToCustomers: true,
-    model: DEFAULT_MODEL,
+    provider: DEFAULT_PROVIDER,
+    model: PROVIDERS[DEFAULT_PROVIDER].defaultModel,
+    customBaseUrl: '',
     name: 'TechStore yordamchisi',
     extraInstructions: '',
     adminIds: '',
@@ -331,7 +352,7 @@ function createAssistant(deps) {
     account: null,
     secretsEnc: null,
   };
-  let secrets = { session: '', aiKey: '' };
+  let secrets = { session: '', aiKey: '', aiKeys: {} };
   let client = null;
   let state = 'disconnected';
   let lastError = '';
@@ -364,8 +385,9 @@ function createAssistant(deps) {
   async function loadConfig() {
     const saved = (await deps.loadConfig()) || {};
     config = { ...config, ...saved };
-    if (!ALLOWED_MODELS.includes(config.model)) config.model = DEFAULT_MODEL;
-    secrets = { session: '', aiKey: '' };
+    if (!PROVIDERS[config.provider]) config.provider = DEFAULT_PROVIDER;
+    if (!config.model) config.model = PROVIDERS[config.provider].defaultModel;
+    secrets = { session: '', aiKey: '', aiKeys: {} };
     if (saved.secretsEnc && secretKey()) {
       try {
         secrets = { ...secrets, ...JSON.parse(decrypt(saved.secretsEnc)) };
@@ -376,6 +398,15 @@ function createAssistant(deps) {
     } else {
       secrets = { ...secrets, ...readLocalSecrets() };
     }
+    secrets.aiKeys = secrets.aiKeys || {};
+    // Eski versiyada faqat Anthropic kaliti saqlanardi
+    if (secrets.aiKey && !secrets.aiKeys.anthropic) secrets.aiKeys.anthropic = secrets.aiKey;
+    delete secrets.aiKey;
+    if (!saved.provider) {
+      // Eski sozlamalarda provayder yo'q edi: Claude kaliti bo'lsa Claude, aks holda bepul Gemini
+      config.provider = String(config.model).startsWith('claude') && aiKeyFor('anthropic') ? 'anthropic' : 'gemini';
+      if (config.provider === 'gemini') config.model = PROVIDERS.gemini.defaultModel;
+    }
   }
 
   function adminIdSet() {
@@ -385,8 +416,21 @@ function createAssistant(deps) {
     return ids;
   }
 
+  function aiKeyFor(provider) {
+    return (secrets.aiKeys && secrets.aiKeys[provider]) || process.env[PROVIDERS[provider].envKey] || '';
+  }
+
+  function aiBaseUrl() {
+    return config.provider === 'custom' ? (config.customBaseUrl || '').replace(/\/+$/, '') : PROVIDERS[config.provider].baseUrl;
+  }
+
+  function aiReady() {
+    if (!aiKeyFor(config.provider) || !config.model) return false;
+    return config.provider !== 'custom' || !!aiBaseUrl();
+  }
+
   function getAnthropic() {
-    const key = secrets.aiKey || process.env.ANTHROPIC_API_KEY || '';
+    const key = aiKeyFor('anthropic');
     if (!key) return null;
     if (!anthropic || anthropicKey !== key) {
       anthropic = new Anthropic({ apiKey: key });
@@ -540,19 +584,29 @@ function createAssistant(deps) {
   async function updateSettings(body) {
     if (typeof body.enabled === 'boolean') config.enabled = body.enabled;
     if (typeof body.replyToCustomers === 'boolean') config.replyToCustomers = body.replyToCustomers;
-    if (body.model && ALLOWED_MODELS.includes(body.model)) config.model = body.model;
+    if (body.provider && PROVIDERS[body.provider] && body.provider !== config.provider) {
+      config.provider = body.provider;
+      config.model = PROVIDERS[body.provider].defaultModel;
+    }
+    if (typeof body.model === 'string' && /^[\w.:\/@-]{2,120}$/.test(body.model.trim())) config.model = body.model.trim();
+    if (typeof body.customBaseUrl === 'string') {
+      const url = body.customBaseUrl.trim();
+      if (url && !/^https:\/\//.test(url)) throw new Error("API manzili https:// bilan boshlanishi kerak");
+      config.customBaseUrl = url;
+    }
     if (typeof body.name === 'string' && body.name.trim()) config.name = body.name.trim().slice(0, 60);
     if (typeof body.extraInstructions === 'string') config.extraInstructions = body.extraInstructions.slice(0, 3000);
     if (typeof body.adminIds === 'string') {
       config.adminIds = body.adminIds.split(',').map(s => s.trim()).filter(s => /^\d+$/.test(s)).join(',');
     }
-    if (typeof body.aiKey === 'string' && body.aiKey.trim()) secrets.aiKey = body.aiKey.trim();
-    if (body.clearAiKey === true) secrets.aiKey = '';
+    if (typeof body.aiKey === 'string' && body.aiKey.trim()) secrets.aiKeys[config.provider] = body.aiKey.trim();
+    if (body.clearAiKey === true) delete secrets.aiKeys[config.provider];
     await persist();
   }
 
   function status() {
-    const fromEnv = !secrets.aiKey && !!process.env.ANTHROPIC_API_KEY;
+    const panelKey = secrets.aiKeys[config.provider] || '';
+    const fromEnv = !panelKey && !!process.env[PROVIDERS[config.provider].envKey];
     return {
       state,
       error: lastError,
@@ -561,15 +615,17 @@ function createAssistant(deps) {
       enabled: config.enabled,
       replyToCustomers: config.replyToCustomers,
       model: config.model,
-      models: ALLOWED_MODELS,
+      provider: config.provider,
+      providers: Object.fromEntries(Object.entries(PROVIDERS).map(([k, v]) => [k, { label: v.label, defaultModel: v.defaultModel, envKey: v.envKey, hasKey: !!aiKeyFor(k) }])),
+      customBaseUrl: config.customBaseUrl,
       name: config.name,
       extraInstructions: config.extraInstructions,
       adminIds: config.adminIds,
       apiId: config.apiId || '',
       phone: config.phone || '',
-      hasAiKey: !!(secrets.aiKey || process.env.ANTHROPIC_API_KEY),
-      aiKeySource: secrets.aiKey ? 'panel' : (fromEnv ? 'env' : null),
-      aiKeyMasked: secrets.aiKey ? secrets.aiKey.slice(0, 7) + '…' + secrets.aiKey.slice(-4) : '',
+      hasAiKey: aiReady(),
+      aiKeySource: panelKey ? 'panel' : (fromEnv ? 'env' : null),
+      aiKeyMasked: panelKey ? panelKey.slice(0, 6) + '…' + panelKey.slice(-4) : '',
       persistent: !!secretKey(),
       stats: { ...stats, chats: chats.size },
       activity: activity.slice(0, 15),
@@ -900,8 +956,122 @@ Qoidalar:
     if (!sent) await deps.notifyAdminsViaBot(text);
   }
 
+  // Asbob natijasini qayta ishlash (har ikki provayder uchun umumiy)
+  async function runToolCall(chat, name, input, actions) {
+    let result;
+    try {
+      result = await executeTool(chat, name, input);
+    } catch (e) {
+      result = { error: e.message };
+    }
+    if (!result?.error && !['list_products', 'get_product', 'get_stats', 'list_orders', 'list_customer_chats'].includes(name)) {
+      actions.push(name + (result.product ? `(${result.product.name}, ID ${result.product.id})` : ''));
+    }
+    return result ?? { ok: true };
+  }
+
+  function runAgent(chat, userBlocks) {
+    return config.provider === 'anthropic' ? runClaude(chat, userBlocks) : runOpenAICompat(chat, userBlocks);
+  }
+
+  // ----- Gemini va boshqa OpenAI-mos API'lar bilan suhbat -----
+  function stripSchema(schema) {
+    // Ba'zi provayderlar (Gemini) additionalProperties maydonini qabul qilmaydi
+    if (Array.isArray(schema)) return schema.map(stripSchema);
+    if (!schema || typeof schema !== 'object') return schema;
+    const out = {};
+    for (const [k, v] of Object.entries(schema)) {
+      if (k === 'additionalProperties' || k === 'cache_control') continue;
+      out[k] = stripSchema(v);
+    }
+    return out;
+  }
+
+  async function chatCompletion(body) {
+    const res = await fetch(aiBaseUrl() + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiKeyFor(config.provider)}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = (Array.isArray(data) ? data[0] : data)?.error?.message || '';
+      const err = new Error(
+        res.status === 429 ? "AI bepul limiti tugadi, birozdan keyin urinib ko'ring"
+          : res.status === 401 || res.status === 403 ? "AI kaliti noto'g'ri yoki ruxsat yo'q"
+          : res.status === 404 ? `Model topilmadi: ${config.model}`
+          : `AI xatosi (${res.status}) ${detail.slice(0, 200)}`
+      );
+      err.aiError = true;
+      throw err;
+    }
+    return data;
+  }
+
+  async function runOpenAICompat(chat, userBlocks) {
+    const toolNames = chat.role === 'admin' ? ADMIN_TOOLS : CUSTOMER_TOOLS;
+    const tools = toolNames.map(n => ({
+      type: 'function',
+      function: { name: n, description: TOOL_DEFS[n].description, parameters: stripSchema(TOOL_DEFS[n].input_schema) },
+    }));
+    const userContent = userBlocks.map(b => b.type === 'image'
+      ? { type: 'image_url', image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` } }
+      : { type: 'text', text: b.text });
+    const messages = [
+      { role: 'system', content: systemPrompt(chat.role) },
+      ...chat.history.map(h => ({ role: h.role, content: h.content })),
+      { role: 'user', content: userContent },
+    ];
+    const actions = [];
+    let finalText = '';
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const data = await chatCompletion({ model: config.model, messages, tools, max_tokens: 4000 });
+      const choice = data.choices && data.choices[0];
+      const msg = choice && choice.message;
+      if (!msg) break;
+      const text = typeof msg.content === 'string' ? msg.content.trim() : '';
+      if (text) finalText = text;
+      const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
+      // Javob o'zgartirilmasdan qaytariladi (Gemini'ning thought_signature maydonlari saqlanishi uchun)
+      messages.push(msg);
+      if (!calls.length) break;
+
+      const results = await Promise.all(calls.map(async (call) => {
+        let input = {};
+        try {
+          input = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+        } catch (e) {
+          return { role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: "Argumentlar noto'g'ri JSON" }) };
+        }
+        const result = await runToolCall(chat, call.function.name, input, actions);
+        return { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) };
+      }));
+      messages.push(...results);
+      if (round === MAX_TOOL_ROUNDS - 1 && !finalText) finalText = 'Topshiriq juda murakkab chiqdi, iltimos qismlarga bo\'lib yozing.';
+    }
+    return { text: finalText, actions };
+  }
+
+  // Panel uchun: provayderdagi mavjud modellar ro'yxati
+  async function listModels() {
+    if (config.provider === 'anthropic') {
+      return { models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'] };
+    }
+    if (!aiKeyFor(config.provider)) throw new Error('Avval API kalitini kiriting va saqlang');
+    if (!aiBaseUrl()) throw new Error('API manzilini kiriting');
+    const res = await fetch(aiBaseUrl() + '/models', { headers: { Authorization: `Bearer ${aiKeyFor(config.provider)}` } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(res.status === 401 || res.status === 403 || res.status === 400 ? "API kaliti noto'g'ri" : `Modellarni olishda xato (${res.status})`);
+    let models = (data.data || []).map(m => String(m.id || '').replace(/^models\//, '')).filter(Boolean);
+    if (config.provider === 'gemini') {
+      models = models.filter(m => m.startsWith('gemini') && !/embedding|tts|image|live|audio|robotics|computer-use/.test(m));
+    }
+    return { models: [...new Set(models)].sort() };
+  }
+
   // ----- Claude bilan suhbat -----
-  async function runAgent(chat, userBlocks) {
+  async function runClaude(chat, userBlocks) {
     const ai = getAnthropic();
     const tools = buildTools(chat.role === 'admin' ? ADMIN_TOOLS : CUSTOMER_TOOLS);
     const system = [{ type: 'text', text: systemPrompt(chat.role), cache_control: { type: 'ephemeral' } }];
@@ -943,20 +1113,12 @@ Qoidalar:
 
       const toolUses = response.content.filter(b => b.type === 'tool_use');
       const results = await Promise.all(toolUses.map(async (tu) => {
-        let result;
-        try {
-          result = await executeTool(chat, tu.name, tu.input);
-        } catch (e) {
-          result = { error: e.message };
-        }
-        if (!result?.error && !['list_products', 'get_product', 'get_stats', 'list_orders', 'list_customer_chats'].includes(tu.name)) {
-          actions.push(tu.name + (result.product ? `(${result.product.name}, ID ${result.product.id})` : ''));
-        }
+        const result = await runToolCall(chat, tu.name, tu.input, actions);
         return {
           type: 'tool_result',
           tool_use_id: tu.id,
-          content: JSON.stringify(result ?? { ok: true }),
-          ...(result?.error ? { is_error: true } : {}),
+          content: JSON.stringify(result),
+          ...(result.error ? { is_error: true } : {}),
         };
       }));
       messages.push({ role: 'user', content: results });
@@ -989,9 +1151,9 @@ Qoidalar:
 
       await client.markAsRead(chat.peer, msgs[msgs.length - 1]).catch(() => {});
 
-      if (!getAnthropic()) {
+      if (!aiReady()) {
         if (chat.role === 'admin') {
-          await client.sendMessage(chat.peer, { message: "⚠️ AI kaliti (Anthropic API key) sozlanmagan. Admin panel → Yordamchi bo'limida kiriting.", parseMode: false });
+          await client.sendMessage(chat.peer, { message: "⚠️ AI kaliti sozlanmagan. Admin panel → Yordamchi bo'limida kiriting.", parseMode: false });
         }
         return;
       }
@@ -1021,6 +1183,7 @@ Qoidalar:
       const msg = e instanceof Anthropic.AuthenticationError ? 'AI kaliti noto\'g\'ri'
         : e instanceof Anthropic.RateLimitError ? 'AI limiti tugadi, birozdan keyin urinib ko\'ring'
         : e instanceof Anthropic.APIError ? `AI xatosi (${e.status})`
+        : e.aiError ? e.message
         : e.message;
       lastError = msg;
       if (chat.role === 'admin') {
@@ -1038,7 +1201,7 @@ Qoidalar:
   }
 
   return {
-    init, status, sendCode, verifyCode, verifyPassword, disconnect, updateSettings,
+    init, status, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels,
     // Testlar uchun ichki funksiyalar
     _internals: { getChat, processChat, executeTool, setClient: (c) => { client = c; } },
   };

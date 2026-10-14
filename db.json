@@ -791,6 +791,21 @@
     },
     "admin": {
       "telegramIds": ""
+    },
+    "assistant": {
+      "enabled": true,
+      "replyToCustomers": true,
+      "provider": "gemini",
+      "model": "gemini-flash-latest",
+      "customBaseUrl": "",
+      "name": "TechStore yordamchisi",
+      "extraInstructions": "",
+      "adminIds": "",
+      "apiId": null,
+      "apiHash": "",
+      "phone": "",
+      "account": null,
+      "secretsEnc": null
     }
   },
   "users": {},
