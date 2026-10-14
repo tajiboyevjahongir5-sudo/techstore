@@ -3629,6 +3629,79 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
 #pdAddBtn.bump { animation: pdBump .45s cubic-bezier(0.34,1.56,0.64,1); }
 @keyframes pdBump { 0% { transform: scale(1); } 40% { transform: scale(0.94); } 100% { transform: scale(1); } }
 
+/* ===== Mahsulot rasmi: gradient ramka (v2) ===== */
+@property --pd-ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.pd-hero {
+  margin: 0 16px;
+  padding: 3px;
+  border: none;
+  border-radius: 30px;
+  background: conic-gradient(from var(--pd-ang), #6B7FFF, #A78BFA, #F472B6, #22D3EE, #6B7FFF);
+  box-shadow: 0 18px 50px rgba(76, 60, 200, 0.45), 0 0 0 1px rgba(255,255,255,0.06);
+  animation: pdIn .55s cubic-bezier(0.16,1,0.3,1) backwards, pdFrameSpin 8s linear infinite;
+}
+@keyframes pdFrameSpin { to { --pd-ang: 360deg; } }
+.pd-hero .detail-gallery {
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 27px;
+  overflow: hidden;
+  background: radial-gradient(120% 100% at 50% 0%, #1e2156 0%, #0b0d2b 70%);
+}
+.pd-hero .detail-gallery-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+  filter: none;
+}
+/* Rasm ustidan bir marta o'tadigan yaltiroq nur */
+.pd-hero .detail-gallery::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.22) 48%, transparent 66%);
+  transform: translateX(-120%);
+  z-index: 4;
+}
+.pd-hero .detail-gallery.shine::after { animation: pdShine 1.4s .35s cubic-bezier(0.4,0,0.2,1) forwards; }
+@keyframes pdShine { to { transform: translateX(120%); } }
+/* Pastki qismida yumshoq qorong'ilik — nuqtalar aniq ko'rinsin */
+.pd-hero .detail-gallery::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0; height: 30%;
+  background: linear-gradient(transparent, rgba(5,6,30,0.55));
+  pointer-events: none;
+  z-index: 3;
+}
+.pd-hero-badge { top: 17px; left: 17px; }
+.pd-hero .detail-gallery-counter { top: auto; bottom: 14px; right: 16px; }
+.pd-hero-fav {
+  position: absolute; top: 17px; right: 17px; z-index: 6;
+  width: 42px; height: 42px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; color: #fff; cursor: pointer;
+  background: rgba(10, 10, 30, 0.45);
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  transition: transform .2s ease, background .2s ease;
+}
+.pd-hero-fav:active { transform: scale(0.88); }
+.pd-hero-fav.fav-on { color: var(--red); background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); }
+.pd-hero-fav.fav-pop { animation: favPop .45s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* Telegram ichida: tepadagi panel faqat pastga aylantirilganda chiqadi */
+body.in-tg .pd-topbar {
+  /* Joy egallamaydi (manfiy margin), lekin sticky bo'lib tepaga yopishib turadi */
+  margin-bottom: calc(-1 * (62px + max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px)));
+  transform: translateY(-100%); opacity: 0; pointer-events: none;
+  transition: transform .3s cubic-bezier(0.2,0.8,0.2,1), opacity .25s ease, background .3s ease;
+}
+body.in-tg .pd-topbar.scrolled { transform: none; opacity: 1; pointer-events: auto; }
+body.in-tg #detail .pd-hero { margin-top: calc(8px + max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px)); }
+
 body.modal-open {
   overflow: hidden !important;
   height: 100vh !important;
@@ -3693,19 +3766,18 @@ body.modal-open {
     <div class="pd-topbar" id="pdTopbar">
       <div class="pd-icon-btn" id="detailBackBtn"><i class="ti ti-arrow-left"></i></div>
       <div class="pd-topbar-title" id="detailHeaderName">Mahsulot</div>
-      <div class="pd-icon-btn" onclick="shareProduct()" title="Ulashish"><i class="ti ti-send"></i></div>
       <div class="pd-icon-btn" id="detailFavBtnHeader" onclick="toggleFavDetail()" title="Sevimlilar"><i class="ti ti-heart"></i></div>
     </div>
 
     <!-- GALEREYA -->
     <div class="pd-hero pd-anim">
-      <div class="pd-hero-glow"></div>
       <div class="detail-gallery" id="detailGallery">
         <div class="detail-gallery-track" id="detailGalleryTrack"></div>
         <div class="detail-gallery-dots" id="detailGalleryDots"></div>
         <div class="detail-gallery-counter" id="detailGalleryCounter"></div>
       </div>
       <div class="pd-hero-badge" id="pdHeroBadge" style="display:none"></div>
+      <div class="pd-hero-fav" id="pdHeroFav" onclick="event.stopPropagation();toggleFavDetail()" title="Sevimlilar"><i class="ti ti-heart"></i></div>
     </div>
     <div class="pd-thumbs" id="pdThumbs"></div>
 
@@ -5297,7 +5369,9 @@ function openDetail(id) {
   const scr = document.getElementById('detail');
   scr.scrollTop = 0;
   // Kirish animatsiyalarini qayta ishga tushirish
-  scr.querySelectorAll('.pd-anim').forEach(el => { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+  scr.querySelectorAll('.pd-anim, #detailGallery').forEach(el => { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+  const gal = document.getElementById('detailGallery');
+  gal.classList.remove('shine'); void gal.offsetWidth; gal.classList.add('shine');
 }
 
 function escText(v) {
@@ -5466,10 +5540,13 @@ function formatPriceHTML(n) {
 
 function updateDetailFavBtn(pop) {
   const isFav = favorites.has(currentDetailId);
-  const hdr = document.getElementById('detailFavBtnHeader');
-  hdr.classList.toggle('fav-on', isFav);
-  hdr.innerHTML = `<i class="ti ti-heart${isFav?'-filled':''}"></i>`;
-  if (pop) { hdr.classList.remove('fav-pop'); void hdr.offsetWidth; hdr.classList.add('fav-pop'); }
+  ['detailFavBtnHeader', 'pdHeroFav'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('fav-on', isFav);
+    el.innerHTML = `<i class="ti ti-heart${isFav?'-filled':''}"></i>`;
+    if (pop) { el.classList.remove('fav-pop'); void el.offsetWidth; el.classList.add('fav-pop'); }
+  });
 }
 
 function toggleFavDetail() {
