@@ -3744,6 +3744,22 @@ body.in-tg #detail .pd-hero { margin-top: calc(8px + max(env(safe-area-inset-top
 .pd-hero .detail-gallery-slide:not(.is-active) img { transform: scale(.88); opacity: .55; }
 .pd-hero .detail-gallery-slide img { -webkit-user-drag: none; user-select: none; }
 
+/* Mahsulot kartasi: rasm ostidagi matnga yaxlit fon */
+.prod-card { background: #0f1240; }
+.prod-card .prod-info {
+  position: relative;
+  background: linear-gradient(180deg, rgba(24, 27, 84, 0.98) 0%, rgba(13, 15, 52, 0.99) 100%);
+  border-top: 1px solid rgba(167, 139, 250, 0.16);
+}
+.prod-card .prod-info::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0; height: 40%;
+  background: radial-gradient(120% 100% at 50% 0%, rgba(107, 127, 255, 0.14), transparent 70%);
+  pointer-events: none;
+}
+.prod-card .prod-info > * { position: relative; }
+
 body.modal-open {
   overflow: hidden !important;
   height: 100vh !important;
