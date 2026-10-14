@@ -821,14 +821,24 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 
 .add-btn.added {
   background: linear-gradient(135deg, #10B981, #059669) !important;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35) !important;
-  transform: scale(0.9) !important;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6), 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+  animation: addBtnPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), addBtnPulse 0.9s ease-out;
 }
 
 .add-btn.added svg {
-  transform: rotate(360deg);
-  transition: transform 0.4s ease;
+  animation: addBtnCheck 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+@keyframes addBtnPop { 0% { transform: scale(1); } 30% { transform: scale(0.72); } 65% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes addBtnPulse { from { box-shadow: 0 0 0 0 rgba(16,185,129,0.6), 0 4px 12px rgba(16,185,129,0.4); } to { box-shadow: 0 0 0 14px rgba(16,185,129,0), 0 4px 12px rgba(16,185,129,0.4); } }
+@keyframes addBtnCheck { from { transform: rotate(-180deg) scale(0); } to { transform: rotate(0) scale(1); } }
+
+/* Savatga uchish elementlari */
+.cart-fly { position: fixed; z-index: 99999; pointer-events: none; overflow: hidden; border-radius: 22px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1b1f4d, #2a2470); border: 2px solid rgba(255,255,255,0.55); will-change: transform; }
+.cart-fly img { width: 100%; height: 100%; object-fit: cover; }
+.cart-spark { position: fixed; z-index: 99998; pointer-events: none; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #c4b5fd 40%, rgba(107,127,255,0) 72%); }
+.cart-ring { position: fixed; z-index: 99997; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; border: 3px solid #34D399; box-shadow: 0 0 18px rgba(52,211,153,0.6); }
+.cart-confetti { position: fixed; z-index: 99999; width: 7px; height: 7px; border-radius: 2px; pointer-events: none; }
 
 /* EMPTY STATE */
 .empty-state {
@@ -5492,25 +5502,28 @@ function addToCartById(e, id, btn) {
   e.stopPropagation();
   const p = products.find(x=>x.id===id);
   if(!p) return;
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 
-  // Tugma micro-interaction effekti
+  // Tugma: "+" aylanib "✓" ga aylanadi, yashil to'lqin
   if (btn) {
+    clearTimeout(btn._resetTimer);
+    btn.classList.remove('added');
+    void btn.offsetWidth;
     btn.classList.add('added');
-    const oldHtml = btn.innerHTML;
     btn.innerHTML = `<i class="ti ti-check" style="color:#fff"></i>`;
-    if (typeof applyIconFallback === 'function') applyIconFallback();
-
-    setTimeout(() => {
+    btn._resetTimer = setTimeout(() => {
       btn.classList.remove('added');
       btn.innerHTML = `<i class="ti ti-plus" style="color:#fff"></i>`;
-      if (typeof applyIconFallback === 'function') applyIconFallback();
-    }, 1000);
+    }, 1300);
   }
 
-  // Savatga uchib borish animatsiyasi
+  // Savatga qo'shamiz, lekin raqam savatga "qo'nganda" yangilanadi
+  const before = cart.reduce((s,c)=>s+c.qty,0);
+  addProductToCart(p, { silent: true });
+  const badge = document.getElementById('cartBadge');
+  if (badge) badge.textContent = before;
   const card = btn ? btn.closest('.prod-card') : null;
-  if(card) flyToCart(card, p);
-  addProductToCart(p);
+  flyToCart(card, p, () => updateCartBadge());
 }
 
 function addToCartFromDetail() {
@@ -5525,165 +5538,179 @@ function addToCartFromDetail() {
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 }
 
-function addProductToCart(p) {
+function addProductToCart(p, opts = {}) {
   const existing = cart.find(c=>c.id===p.id);
   if(existing) { existing.qty++; }
   else { cart.push({id:p.id,name:p.name,brand:p.brand,emoji:p.emoji,image:p.image||null,price:p.price,qty:1}); }
   updateCartBadge();
-  showToast('Savatga qo\'shildi','🛒','var(--accent)');
+  if (!opts.silent) showToast('Savatga qo\'shildi','🛒','var(--accent)');
   renderCart();
   saveData();
 }
 
 // ===== SAVATGA UCHISH ANIMATSIYASI =====
-function flyToCart(card, p) {
-  // Avval pastdagi nav-bar dagi Savat tugmasini qidiramiz
-  let cartBtn = document.querySelector('.tab-nav button[onclick*="cart"]');
-  // Agar topilmasa, yuqoridagi cart-btn ga uchadi
-  if(!cartBtn) cartBtn = document.querySelector('.cart-btn');
-  if(!cartBtn) return;
+// Mahsulot rasmi kartadan "ko'tariladi", silliq yoy bo'ylab uchqunlar qoldirib savatga uchadi,
+// savat uni "yutib" prujinadek silkinadi, konfetti otiladi va raqam aynan qo'nganda o'zgaradi.
+const prefersReducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // Mahsulot rasmi yoki emoji
-  const imgEl  = card.querySelector('img');
-  const emoji  = p.emoji || '📦';
+function cartFlyTarget() {
+  const header = document.querySelector('#home.active .cart-btn');
+  if (header) {
+    const r = header.getBoundingClientRect();
+    if (r.width && r.bottom > 0 && r.top < window.innerHeight) return header;
+  }
+  return document.querySelector('.tab-nav button[onclick*="cart"]') || document.querySelector('.cart-btn');
+}
 
-  const cardRect = card.getBoundingClientRect();
-  const cartRect = cartBtn.getBoundingClientRect();
+function flyToCart(card, p, onLand) {
+  const target = cartFlyTarget();
+  const land = () => { try { onLand && onLand(); } finally { cartLandingFx(target); } };
+  if (!target || !card || prefersReducedMotion() || !Element.prototype.animate) { land(); return; }
 
-  // Uchuvchi ota-konteyner (X o'qi bo'yicha harakat qiladi)
-  const flyParent = document.createElement('div');
-  flyParent.style.cssText = `
-    position: fixed;
-    z-index: 99999;
-    pointer-events: none;
-    left: ${cardRect.left + cardRect.width / 2 - 25}px;
-    top: 0px;
-    transition: left 1.2s linear;
-  `;
+  const imgBox = card.querySelector('.prod-img') || card;
+  const from = imgBox.getBoundingClientRect();
+  const to = target.getBoundingClientRect();
+  const size = Math.min(from.width, from.height);
 
-  // Uchuvchi bola-element (Y o'qi bo'yicha sakrash - parabola hosil qiladi)
-  const flyChild = document.createElement('div');
-  flyChild.className = 'fly-item-glow';
-  flyChild.style.cssText = `
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    background: linear-gradient(135deg, #6B7FFF, #A78BFA);
-    position: absolute;
-    top: ${cardRect.top + cardRect.height / 2 - 25}px;
-    transition: top 1.2s cubic-bezier(0.06, -0.65, 0.22, 1), 
-                transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1), 
-                opacity 1.2s ease;
-    transform: scale(1) rotate(0deg);
-  `;
+  // Uchuvchi nusxa: kartadagi rasm (yoki emoji)
+  const fly = document.createElement('div');
+  fly.className = 'cart-fly';
+  fly.style.width = fly.style.height = size + 'px';
+  fly.style.left = (from.left + from.width / 2 - size / 2) + 'px';
+  fly.style.top = (from.top + from.height / 2 - size / 2) + 'px';
+  const imgEl = imgBox.querySelector('img');
+  if (imgEl && imgEl.src) fly.innerHTML = `<img src="${imgEl.src}" alt="">`;
+  else { fly.textContent = p.emoji || '📦'; fly.style.fontSize = (size * 0.45) + 'px'; }
+  document.body.appendChild(fly);
 
-  if(imgEl && imgEl.src) {
-    flyChild.innerHTML = `<img src="${imgEl.src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-  } else {
-    flyChild.textContent = emoji;
+  // Yo'l: kvadratik Bezier egri chiziq (tepaga ko'tarilib, keyin savatga sho'ng'iydi)
+  const sx = from.left + from.width / 2, sy = from.top + from.height / 2;
+  const ex = to.left + to.width / 2, ey = to.top + to.height / 2;
+  const cx = sx + (ex - sx) * 0.35, cy = Math.min(sy, ey) - Math.max(120, Math.abs(ey - sy) * 0.45);
+  const endScale = 26 / size;
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+  const point = t => {
+    const u = 1 - t;
+    return { x: u * u * sx + 2 * u * t * cx + t * t * ex, y: u * u * sy + 2 * u * t * cy + t * t * ey };
+  };
+
+  const LIFT = 0.16; // vaqtning birinchi qismi — rasm joyida ko'tariladi
+  const frames = [
+    { offset: 0, transform: 'translate(0,0) scale(1) rotate(0deg)', borderRadius: '22px', boxShadow: '0 0 0 rgba(107,127,255,0)' },
+    { offset: LIFT, transform: 'translate(0,-10px) scale(1.06) rotate(-3deg)', borderRadius: '26px', boxShadow: '0 22px 50px rgba(107,127,255,0.55)' },
+  ];
+  const STEPS = 26;
+  for (let i = 1; i <= STEPS; i++) {
+    const t = ease(i / STEPS);
+    const pt = point(t);
+    const sc = 1.06 + (endScale - 1.06) * Math.pow(t, 0.8);
+    frames.push({
+      offset: LIFT + (1 - LIFT) * (i / STEPS),
+      transform: `translate(${pt.x - sx}px, ${pt.y - sy - 10 * (1 - t)}px) scale(${sc}) rotate(${-3 + 363 * t}deg)`,
+      borderRadius: '50%',
+      boxShadow: `0 ${18 * (1 - t)}px ${44 * (1 - t) + 10}px rgba(107,127,255,${0.55 - 0.25 * t})`,
+    });
+  }
+  const DURATION = 950;
+  const anim = fly.animate(frames, { duration: DURATION, easing: 'linear', fill: 'forwards' });
+
+  // Uchqunlar izi — pozitsiya o'sha egri chiziqdan hisoblanadi (layout o'qilmaydi)
+  const startedAt = performance.now();
+  let lastSpark = 0;
+  const trail = (now) => {
+    const k = (now - startedAt) / DURATION;
+    if (k >= 1) return;
+    if (k > LIFT && now - lastSpark > 28) {
+      lastSpark = now;
+      const pt = point(ease((k - LIFT) / (1 - LIFT)));
+      spawnSpark(pt.x, pt.y);
+    }
+    requestAnimationFrame(trail);
+  };
+  requestAnimationFrame(trail);
+
+  anim.onfinish = () => { fly.remove(); land(); };
+  anim.oncancel = () => { fly.remove(); land(); };
+}
+
+function spawnSpark(x, y) {
+  const sp = document.createElement('div');
+  sp.className = 'cart-spark';
+  const sz = 4 + Math.random() * 6;
+  sp.style.width = sp.style.height = sz + 'px';
+  sp.style.left = (x - sz / 2) + 'px';
+  sp.style.top = (y - sz / 2) + 'px';
+  document.body.appendChild(sp);
+  const dx = (Math.random() - 0.5) * 34, dy = 10 + Math.random() * 24;
+  sp.animate([
+    { transform: 'translate(0,0) scale(1)', opacity: 1 },
+    { transform: `translate(${dx}px, ${dy}px) scale(0.1)`, opacity: 0 },
+  ], { duration: 520 + Math.random() * 220, easing: 'cubic-bezier(0.2,0.8,0.2,1)' }).onfinish = () => sp.remove();
+}
+
+function cartLandingFx(target) {
+  if (!target) return;
+  if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  if (prefersReducedMotion() || !Element.prototype.animate) return;
+  const r = target.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+
+  // 1) Savat "yutadi": siqilib-cho'zilib prujinadek qaytadi
+  target.animate([
+    { transform: 'scale(1)' },
+    { transform: 'scale(1.28, 0.78)', offset: 0.22 },
+    { transform: 'scale(0.86, 1.16)', offset: 0.45 },
+    { transform: 'scale(1.08, 0.95)', offset: 0.68 },
+    { transform: 'scale(1)' },
+  ], { duration: 620, easing: 'ease-out' });
+  const icon = target.querySelector('.ti');
+  if (icon) icon.animate([
+    { transform: 'rotate(0)' }, { transform: 'rotate(-14deg)', offset: 0.3 }, { transform: 'rotate(10deg)', offset: 0.6 }, { transform: 'rotate(0)' },
+  ], { duration: 560, easing: 'ease-out' });
+
+  // 2) To'lqin halqasi
+  const ring = document.createElement('div');
+  ring.className = 'cart-ring';
+  ring.style.left = (cx - 22) + 'px';
+  ring.style.top = (cy - 22) + 'px';
+  document.body.appendChild(ring);
+  ring.animate([
+    { transform: 'scale(0.4)', opacity: 0.9 },
+    { transform: 'scale(2.2)', opacity: 0 },
+  ], { duration: 650, easing: 'cubic-bezier(0.1,0.8,0.3,1)' }).onfinish = () => ring.remove();
+
+  // 3) Konfetti portlashi
+  const colors = ['#6B7FFF', '#A78BFA', '#34D399', '#FBBF24', '#F472B6', '#38BDF8'];
+  for (let i = 0; i < 14; i++) {
+    const c = document.createElement('div');
+    c.className = 'cart-confetti';
+    c.style.background = colors[i % colors.length];
+    c.style.left = cx + 'px';
+    c.style.top = cy + 'px';
+    if (i % 3 === 0) c.style.borderRadius = '50%';
+    document.body.appendChild(c);
+    const ang = (Math.PI * 2 * i) / 14 + Math.random() * 0.4;
+    const dist = 34 + Math.random() * 30;
+    c.animate([
+      { transform: 'translate(-50%,-50%) rotate(0deg) scale(1)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist + 14}px)) rotate(${Math.random() * 540}deg) scale(0.6)`, opacity: 0 },
+    ], { duration: 700 + Math.random() * 300, easing: 'cubic-bezier(0.15,0.75,0.3,1)' }).onfinish = () => c.remove();
   }
 
-  flyParent.appendChild(flyChild);
-  document.body.appendChild(flyParent);
+  // 4) "+1" ko'tarilib yo'qoladi
+  const plus = document.createElement('div');
+  plus.className = 'float-plus-one';
+  plus.textContent = '+1';
+  plus.style.left = (cx - 10) + 'px';
+  plus.style.top = (r.top - 18) + 'px';
+  document.body.appendChild(plus);
+  setTimeout(() => plus.remove(), 800);
 
-  // Sehrli zarrachalar hosil qilish (Trail particles)
-  const spawnInterval = setInterval(() => {
-    const rect = flyChild.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return; // parent o'chirilgan bo'lsa to'xtatish
-    
-    const particle = document.createElement('div');
-    particle.className = 'fly-particle';
-    particle.style.left = `${rect.left + rect.width / 2 - 4}px`;
-    particle.style.top = `${rect.top + rect.height / 2 - 4}px`;
-    document.body.appendChild(particle);
-    
-    // Zarrachaning kichrayishi va yo'qolishi
-    requestAnimationFrame(() => {
-      particle.style.transform = 'scale(0.1)';
-      particle.style.opacity = '0';
-    });
-    
-    setTimeout(() => {
-      particle.remove();
-    }, 400);
-  }, 40);
-
-  // Animatsiyani boshlash
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      // X o'qi bo'ylab chiziqli harakat
-      flyParent.style.left = `${cartRect.left + cartRect.width / 2 - 12}px`;
-      
-      // Y o'qi bo'ylab yuqoriga sakrab, keyin pastga tushish (parabola)
-      flyChild.style.top = `${cartRect.top + cartRect.height / 2 - 12}px`;
-      flyChild.style.transform = 'scale(0.3) rotate(720deg)'; // 2 marta aylanib kichrayadi
-      flyChild.style.opacity = '0.2';
-    });
-  });
-
-  // Yetib borgandagi effektlar
-  setTimeout(() => {
-    clearInterval(spawnInterval);
-    flyParent.remove();
-
-    // 1) Savat tugmasi ustida +1 yozuvi chiqishi
-    const plusOne = document.createElement('div');
-    plusOne.className = 'float-plus-one';
-    plusOne.textContent = '+1';
-    plusOne.style.left = `${cartRect.left + cartRect.width / 2 - 10}px`;
-    plusOne.style.top = `${cartRect.top - 20}px`;
-    document.body.appendChild(plusOne);
-    setTimeout(() => plusOne.remove(), 800);
-
-    // 2) Savat tugmasida to'lqin (Ripple) effekti yaratish
-    const ripple = document.createElement('span');
-    ripple.style.cssText = `
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 12px;
-      height: 12px;
-      margin-left: -6px;
-      margin-top: -6px;
-      border: 3px solid #00e5b0;
-      border-radius: 50%;
-      transform: translate(-50%, -50%) scale(1);
-      opacity: 1;
-      pointer-events: none;
-      transition: transform 0.45s cubic-bezier(0.1, 0.8, 0.3, 1), opacity 0.45s ease-out;
-      z-index: 10;
-      box-shadow: 0 0 15px rgba(0, 229, 176, 0.6);
-    `;
-    cartBtn.appendChild(ripple);
-    requestAnimationFrame(() => {
-      ripple.style.transform = 'translate(-50%, -50%) scale(5)';
-      ripple.style.opacity = '0';
-    });
-    setTimeout(() => ripple.remove(), 450);
-
-    // 3) Savat badge (agar mavjud bo'lsa) kattarib kichraysin
-    const badge = document.querySelector('.cart-badge') || document.getElementById('cartTabBadge');
-    if(badge) {
-      badge.style.transition = 'none';
-      badge.style.transform = 'scale(1.8)';
-      requestAnimationFrame(() => {
-        badge.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        badge.style.transform = 'scale(1)';
-      });
-    }
-
-    // 4) Savat tugmasining o'zi prujinaga o'xshash silkinishi (Spring bounce)
-    cartBtn.style.transition = 'none';
-    cartBtn.style.transform = 'scale(1.25)';
-    requestAnimationFrame(() => {
-      cartBtn.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.5)';
-      cartBtn.style.transform = 'scale(1)';
-    });
-  }, 1205);
+  // 5) Badge raqami sakraydi
+  const badge = target.querySelector('.cart-badge') || document.getElementById('cartBadge');
+  if (badge) badge.animate([
+    { transform: 'scale(1)' }, { transform: 'scale(1.7)', offset: 0.35 }, { transform: 'scale(0.9)', offset: 0.7 }, { transform: 'scale(1)' },
+  ], { duration: 520, easing: 'cubic-bezier(0.34,1.56,0.64,1)' });
 }
 
 // ===== CART =====
