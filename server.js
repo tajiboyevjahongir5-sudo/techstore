@@ -676,7 +676,8 @@ app.get('/api/public-settings', apiRateLimiter, (req, res) => {
       number: CARD_NUMBER,
       owner: CARD_OWNER
     },
-    assistant: assistant.publicContact()
+    assistant: assistant.publicContact(),
+    botUsername
   });
 });
 
@@ -743,10 +744,9 @@ app.post('/api/orders', apiRateLimiter, async (req, res) => {
     if (!dbProd) {
       return res.status(400).json({ error: `Mahsulot topilmadi: ${item.name}` });
     }
-    const realPrice = dbProd.price;
-    const discount = dbProd.discount || 0;
-    const finalPrice = discount > 0 ? Math.round(realPrice * (1 - discount / 100)) : realPrice;
-    calculatedBaseTotal += finalPrice * (item.qty || 1);
+    // `price` — xaridor to'laydigan sotuv narxi (ilovada ham shunday ko'rsatiladi);
+    // `discount` faqat eski (chizilgan) narxni ko'rsatish uchun: eski narx = price / (1 - discount/100)
+    calculatedBaseTotal += dbProd.price * (item.qty || 1);
   }
 
   const cleanSuffix = Number(suffix || 0);

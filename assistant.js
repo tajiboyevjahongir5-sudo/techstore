@@ -119,9 +119,15 @@ function writeLocalSecrets(obj) {
 }
 
 // ---------- Yordamchi funksiyalar ----------
+// `price` — xaridor to'laydigan sotuv narxi. `discount` bo'lsa, ilovada chizilgan eski narx
+// price / (1 - discount/100) ko'rinishida ko'rsatiladi.
 function finalPrice(p) {
+  return p.price;
+}
+
+function oldPrice(p) {
   const d = Number(p.discount) || 0;
-  return d > 0 ? Math.round(p.price * (1 - d / 100)) : p.price;
+  return d > 0 && d < 100 ? Math.round(p.price / (1 - d / 100)) : null;
 }
 
 function fmtSum(n) {
@@ -136,7 +142,7 @@ function productSummary(p) {
     category: p.cat,
     price: p.price,
     discount_percent: p.discount || 0,
-    final_price: finalPrice(p),
+    old_price_before_discount: oldPrice(p) || undefined,
     images: (p.images && p.images.length) || (p.image ? 1 : 0),
   };
 }
@@ -207,8 +213,8 @@ const TOOL_DEFS = {
       properties: {
         query: { type: 'string', description: "Nom yoki brend bo'yicha qidiruv so'zi" },
         category: { type: 'string', enum: CATEGORY_ENUM },
-        min_price: { type: 'integer', description: "Minimal yakuniy narx (so'm)" },
-        max_price: { type: 'integer', description: "Maksimal yakuniy narx (so'm)" },
+        min_price: { type: 'integer', description: "Minimal narx (so'm)" },
+        max_price: { type: 'integer', description: "Maksimal narx (so'm)" },
         limit: { type: 'integer', description: 'Nechta natija (standart 30)' },
       },
       additionalProperties: false,
@@ -245,8 +251,8 @@ const TOOL_DEFS = {
       properties: {
         name: { type: 'string', description: "To'liq model nomi, masalan 'iPhone 16 Pro Max 256GB'" },
         brand: { type: 'string' },
-        price: { type: 'integer', description: "Chegirmasiz asosiy narx, so'mda (butun son)" },
-        discount: { type: 'integer', description: 'Chegirma foizi 0-99 (standart 0)' },
+        price: { type: 'integer', description: "Xaridor to'laydigan sotuv narxi, so'mda (butun son). Admin aytgan narx aynan shu." },
+        discount: { type: 'integer', description: "Chegirma foizi 0-99 (standart 0). Faqat ko'rsatish uchun: ilovada eski narx price/(1-discount/100) bo'lib chizilgan holda chiqadi, sotuv narxi o'zgarmaydi." },
         category: { type: 'string', enum: CATEGORY_ENUM },
         description: { type: 'string', description: "O'zbek tilida 1-3 jumlali jozibali tavsif" },
         specs: SPECS_SCHEMA,
@@ -790,6 +796,7 @@ function createAssistant(deps) {
     const common = `Sening isming: ${config.name}. Sen Telegram'da oddiy akkaunt orqali yozishasan.
 Javoblarni oddiy matnda yoz (Markdown belgilari **, #, _ ishlatma), tushunarli bo'lsin, emojini me'yorida ishlat.
 Suhbatdosh qaysi tilda yozsa (o'zbek, rus, ingliz) o'sha tilda javob ber. Narxlarni "18 500 000 so'm" ko'rinishida yoz.
+Mahsulotning "price" maydoni — xaridor to'laydigan haqiqiy narx. Chegirma bo'lsa, "old_price_before_discount" — chizilgan eski narx (masalan: "21 764 706 so'm emas, atigi 18 500 000 so'm — 15% chegirma").
 
 ${shopLines}`;
 
