@@ -630,6 +630,19 @@ function createAssistant(deps) {
     await persist();
   }
 
+  // Mini App'dagi "Admin bilan bog'lanish" tugmasi uchun: yordamchi akkaunt havolasi
+  function publicContact() {
+    if (state !== 'connected' || !config.enabled || !config.replyToCustomers || !config.account) return null;
+    const { username, phone, firstName } = config.account;
+    const digits = String(phone || '').replace(/\D/g, '');
+    if (!username && !digits) return null;
+    return {
+      name: config.name || firstName || 'Yordamchi',
+      username: username || '',
+      link: username ? `https://t.me/${username}` : `https://t.me/+${digits}`,
+    };
+  }
+
   function status() {
     const panelKey = secrets.aiKeys[config.provider] || '';
     const fromEnv = !panelKey && !!process.env[PROVIDERS[config.provider].envKey];
@@ -1361,7 +1374,7 @@ Qat'iy qoidalar:
   }
 
   return {
-    init, status, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
+    init, status, publicContact, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
     // Testlar uchun ichki funksiyalar
     _internals: { getChat, processChat, executeTool, setClient: (c) => { client = c; } },
   };

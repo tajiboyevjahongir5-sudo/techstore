@@ -664,7 +664,8 @@ app.get('/api/public-settings', apiRateLimiter, (req, res) => {
     card: {
       number: CARD_NUMBER,
       owner: CARD_OWNER
-    }
+    },
+    assistant: assistant.publicContact()
   });
 });
 
