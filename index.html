@@ -5695,13 +5695,14 @@ function addProductToCart(p, opts = {}) {
 // savat uni "yutib" prujinadek silkinadi, konfetti otiladi va raqam aynan qo'nganda o'zgaradi.
 const prefersReducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Har doim pastdagi "Savat" tugmasiga tushadi (ko'rinmasa — tepadagi savat tugmasiga)
 function cartFlyTarget() {
-  const header = document.querySelector('#home.active .cart-btn');
-  if (header) {
-    const r = header.getBoundingClientRect();
-    if (r.width && r.bottom > 0 && r.top < window.innerHeight) return header;
+  const tab = document.querySelector('.tab-nav button[onclick*="cart"]');
+  if (tab) {
+    const r = tab.getBoundingClientRect();
+    if (r.width && r.height && getComputedStyle(document.querySelector('.tab-nav')).display !== 'none') return tab;
   }
-  return document.querySelector('.tab-nav button[onclick*="cart"]') || document.querySelector('.cart-btn');
+  return document.querySelector('.cart-btn');
 }
 
 function flyToCart(card, p, onLand) {
@@ -5728,7 +5729,9 @@ function flyToCart(card, p, onLand) {
   // Yo'l: kvadratik Bezier egri chiziq (tepaga ko'tarilib, keyin savatga sho'ng'iydi)
   const sx = from.left + from.width / 2, sy = from.top + from.height / 2;
   const ex = to.left + to.width / 2, ey = to.top + to.height / 2;
-  const cx = sx + (ex - sx) * 0.35, cy = Math.min(sy, ey) - Math.max(120, Math.abs(ey - sy) * 0.45);
+  // Savat pastda bo'lsa: rasm biroz yuqoriga "otilib", yoy bo'ylab pastga tushadi
+  const cx = ey > sy ? sx + (ex - sx) * 0.55 : sx + (ex - sx) * 0.35;
+  const cy = ey > sy ? sy - 170 : Math.min(sy, ey) - Math.max(120, Math.abs(ey - sy) * 0.45);
   const endScale = 26 / size;
   const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
   const point = t => {
@@ -5798,14 +5801,16 @@ function cartLandingFx(target) {
   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
 
   // 1) Savat "yutadi": siqilib-cho'zilib prujinadek qaytadi
-  target.animate([
+  const isTab = target.classList.contains('tab-btn');
+  const squashEl = isTab ? (target.querySelector('.ti') || target) : target;
+  squashEl.animate([
     { transform: 'scale(1)' },
     { transform: 'scale(1.28, 0.78)', offset: 0.22 },
     { transform: 'scale(0.86, 1.16)', offset: 0.45 },
     { transform: 'scale(1.08, 0.95)', offset: 0.68 },
     { transform: 'scale(1)' },
   ], { duration: 620, easing: 'ease-out' });
-  const icon = target.querySelector('.ti');
+  const icon = isTab ? null : target.querySelector('.ti');
   if (icon) icon.animate([
     { transform: 'rotate(0)' }, { transform: 'rotate(-14deg)', offset: 0.3 }, { transform: 'rotate(10deg)', offset: 0.6 }, { transform: 'rotate(0)' },
   ], { duration: 560, easing: 'ease-out' });
@@ -5848,8 +5853,8 @@ function cartLandingFx(target) {
   document.body.appendChild(plus);
   setTimeout(() => plus.remove(), 800);
 
-  // 5) Badge raqami sakraydi
-  const badge = target.querySelector('.cart-badge') || document.getElementById('cartBadge');
+  // 5) Badge raqami (yoki pastdagi qizil nuqta) sakraydi
+  const badge = isTab ? document.getElementById('cartTabBadge') : (target.querySelector('.cart-badge') || document.getElementById('cartBadge'));
   if (badge) badge.animate([
     { transform: 'scale(1)' }, { transform: 'scale(1.7)', offset: 0.35 }, { transform: 'scale(0.9)', offset: 0.7 }, { transform: 'scale(1)' },
   ], { duration: 520, easing: 'cubic-bezier(0.34,1.56,0.64,1)' });
