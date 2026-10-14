@@ -1038,7 +1038,8 @@ app.post('/api/users/register', apiRateLimiter, async (req, res) => {
       username: tgUser.username || '',
       photo_url: tgUser.photo_url || '',
       joinedAt: existing?.joinedAt || Date.now(),
-      lastSeen: Date.now()
+      lastSeen: Date.now(),
+      sources: { ...(existing?.sources || {}), app: true }
     };
     
     await firebasePatch(userPath, userData);
@@ -1111,6 +1112,34 @@ app.get('/api/admin/users', apiRateLimiter, verifyAdmin, async (req, res) => {
 });
 
 // ===== YORDAMCHI ADMIN (Telegram akkaunt + AI) =====
+// ===== FOYDALANUVCHILARNI HISOBGA OLISH =====
+// Telegram bot obunachilari sonini API orqali bermaydi — shuning uchun botga /start bosgan,
+// Mini App'ni ochgan va yordamchiga yozgan har bir foydalanuvchini o'zimiz yozib boramiz.
+const recentlyTracked = new Map(); // userId -> oxirgi yozilgan vaqt (bazaga ortiqcha yozmaslik uchun)
+
+async function trackUser(from, source) {
+  if (!from || !from.id || from.is_bot) return;
+  const id = String(from.id);
+  const key = id + ':' + source;
+  if (Date.now() - (recentlyTracked.get(key) || 0) < 10 * 60 * 1000) return;
+  recentlyTracked.set(key, Date.now());
+  if (recentlyTracked.size > 5000) recentlyTracked.clear();
+  try {
+    const existing = await firebaseGet(`users/${id}`);
+    await firebasePatch(`users/${id}`, {
+      id: from.id,
+      first_name: from.first_name || existing?.first_name || '',
+      last_name: from.last_name || existing?.last_name || '',
+      username: from.username || existing?.username || '',
+      joinedAt: existing?.joinedAt || Date.now(),
+      lastSeen: Date.now(),
+      sources: { ...(existing?.sources || {}), [source]: true }
+    });
+  } catch (e) {
+    console.warn('trackUser xato:', e.message);
+  }
+}
+
 async function getStoreStats() {
   const [orders, users, prods] = await Promise.all([
     firebaseGet('orders').then(o => o || {}),
@@ -1130,7 +1159,46 @@ async function getStoreStats() {
     revenue_confirmed: confirmed.reduce((s, o) => s + (Number(o.total) || 0), 0),
     orders_today: today.length,
     revenue_today: today.filter(o => o.status === 'confirmed').reduce((s, o) => s + (Number(o.total) || 0), 0),
-    customers: Object.keys(users).length
+    ...userStats(users, orders),
+    note: "users_total — botga /start bosgan, Mini App'ni ochgan yoki yordamchiga yozgan barcha noyob Telegram foydalanuvchilar (hisob yuritish boshlangandan beri). Telegram bot obunachilarining to'liq sonini API orqali bermaydi, shuning uchun hisob shu tizim ishga tushgan paytdan boshlanadi. users_with_orders — kamida bitta buyurtma berganlar."
+  };
+}
+
+function userStats(users, orders) {
+  const list = Object.values(users || {}).filter(u => u && u.id);
+  const now = Date.now();
+  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+  const buyers = new Set(Object.values(orders || {}).map(o => String(o.userId)).filter(Boolean));
+  const src = (k) => list.filter(u => u.sources && u.sources[k]).length;
+  const firstJoin = list.reduce((m, u) => Math.min(m, u.joinedAt || now), now);
+  return {
+    users_total: list.length,
+    users_new_today: list.filter(u => (u.joinedAt || 0) >= startOfDay.getTime()).length,
+    users_new_7d: list.filter(u => (u.joinedAt || 0) >= now - 7 * 86400000).length,
+    users_active_24h: list.filter(u => (u.lastSeen || 0) >= now - 86400000).length,
+    users_via_bot: src('bot'),
+    users_via_mini_app: src('app'),
+    users_via_assistant_chat: src('assistant'),
+    users_with_orders: buyers.size,
+    counting_since: list.length ? new Date(firstJoin).toISOString().slice(0, 10) : null
+  };
+}
+
+async function listUsers({ query = '', limit = 20 } = {}) {
+  const users = Object.values((await firebaseGet('users')) || {}).filter(u => u && u.id);
+  const q = String(query).toLowerCase().replace('@', '').trim();
+  const filtered = q ? users.filter(u => `${u.first_name} ${u.last_name} ${u.username} ${u.id}`.toLowerCase().includes(q)) : users;
+  filtered.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+  return {
+    total: filtered.length,
+    users: filtered.slice(0, Math.min(Math.max(parseInt(limit) || 20, 1), 100)).map(u => ({
+      user_id: String(u.id),
+      name: [u.first_name, u.last_name].filter(Boolean).join(' '),
+      username: u.username ? '@' + u.username : '',
+      joined: u.joinedAt ? new Date(u.joinedAt).toISOString().slice(0, 16).replace('T', ' ') : null,
+      last_seen: u.lastSeen ? new Date(u.lastSeen).toISOString().slice(0, 16).replace('T', ' ') : null,
+      via: Object.keys(u.sources || {}).join(', ')
+    }))
   };
 }
 
@@ -1154,7 +1222,9 @@ const assistant = createAssistant({
     deleteProduct,
     listOrders: () => firebaseGet('orders'),
     setOrderStatus,
-    getStats: getStoreStats
+    getStats: getStoreStats,
+    listUsers,
+    trackUser
   }
 });
 
@@ -1287,6 +1357,7 @@ function initializeTelegramBot() {
     });
 
     bot.on('message', (msg) => {
+      if (msg.chat && msg.chat.type === 'private') trackUser(msg.from, 'bot');
       if (msg.text && msg.text.startsWith('/')) return;
       handlePaymentMessage(msg);
     });

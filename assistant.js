@@ -315,8 +315,20 @@ const TOOL_DEFS = {
   },
   get_stats: {
     name: 'get_stats',
-    description: "Do'kon statistikasi: buyurtmalar soni, daromad, mijozlar, mahsulotlar soni, bugungi ko'rsatkichlar.",
+    description: "Do'kon va bot statistikasi: foydalanuvchilar soni (jami, bugun/7 kunda qo'shilgan, 24 soatda faol, bot/Mini App/yordamchi orqali kelganlar, xaridorlar), buyurtmalar, daromad, mahsulotlar soni. Natijadagi 'note' maydonida nima hisoblanishi yozilgan.",
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  list_users: {
+    name: 'list_users',
+    description: "Foydalanuvchilar ro'yxati (oxirgi faollari birinchi): ism, username, qachon qo'shilgan, oxirgi faolligi, qayerdan kelgani. Ism/username bo'yicha qidirish mumkin.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: "Ism, username yoki ID bo'yicha qidiruv" },
+        limit: { type: 'integer', description: 'Standart 20' },
+      },
+      additionalProperties: false,
+    },
   },
   list_customer_chats: {
     name: 'list_customer_chats',
@@ -352,7 +364,7 @@ const TOOL_DEFS = {
 };
 
 const ADMIN_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'add_product', 'update_product', 'delete_product',
-  'list_orders', 'update_order_status', 'get_stats', 'list_customer_chats', 'send_message_to_customer'];
+  'list_orders', 'update_order_status', 'get_stats', 'list_users', 'list_customer_chats', 'send_message_to_customer'];
 const CUSTOMER_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'notify_admin'];
 
 function buildTools(names) {
@@ -705,6 +717,9 @@ function createAssistant(deps) {
 
       const chat = getChat(senderId, sender);
       chat.role = role;
+      if (role === 'customer' && deps.store.trackUser) {
+        deps.store.trackUser({ id: senderId, first_name: sender.firstName, last_name: sender.lastName, username: sender.username }, 'assistant');
+      }
       chat.lastActivity = Date.now();
       chat.lastText = (msg.message || (msg.photo ? '[rasm]' : '[media]')).slice(0, 120);
       chat.pending.push(msg);
@@ -789,7 +804,9 @@ Admin bilan ishlash qoidalari:
 - Xususiyatlarni ishonchli bilmasang, faqat aniq bilganlaringni yoz.
 - O'chirish (delete_product) va buyurtmani rad etish kabi qaytarib bo'lmaydigan amallarni admin aniq so'ramagan bo'lsa, avval tasdiqlashni so'ra.
 - Amal bajarilgach natijani qisqa xabar qil (mahsulot nomi, ID, yakuniy narx).
-- Xaridorlarga xabar yuborishni faqat admin so'raganda bajar.`;
+- Xaridorlarga xabar yuborishni faqat admin so'raganda bajar.
+- Raqamlar va statistika (foydalanuvchilar, buyurtmalar, daromad) haqida so'ralsa, HAR DOIM avval get_stats (yoki list_users, list_orders) ni chaqir va faqat natijadagi aniq raqamlarni ayt. Raqamlarni batafsil ko'rsat (masalan: jami, bugun qo'shilgan, bot/Mini App orqali, buyurtma berganlar).
+- Bilmagan narsangni to'qib chiqarma va taxminiy tushuntirish berma. Ma'lumotda biror narsa bo'lmasa, aniq ayt: nima hisoblanadi va nima hisoblanmaydi (get_stats natijasidagi note'ga tayan).`;
     }
 
     return `Sen TechStore do'konining xodimisan — xaridorlar bilan yozishadigan, samimiy va bilimdon sotuv maslahatchisi. Hozir sen bilan XARIDOR yozishmoqda.
@@ -957,6 +974,8 @@ Qat'iy qoidalar:
       }
       case 'get_stats':
         return { ...(await store.getStats()), today: new Date().toISOString().slice(0, 10) };
+      case 'list_users':
+        return store.listUsers ? store.listUsers(input) : { error: "Mavjud emas" };
       case 'list_customer_chats':
         return {
           chats: [...chats.values()]
@@ -1010,7 +1029,7 @@ Qat'iy qoidalar:
     } catch (e) {
       result = { error: e.message };
     }
-    if (!result?.error && !['list_products', 'get_product', 'get_stats', 'list_orders', 'list_customer_chats'].includes(name)) {
+    if (!result?.error && !['list_products', 'get_product', 'get_stats', 'list_users', 'list_orders', 'list_customer_chats'].includes(name)) {
       actions.push(name + (result.product ? `(${result.product.name}, ID ${result.product.id})` : ''));
     }
     return result ?? { ok: true };
