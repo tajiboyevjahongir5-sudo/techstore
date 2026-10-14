@@ -3702,6 +3702,48 @@ body.in-tg .pd-topbar {
 body.in-tg .pd-topbar.scrolled { transform: none; opacity: 1; pointer-events: auto; }
 body.in-tg #detail .pd-hero { margin-top: calc(8px + max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px)); }
 
+/* ===== RASMNI KATTA KO'RISH (yangi) ===== */
+.zv { position: fixed; inset: 0; z-index: 3000; display: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.zv.open { display: block; }
+.zv-backdrop { position: absolute; inset: 0; background: rgba(4, 5, 20, 0.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); animation: zvFade .3s ease; }
+.zv.closing .zv-backdrop { opacity: 0 !important; transition: opacity .26s ease !important; }
+.zv.closing .zv-top, .zv.closing .zv-bottom, .zv.closing .zv-nav { opacity: 0; transition: opacity .2s ease; }
+@keyframes zvFade { from { opacity: 0; } to { opacity: 1; } }
+.zv-stage { position: absolute; inset: 0; overflow: hidden; }
+.zv-track { display: flex; height: 100%; will-change: transform; }
+.zv-slide { flex: 0 0 100vw; width: 100vw; height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 12px; }
+.zv-img-wrap { width: 100%; display: flex; align-items: center; justify-content: center; will-change: transform; }
+.zv-slide img { max-width: 100%; max-height: 64vh; border-radius: 22px; object-fit: contain; box-shadow: 0 30px 80px rgba(0,0,0,0.6); pointer-events: auto; opacity: .45; transform: scale(.9); transition: opacity .4s ease, transform .5s cubic-bezier(0.22,1,0.36,1); }
+.zv-slide.is-active img { opacity: 1; transform: none; }
+.zv.open .zv-slide.is-active img { animation: zvIn .4s cubic-bezier(0.22,1,0.36,1); }
+@keyframes zvIn { from { transform: scale(.86); opacity: 0; } to { transform: none; opacity: 1; } }
+.zv-emoji { font-size: 140px; }
+.zv-top { position: absolute; left: 0; right: 0; z-index: 2; display: flex; justify-content: center; pointer-events: none;
+  top: calc(10px + max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px)); }
+.zv-counter { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 800; color: #fff; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); }
+.zv-bottom { position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  bottom: calc(18px + max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px))); animation: zvUp .4s cubic-bezier(0.22,1,0.36,1); }
+@keyframes zvUp { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.zv-thumbs, .zv-close { pointer-events: auto; }
+.zv-thumbs { display: flex; gap: 8px; max-width: 100%; overflow-x: auto; padding: 4px 16px; scrollbar-width: none; }
+.zv-thumbs::-webkit-scrollbar { display: none; }
+.zv-thumb { width: 52px; height: 52px; flex-shrink: 0; border-radius: 14px; overflow: hidden; cursor: pointer; border: 2px solid transparent; opacity: .5; transition: all .25s ease; }
+.zv-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.zv-thumb.active { opacity: 1; border-color: #fff; transform: scale(1.08); }
+.zv-close { display: inline-flex; align-items: center; gap: 8px; height: 50px; padding: 0 26px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); color: #fff; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; transition: transform .2s ease, background .2s ease; }
+.zv-close:active { transform: scale(0.94); background: rgba(255,255,255,0.22); }
+.zv-close .ti { font-size: 18px; }
+.zv-hint { font-size: 11px; color: rgba(255,255,255,0.45); text-align: center; padding: 0 20px; }
+.zv-nav { position: absolute; top: 50%; z-index: 2; width: 46px; height: 46px; margin-top: -23px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; cursor: pointer; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+.zv-prev { left: 14px; } .zv-next { right: 14px; }
+@media (hover: none) { .zv-nav { display: none !important; } }
+
+/* Mahsulot sahifasidagi galereya: qo'shni rasmlar biroz kichik va xira */
+.detail-gallery { touch-action: pan-y; }
+.pd-hero .detail-gallery-slide img { transition: transform .55s cubic-bezier(0.22,1,0.36,1), opacity .4s ease; }
+.pd-hero .detail-gallery-slide:not(.is-active) img { transform: scale(.88); opacity: .55; }
+.pd-hero .detail-gallery-slide img { -webkit-user-drag: none; user-select: none; }
+
 body.modal-open {
   overflow: hidden !important;
   height: 100vh !important;
@@ -4497,16 +4539,18 @@ body.modal-open {
   </div>
 
   <!-- CONFIRM DELETE MODAL -->
-  <!-- IMAGE ZOOM OVERLAY -->
-  <div class="img-zoom-overlay" id="imgZoomOverlay" onclick="closeImgZoom(event)">
-    <div class="img-zoom-inner" id="imgZoomInner">
-      <span class="emoji-zoom" id="imgZoomEmoji" style="display:none"></span>
-      <img id="imgZoomImg" src="" alt="" style="display:none">
+  <!-- IMAGE ZOOM OVERLAY (rasmni katta ko'rish) -->
+  <div class="zv" id="imgZoomOverlay" aria-hidden="true">
+    <div class="zv-backdrop" id="zvBackdrop"></div>
+    <div class="zv-top"><div class="zv-counter" id="imgZoomCounter"></div></div>
+    <div class="zv-stage" id="zvStage"><div class="zv-track" id="zvTrack"></div></div>
+    <button class="zv-nav zv-prev" id="imgZoomPrev" onclick="zoomNav(-1)"><i class="ti ti-chevron-left"></i></button>
+    <button class="zv-nav zv-next" id="imgZoomNext" onclick="zoomNav(1)"><i class="ti ti-chevron-right"></i></button>
+    <div class="zv-bottom" id="zvBottom">
+      <div class="zv-thumbs" id="zvThumbs"></div>
+      <button class="zv-close" onclick="closeImgZoom()"><i class="ti ti-x"></i> Yopish</button>
+      <div class="zv-hint">Yopish uchun pastga torting · Kattalashtirish uchun 2 marta bosing</div>
     </div>
-    <div class="img-zoom-close" onclick="closeImgZoom()"><i class="ti ti-x"></i></div>
-    <div class="img-zoom-prev" id="imgZoomPrev" onclick="zoomNav(-1);event.stopPropagation()"><i class="ti ti-chevron-left"></i></div>
-    <div class="img-zoom-next" id="imgZoomNext" onclick="zoomNav(1);event.stopPropagation()"><i class="ti ti-chevron-right"></i></div>
-    <div class="img-zoom-counter" id="imgZoomCounter"></div>
   </div>
 
   <div class="confirm-overlay" id="confirmModal">
@@ -4696,6 +4740,7 @@ if(tg) {
   if(tg.requestFullscreen) tg.requestFullscreen();
 
   tg.BackButton.onClick(() => {
+    if (typeof ZV !== 'undefined' && ZV.open) { closeImgZoom(); return; }
     const active = document.querySelector('.screen.active');
     if(active) {
       if(active.id === 'detail') {
@@ -5319,49 +5364,69 @@ function openDetail(id) {
     dotsEl.innerHTML = '';
     counter.style.display = 'none';
   }
-  track.style.transform = 'translateX(0)';
+  track.style.transition = 'none';
+  track.style.transform = 'translate3d(0,0,0)';
 
   gallery._galLen = allImgs.length || 1;
   gallery._galIdx = 0;
 
-  // Swipe & Tap Zoom
-  let gsx = 0, gsy = 0;
-  let moved = false;
-  gallery.ontouchstart = e => {
-    gsx = e.touches[0].clientX;
-    gsy = e.touches[0].clientY;
-    moved = false;
+  // Barmoqqa ergashadigan surish (swipe), bosilganda katta ko'rinish
+  const slidesArr = Array.from(track.children);
+  const setActiveSlide = (i) => slidesArr.forEach((sl, k) => sl.classList.toggle('is-active', k === i));
+  const galMove = (offsetPx, animate) => {
+    const W = gallery.clientWidth || 1;
+    track.style.transition = animate ? 'transform .55s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+    track.style.transform = `translate3d(${-gallery._galIdx * W + offsetPx}px, 0, 0)`;
   };
-  gallery.ontouchmove = () => {
-    moved = true;
-  };
-  gallery.ontouchend = e => {
-    const dx = e.changedTouches[0].clientX - gsx;
-    const dy = e.changedTouches[0].clientY - gsy;
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
-      dx < 0 ? galGoTo(gallery._galIdx+1) : galGoTo(gallery._galIdx-1);
-    } else if (!moved) {
-      openImgZoom();
-    }
-  };
-  gallery.onclick = (e) => {
+  setActiveSlide(0);
+  gallery.onpointerdown = gallery.onpointermove = gallery.onpointerup = gallery.onpointercancel = null;
+  let g = null;
+  gallery.onpointerdown = (e) => {
     if (e.target.closest('.detail-gallery-dot')) return;
-    if (!moved) {
+    g = { x: e.clientX, y: e.clientY, t: performance.now(), dx: 0, axis: null, id: e.pointerId };
+  };
+  gallery.onpointermove = (e) => {
+    if (!g || e.pointerId !== g.id) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (!g.axis && Math.hypot(dx, dy) > 8) {
+      g.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (g.axis === 'x') { try { gallery.setPointerCapture(e.pointerId); } catch (_) {} }
+    }
+    if (g.axis !== 'x' || gallery._galLen < 2) return;
+    const atEdge = (gallery._galIdx === 0 && dx > 0) || (gallery._galIdx === gallery._galLen - 1 && dx < 0);
+    g.dx = atEdge ? dx * 0.3 : dx; // chekkada "rezina" effekti
+    galMove(g.dx, false);
+  };
+  gallery.onpointerup = gallery.onpointercancel = (e) => {
+    if (!g || e.pointerId !== g.id) return;
+    const W = gallery.clientWidth || 1;
+    const v = g.dx / Math.max(1, performance.now() - g.t); // px/ms
+    if (g.axis === 'x' && gallery._galLen > 1) {
+      let idx = gallery._galIdx;
+      if (g.dx < -W * 0.2 || v < -0.45) idx++;
+      else if (g.dx > W * 0.2 || v > 0.45) idx--;
+      galGoTo(Math.max(0, Math.min(gallery._galLen - 1, idx)));
+    } else if (!g.axis && e.type === 'pointerup') {
       openImgZoom();
     }
+    g = null;
   };
+  gallery.onclick = null;
+  gallery.ontouchstart = gallery.ontouchmove = gallery.ontouchend = null;
 
   window.galGoTo = function(idx) {
     const len = gallery._galLen;
     idx = (idx + len) % len;
+    const changed = idx !== gallery._galIdx;
     gallery._galIdx = idx;
     window._zoomIdx = idx;
-    // Track kenglik = len*100%, shuning uchun har bir slide = (100/len)% = container kengligi
-    // Container kengligi bo'yicha hisoblash: idx * (100/len)% track kengligi yoki idx * 100% container kengligi
-    const pct = len > 1 ? (idx * 100 / len) : 0;
-    track.style.transform = `translateX(-${pct}%)`;
+    galMove(0, true);
+    setActiveSlide(idx);
+    if (changed && tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
     dotsEl.querySelectorAll('.detail-gallery-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
     document.querySelectorAll('#pdThumbs .pd-thumb').forEach((t,i)=>t.classList.toggle('active',i===idx));
+    const th = document.querySelectorAll('#pdThumbs .pd-thumb')[idx];
+    if (th) th.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     if(allImgs.length > 1) counter.textContent = `${idx+1} / ${len}`;
   };
   fillDetailInfo(p, allImgs);
@@ -8154,70 +8219,172 @@ function getSpecsFromFields() {
 }
 
 // ===== IMAGE ZOOM =====
-function openImgZoom() {
-  const overlay = document.getElementById('imgZoomOverlay');
-  const gallery = document.getElementById('detailGallery');
-  window._zoomIdx = gallery._galIdx || 0;
-  renderZoomSlide();
-  overlay.classList.add('open');
-  document.addEventListener('keydown', zoomKeyHandler);
-  // touch swipe
-  let sx=0;
-  overlay._touchStart = e => { sx = e.touches[0].clientX; };
-  overlay._touchEnd = e => {
-    const dx = e.changedTouches[0].clientX - sx;
-    if(Math.abs(dx)>40) { dx<0 ? zoomNav(1) : zoomNav(-1); }
+// ===== RASMNI KATTA KO'RISH =====
+// Surish: chap/o'ng — keyingi rasm (barmoqqa ergashadi), pastga — yopish.
+// 2 marta bosish — kattalashtirish. Telegram "Orqaga" tugmasi ham yopadi.
+const ZV = { idx: 0, imgs: [], zoom: 1, panX: 0, panY: 0, g: null, lastTap: 0, open: false };
+
+function zvEls() {
+  return {
+    ov: document.getElementById('imgZoomOverlay'),
+    track: document.getElementById('zvTrack'),
+    stage: document.getElementById('zvStage'),
+    backdrop: document.getElementById('zvBackdrop'),
+    counter: document.getElementById('imgZoomCounter'),
+    thumbs: document.getElementById('zvThumbs'),
   };
-  overlay.addEventListener('touchstart', overlay._touchStart, {passive:true});
-  overlay.addEventListener('touchend', overlay._touchEnd, {passive:true});
 }
 
-function renderZoomSlide() {
-  const imgs = window._zoomImages || [];
-  const idx = window._zoomIdx || 0;
-  const imgEl = document.getElementById('imgZoomImg');
-  const emojiEl = document.getElementById('imgZoomEmoji');
-  const counter = document.getElementById('imgZoomCounter');
-  const prev = document.getElementById('imgZoomPrev');
-  const next = document.getElementById('imgZoomNext');
-
-  if(imgs.length > 0) {
-    imgEl.src = imgs[idx];
-    imgEl.style.display = 'block';
-    emojiEl.style.display = 'none';
-  } else {
-    emojiEl.textContent = window._zoomEmoji || '📦';
-    emojiEl.style.display = 'block';
-    imgEl.style.display = 'none';
-  }
-  counter.textContent = imgs.length > 1 ? `${idx+1} / ${imgs.length}` : '';
-  prev.style.display = imgs.length > 1 ? 'flex' : 'none';
-  next.style.display = imgs.length > 1 ? 'flex' : 'none';
+function openImgZoom() {
+  const { ov, track, thumbs } = zvEls();
+  const gallery = document.getElementById('detailGallery');
+  ZV.imgs = (window._zoomImages || []).slice();
+  ZV.idx = Math.min(gallery._galIdx || 0, Math.max(0, ZV.imgs.length - 1));
+  ZV.zoom = 1; ZV.panX = 0; ZV.panY = 0;
+  const slides = ZV.imgs.length ? ZV.imgs : [null];
+  track.innerHTML = slides.map(src => `<div class="zv-slide"><div class="zv-img-wrap">${src ? `<img src="${src}" alt="" draggable="false">` : `<span class="zv-emoji">${window._zoomEmoji || '📦'}</span>`}</div></div>`).join('');
+  thumbs.innerHTML = ZV.imgs.length > 1 ? ZV.imgs.map((src, i) => `<div class="zv-thumb" onclick="zvGo(${i})"><img src="${src}" alt=""></div>`).join('') : '';
+  ov.classList.remove('closing');
+  ov.classList.add('open');
+  ov.setAttribute('aria-hidden', 'false');
+  ZV.open = true;
+  zvLayout(false);
+  document.addEventListener('keydown', zoomKeyHandler);
+  if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 }
 
-function zoomNav(dir) {
-  const imgs = window._zoomImages || [];
-  if(!imgs.length) return;
-  window._zoomIdx = ((window._zoomIdx||0) + dir + imgs.length) % imgs.length;
-  renderZoomSlide();
+function zvLayout(animate, dx = 0, dy = 0) {
+  const { track, backdrop, counter, thumbs } = zvEls();
+  const W = window.innerWidth;
+  track.style.transition = animate ? 'transform .5s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+  track.style.transform = `translate3d(${-ZV.idx * W + dx}px, ${dy}px, 0)`;
+  const fade = Math.max(0, 1 - Math.abs(dy) / 420);
+  backdrop.style.transition = animate ? 'opacity .35s ease' : 'none';
+  backdrop.style.opacity = fade;
+  document.getElementById('zvBottom').style.opacity = dy ? Math.max(0, 1 - Math.abs(dy) / 160) : '';
+  track.querySelectorAll('.zv-slide').forEach((sl, i) => {
+    sl.classList.toggle('is-active', i === ZV.idx);
+    const img = sl.querySelector('.zv-img-wrap');
+    if (i === ZV.idx) {
+      const sc = dy ? Math.max(0.82, 1 - Math.abs(dy) / 1400) : ZV.zoom;
+      img.style.transition = animate ? 'transform .45s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+      img.style.transform = dy ? `scale(${sc})` : `translate(${ZV.panX}px, ${ZV.panY}px) scale(${ZV.zoom})`;
+    } else {
+      img.style.transition = 'transform .45s ease'; img.style.transform = '';
+    }
+  });
+  counter.textContent = ZV.imgs.length > 1 ? `${ZV.idx + 1} / ${ZV.imgs.length}` : '';
+  counter.style.display = ZV.imgs.length > 1 ? '' : 'none';
+  thumbs.querySelectorAll('.zv-thumb').forEach((t, i) => t.classList.toggle('active', i === ZV.idx));
+  const th = thumbs.querySelectorAll('.zv-thumb')[ZV.idx];
+  if (th && animate) th.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  const multi = ZV.imgs.length > 1;
+  document.getElementById('imgZoomPrev').style.display = multi ? '' : 'none';
+  document.getElementById('imgZoomNext').style.display = multi ? '' : 'none';
 }
 
-function closeImgZoom(e) {
-  if(e && e.target !== document.getElementById('imgZoomOverlay') && !e.target.closest('.img-zoom-close')) return;
-  const overlay = document.getElementById('imgZoomOverlay');
-  overlay.classList.remove('open');
+function zvGo(i) {
+  const n = Math.max(1, ZV.imgs.length);
+  const next = Math.max(0, Math.min(n - 1, i));
+  if (next !== ZV.idx && tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+  ZV.idx = next; ZV.zoom = 1; ZV.panX = 0; ZV.panY = 0;
+  zvLayout(true);
+  // Mahsulot sahifasidagi galereya ham shu rasmga o'tadi
+  if (window.galGoTo) window.galGoTo(ZV.idx);
+}
+
+function zoomNav(dir) { zvGo(ZV.idx + dir); }
+function renderZoomSlide() { zvLayout(false); }
+
+function closeImgZoom() {
+  const { ov } = zvEls();
+  if (!ZV.open) return;
+  ZV.open = false;
+  ov.classList.add('closing');
   document.removeEventListener('keydown', zoomKeyHandler);
-  if(overlay._touchStart) overlay.removeEventListener('touchstart', overlay._touchStart);
-  if(overlay._touchEnd) overlay.removeEventListener('touchend', overlay._touchEnd);
-  overlay._touchStart = null;
-  overlay._touchEnd = null;
+  setTimeout(() => {
+    ov.classList.remove('open', 'closing');
+    ov.setAttribute('aria-hidden', 'true');
+    zvEls().track.innerHTML = '';
+  }, 260);
 }
 
 function zoomKeyHandler(e) {
-  if(e.key==='Escape') closeImgZoom({target:document.getElementById('imgZoomOverlay')});
-  if(e.key==='ArrowRight') zoomNav(1);
-  if(e.key==='ArrowLeft') zoomNav(-1);
+  if (e.key === 'Escape') closeImgZoom();
+  if (e.key === 'ArrowRight') zoomNav(1);
+  if (e.key === 'ArrowLeft') zoomNav(-1);
 }
+
+(function initZoomGestures() {
+  const { stage, backdrop } = zvEls();
+  if (!stage) return;
+  backdrop.addEventListener('click', closeImgZoom);
+  stage.addEventListener('pointerdown', (e) => {
+    if (!ZV.open) return;
+    ZV.g = { x: e.clientX, y: e.clientY, t: performance.now(), axis: null, dx: 0, dy: 0, id: e.pointerId, px: ZV.panX, py: ZV.panY };
+    try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  stage.addEventListener('pointermove', (e) => {
+    const g = ZV.g;
+    if (!g || e.pointerId !== g.id) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (ZV.zoom > 1) { // kattalashtirilgan rasmni surish
+      ZV.panX = g.px + dx; ZV.panY = g.py + dy; g.axis = 'pan';
+      zvLayout(false);
+      return;
+    }
+    if (!g.axis && Math.hypot(dx, dy) > 8) g.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (g.axis === 'x') {
+      const atEdge = (ZV.idx === 0 && dx > 0) || (ZV.idx >= ZV.imgs.length - 1 && dx < 0);
+      g.dx = atEdge ? dx * 0.3 : dx;
+      zvLayout(false, g.dx, 0);
+    } else if (g.axis === 'y') {
+      g.dy = dy;
+      zvLayout(false, 0, dy);
+    }
+  });
+  const end = (e) => {
+    const g = ZV.g;
+    if (!g || e.pointerId !== g.id) return;
+    ZV.g = null;
+    const dt = Math.max(1, performance.now() - g.t);
+    if (g.axis === 'x') {
+      const W = window.innerWidth, v = g.dx / dt;
+      if (g.dx < -W * 0.18 || v < -0.45) zvGo(ZV.idx + 1);
+      else if (g.dx > W * 0.18 || v > 0.45) zvGo(ZV.idx - 1);
+      else zvLayout(true);
+    } else if (g.axis === 'y') {
+      if (Math.abs(g.dy) > 110 || Math.abs(g.dy / dt) > 0.6) {
+        const { track } = zvEls();
+        track.style.transition = 'transform .28s ease-in';
+        track.style.transform = `translate3d(${-ZV.idx * window.innerWidth}px, ${g.dy > 0 ? window.innerHeight : -window.innerHeight}px, 0)`;
+        closeImgZoom();
+      } else zvLayout(true);
+    } else if (!g.axis && e.type === 'pointerup') {
+      // Bosish: 2 marta — kattalashtirish; rasmdan tashqariga 1 marta — yopish
+      const now = performance.now();
+      if (now - ZV.lastTap < 300) {
+        ZV.lastTap = 0;
+        if (ZV.zoom > 1) { ZV.zoom = 1; ZV.panX = 0; ZV.panY = 0; }
+        else {
+          ZV.zoom = 2.4;
+          ZV.panX = (window.innerWidth / 2 - e.clientX) * 1.4;
+          ZV.panY = (window.innerHeight / 2 - e.clientY) * 1.4;
+        }
+        zvLayout(true);
+        clearTimeout(ZV.tapTimer);
+      } else {
+        ZV.lastTap = now;
+        const onImage = e.target.closest('img, .zv-emoji');
+        clearTimeout(ZV.tapTimer);
+        if (!onImage && ZV.zoom === 1) ZV.tapTimer = setTimeout(closeImgZoom, 300);
+      }
+    }
+  };
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', end);
+  window.addEventListener('resize', () => { if (ZV.open) zvLayout(false); });
+})();
 
 // ===== SVG ICONS FALLBACK =====
 const SVG_ICONS = {
