@@ -56,11 +56,22 @@ const CUSTOMER_DEBOUNCE_MS = 1500;
 const MAX_CHATS = 500;
 
 // ---------- Maxfiy ma'lumotlarni saqlash ----------
-// SESSION_SECRET berilgan bo'lsa, sessiya va AI kaliti shifrlanib bazada saqlanadi
-// (redeploy'dan keyin ham saqlanib qoladi). Aks holda faqat serverdagi lokal faylda.
+// Telegram sessiyasi va AI kaliti shifrlangan holda bazada saqlanadi, shuning uchun
+// redeploy'dan keyin ham o'chmaydi. Shifrlash kaliti:
+//  1) SESSION_SECRET (agar o'rnatilgan bo'lsa), aks holda
+//  2) Railway har bir servisga avtomatik beradigan o'zgarmas ID'lardan yasaladi
+//     (RAILWAY_PROJECT_ID / ENVIRONMENT_ID / SERVICE_ID) — ular bazada yo'q va tashqariga ochilmaydi.
+// Ikkalasi ham bo'lmasa (masalan, lokal kompyuterda) — faqat lokal faylda saqlanadi.
+function candidateKeys() {
+  const keys = [];
+  if (process.env.SESSION_SECRET) keys.push(process.env.SESSION_SECRET);
+  const rw = ['RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_SERVICE_ID'].map(k => process.env[k] || '');
+  if (rw.every(Boolean)) keys.push('railway:' + rw.join(':'));
+  return keys.map(k => crypto.createHash('sha256').update(k).digest());
+}
+
 function secretKey() {
-  const s = process.env.SESSION_SECRET;
-  return s ? crypto.createHash('sha256').update(s).digest() : null;
+  return candidateKeys()[0] || null;
 }
 
 function encrypt(text) {
@@ -72,11 +83,16 @@ function encrypt(text) {
 }
 
 function decrypt(b64) {
-  const key = secretKey();
   const raw = Buffer.from(b64, 'base64');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, raw.subarray(0, 12));
-  decipher.setAuthTag(raw.subarray(12, 28));
-  return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8');
+  // SESSION_SECRET keyin qo'shilgan bo'lsa ham eski (Railway ID bilan) yozuvni ocha olamiz
+  for (const key of candidateKeys()) {
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, raw.subarray(0, 12));
+      decipher.setAuthTag(raw.subarray(12, 28));
+      return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8');
+    } catch (e) { /* keyingi kalitni sinaymiz */ }
+  }
+  throw new Error('decrypt failed');
 }
 
 function readLocalSecrets() {
@@ -378,12 +394,9 @@ function createAssistant(deps) {
   // ----- Konfiguratsiya -----
   async function persist() {
     const toSave = { ...config };
-    if (secretKey()) {
-      toSave.secretsEnc = encrypt(JSON.stringify(secrets));
-    } else {
-      toSave.secretsEnc = null;
-      writeLocalSecrets(secrets);
-    }
+    // Lokal nusxa har doim (baza vaqtincha ishlamasa ham yo'qolmasin), bazaga esa faqat shifrlangan holda
+    writeLocalSecrets(secrets);
+    toSave.secretsEnc = secretKey() ? encrypt(JSON.stringify(secrets)) : null;
     config.secretsEnc = toSave.secretsEnc;
     await deps.saveConfig(toSave);
   }
@@ -398,8 +411,9 @@ function createAssistant(deps) {
       try {
         secrets = { ...secrets, ...JSON.parse(decrypt(saved.secretsEnc)) };
       } catch (e) {
-        lastError = "Saqlangan sessiyani ochib bo'lmadi (SESSION_SECRET o'zgarganmi?)";
+        lastError = "Saqlangan sessiyani ochib bo'lmadi (SESSION_SECRET o'zgarganmi?). Akkauntni qayta ulang.";
         console.error('Assistant:', lastError);
+        secrets = { ...secrets, ...readLocalSecrets() };
       }
     } else {
       secrets = { ...secrets, ...readLocalSecrets() };

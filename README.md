@@ -14,7 +14,7 @@ npm start
 | `BOT_TOKEN` | Telegram bot tokeni (admin panelda ham kiritish mumkin) |
 | `ADMIN_IDS` | Admin Telegram ID'lari, vergul bilan |
 | `APP_URL` | Mini App manzili |
-| `SESSION_SECRET` | **Tavsiya etiladi.** Yordamchi admin sessiyasi va AI kalitini shifrlab bazada saqlash uchun ixtiyoriy uzun maxfiy satr. Berilmasa, sessiya faqat serverdagi `.data/` papkasida saqlanadi va har deploy'da akkauntni qayta ulash kerak bo'ladi. |
+| `SESSION_SECRET` | Ixtiyoriy. Yordamchi sessiyasi va AI kalitini shifrlash uchun maxfiy satr. Railway'da shart emas — berilmasa, Railway'ning o'zgarmas loyiha ID'laridan foydalaniladi va ma'lumotlar baribir shifrlanib bazada saqlanadi (redeploy'da o'chmaydi). |
 | `GEMINI_API_KEY` | Ixtiyoriy. Bepul Google Gemini kaliti (admin panelda ham kiritish mumkin). |
 | `ANTHROPIC_API_KEY` | Ixtiyoriy. Anthropic Claude kaliti (pullik). |
 
