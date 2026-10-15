@@ -1069,31 +1069,25 @@ app.post('/api/admin/products', apiRateLimiter, verifyAdmin, validateAndSanitize
   const newProduct = req.sanitizedProduct;
   try {
     await mutateProducts(list => ({ list: [newProduct, ...list.filter(p => p.id !== newProduct.id)] }));
-    res.json({ success: true });
+    res.json({ success: true, product: newProduct });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Mahsulotni yangilash
-app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, validateAndSanitizeProduct, async (req, res) => {
-  const { id } = req.params;
-  const updatedProduct = { ...req.sanitizedProduct, id: Number(id) };
+// Mahsulotni yangilash — faqat yuborilgan maydonlar o'zgaradi (kategoriya, xususiyatlar va h.k. saqlanib qoladi)
+app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res) => {
   try {
-    const result = await mutateProducts(list => {
-      const idx = list.findIndex(p => String(p.id) === String(id));
-      if (idx === -1) return { list, result: false };
-      list[idx] = { ...list[idx], ...updatedProduct };
-      return { list, result: true };
-    });
-    if (result) res.json({ success: true });
-    else res.status(404).json({ error: "Mahsulot topilmadi" });
+    const data = { ...(req.body || {}) };
+    delete data.id;
+    const result = await updateProduct(req.params.id, data);
+    if (result.error) return res.status(result.error === "Mahsulot topilmadi" ? 404 : 400).json(result);
+    res.json({ success: true, product: result.product });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Mahsulotni o'chirish
 app.delete('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res) => {
   try {
     await deleteProduct(req.params.id);

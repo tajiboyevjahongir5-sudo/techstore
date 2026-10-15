@@ -5223,6 +5223,8 @@ function showTab(id) {
     const ids = ['home','cart','admin','profile'];
     btn.classList.toggle('active', ids[i]===id);
   });
+  // Admin panel ochilganda joriy bo'lim ma'lumotlarini yuklaymiz (aks holda "Yuklanmoqda..." da qolib ketadi)
+  if (id === 'admin' && adminUnlocked) refreshAdminTab();
   // detail actions fixed
   const actionsFixed = document.getElementById('detailActionsFixed');
   if(actionsFixed) actionsFixed.classList.toggle('visible', id==='detail');
@@ -6321,6 +6323,16 @@ function switchAdminTab(btn, tabId) {
   if(tabId==='adminAssistant') loadAssistantStatus(); else stopAssistantPolling();
 }
 
+function refreshAdminTab() {
+  const tabId = currentAdminTab || 'adminOrders';
+  if(tabId==='adminOrders') loadAdminOrders();
+  else if(tabId==='adminProducts') renderAdminProducts();
+  else if(tabId==='adminUsers') renderUsersList();
+  else if(tabId==='adminSettings') loadSettingsUI();
+  else if(tabId==='adminStats') loadAdminStats();
+  else if(tabId==='adminAssistant') loadAssistantStatus();
+}
+
 function renderAdminProducts() {
   const list = document.getElementById('adminProdList');
   if(products.length===0) {
@@ -6537,7 +6549,8 @@ async function saveProduct() {
       body: JSON.stringify(newProd)
     });
     if (res.ok) {
-      products.unshift(newProd);
+      const saved = (await res.json().catch(() => ({}))).product;
+      products.unshift(saved || newProd);
       newProdImages = [];
       closeAddModal();
       filterProducts();
@@ -6596,7 +6609,8 @@ async function saveEditProduct() {
       body: JSON.stringify(updatedProduct)
     });
     if (res.ok) {
-      Object.assign(p, updatedProduct);
+      const saved = (await res.json().catch(() => ({}))).product;
+      Object.assign(p, saved || updatedProduct);
       closeEditModal();
       filterProducts();
       renderAdminProducts();
@@ -6695,7 +6709,8 @@ async function loadAdminOrders() {
             <div class="status-badge ${statusClass}">${statusText}</div>
           </div>`;
         
-        row.onclick = () => openChek(uName, prodNames, total, 'Batafsil', o.status, o.userId, o.chekImg, null, null, o.orderNum);
+        const when = o.createdAt ? new Date(o.createdAt).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+        row.onclick = () => openChek(uName, prodNames, total, when, o.status, o.userId, o.chekImg, null, null, o.orderNum, { phone: o.phone, addr: o.addr });
         list.appendChild(row);
       });
     } else {
@@ -6707,7 +6722,14 @@ async function loadAdminOrders() {
 }
 
 // ===== ADMIN CHEK MODAL =====
-function openChek(name, prod, price, time, status, userId, chekImg, userUsername, userPhoto, orderId) {
+function decodeEntities(str) {
+  const t = document.createElement('textarea');
+  t.innerHTML = String(str ?? '');
+  return t.value;
+}
+
+function openChek(name, prod, price, time, status, userId, chekImg, userUsername, userPhoto, orderId, extra) {
+  name = decodeEntities(name);
   currentChekData = {name, prod, price, time, status, userId: userId||null, chekImg: chekImg||null, userUsername: userUsername||null, userPhoto: userPhoto||null, orderId: orderId || null};
 
   document.getElementById('chekModalTitle').textContent = name + ' buyurtmasi';
@@ -6722,6 +6744,7 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
   const actualImg = document.getElementById('chekActualImg');
   const placeholder = document.getElementById('chekImgPlaceholder');
   if(chekImg) {
+    actualImg.onerror = () => { actualImg.style.display='none'; placeholder.style.display='flex'; };
     actualImg.src = chekImg; actualImg.style.display='block'; placeholder.style.display='none';
   } else {
     actualImg.style.display='none'; placeholder.style.display='flex';
@@ -6731,7 +6754,10 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
     (status==='done' || status==='confirmed' || status==='paid') ? '<span class="status-badge status-done">Tasdiqlandi</span>':
     '<span class="status-badge status-proc">Rad etildi</span>';
   document.getElementById('chekInfo').innerHTML=`
-    <div class="chek-row"><span>Mahsulot</span><span>${prod}</span></div>
+    ${orderId ? `<div class="chek-row"><span>Buyurtma</span><span>${escHtml(decodeEntities(orderId))}</span></div>` : ''}
+    <div class="chek-row"><span>Mahsulot</span><span>${escHtml(decodeEntities(prod))}</span></div>
+    ${extra?.phone ? `<div class="chek-row"><span>Telefon</span><span><a href="tel:${escHtml(decodeEntities(extra.phone).replace(/[^+\d]/g, ''))}" style="color:var(--accent)">${escHtml(decodeEntities(extra.phone))}</a></span></div>` : ''}
+    ${extra?.addr ? `<div class="chek-row"><span>Manzil</span><span>${escHtml(decodeEntities(extra.addr))}</span></div>` : ''}
     <div class="chek-row"><span>Summa</span><span style="color:var(--accent);font-weight:700">${typeof price==='number'?price.toLocaleString('uz'):price} so'm</span></div>
     <div class="chek-row"><span>Vaqt</span><span>${time}</span></div>
     <div class="chek-row"><span>Holat</span><span>${statusHtml}</span></div>`;
