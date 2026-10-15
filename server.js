@@ -675,7 +675,7 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 
 // Server fayllari va maxfiy ma'lumotlar statik tarzda berilmasin
-const PRIVATE_FILES = new Set(['/server.js', '/assistant.js', '/bot-features.js', '/db.json', '/package.json', '/package-lock.json']);
+const PRIVATE_FILES = new Set(['/server.js', '/assistant.js', '/bot-features.js', '/cutout.js', '/cutout-worker.js', '/db.json', '/package.json', '/package-lock.json']);
 app.use((req, res, next) => {
   if (PRIVATE_FILES.has(req.path) || req.path.startsWith('/.') || req.path.startsWith('/node_modules')) {
     return res.status(404).end();
@@ -987,6 +987,8 @@ function publicProduct(p, now = Date.now(), ratings = null) {
   if (out.discountUntil && out.discountUntil <= now && out.discount > 0) { out.discount = 0; out.discountUntil = null; }
   const imgs = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
   out.images = imgs.map((src, i) => isDataImg(src) ? imgUrl(p.id, i, src, 1080) : src);
+  const ck = cutoutKey(p);
+  out.cutout = ck ? `/api/cutout/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
   const first = imgs[0];
   out.image = first ? (isDataImg(first) ? imgUrl(p.id, 0, first, 480) : first) : (isDataImg(p.image) ? null : p.image || null);
   return out;
@@ -1058,6 +1060,98 @@ app.get('/api/img-proxy', async (req, res) => {
     res.status(502).end();
   }
 });
+
+// ===== BANNER UCHUN "3D" KO'RINISH: mahsulot suratining foni AI bilan olib tashlanadi =====
+// Natija diskda keshlanadi (bir mahsulot rasmi uchun bir marta hisoblanadi).
+const CUTOUT_DIR = path.join(VOLUME_DIR || path.join(__dirname, 'data'), 'cutouts');
+const cutoutJobs = new Map();
+function cutoutKey(p) {
+  const imgs = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+  const src = imgs[0];
+  if (!src) return null;
+  return { src, key: `${p.id}_${crypto.createHash('sha1').update(String(src).slice(0, 4096)).update(String(src.length)).digest('hex').slice(0, 12)}` };
+}
+async function loadImageSource(src) {
+  const m = String(src).match(/^data:image\/[a-z+]+;base64,(.+)$/i);
+  if (m) return Buffer.from(m[1], 'base64');
+  if (!/^https:\/\//i.test(src)) throw new Error('rasm manzili yaroqsiz');
+  const r = await fetch(src, { headers: { 'User-Agent': 'Mozilla/5.0 (TechStore)', Accept: 'image/*' }, signal: AbortSignal.timeout(20000) });
+  if (!r.ok || !String(r.headers.get('content-type') || '').startsWith('image/')) throw new Error('rasm yuklanmadi: ' + r.status);
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.length > 12e6) throw new Error('rasm juda katta');
+  return buf;
+}
+function runCutoutWorker(buf) {
+  return new Promise((resolve, reject) => {
+    const child = require('child_process').spawn(process.execPath, [path.join(__dirname, 'cutout-worker.js')], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const out = [], err = [];
+    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('vaqt tugadi')); }, 90000);
+    child.stdout.on('data', d => out.push(d));
+    child.stderr.on('data', d => err.push(d));
+    child.on('error', e => { clearTimeout(timer); reject(e); });
+    child.on('close', code => {
+      clearTimeout(timer);
+      let info = {};
+      try { info = JSON.parse(Buffer.concat(err).toString().trim().split('\n').pop() || '{}'); } catch (_) {}
+      if (code === 0 && out.length) resolve({ buffer: Buffer.concat(out), coverage: info.coverage });
+      else reject(new Error(info.error || 'ishlov berib bo\'lmadi'));
+    });
+    child.stdin.on('error', () => {});
+    child.stdin.end(buf);
+  });
+}
+async function getCutout(p) {
+  const k = cutoutKey(p);
+  if (!k) return null;
+  const file = path.join(CUTOUT_DIR, k.key + '.webp');
+  const failFile = path.join(CUTOUT_DIR, k.key + '.fail');
+  if (fs.existsSync(file)) return fs.readFileSync(file);
+  if (fs.existsSync(failFile) && Date.now() - fs.statSync(failFile).mtimeMs < 6 * 3600e3) return null;
+  if (!cutoutJobs.has(k.key)) {
+    // Bir vaqtda bitta ish (CPU va xotira tejaladi)
+    const prev = [...cutoutJobs.values()].pop() || Promise.resolve();
+    const job = prev.catch(() => {}).then(async () => {
+      try {
+        const r = await runCutoutWorker(await loadImageSource(k.src));
+        // Mahsulot deyarli butun rasmni egallasa yoki juda kichik bo'lsa — fonsiz ko'rinish chiqmaydi
+        if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) throw new Error('mahsulot aniq ajralmadi');
+        fs.mkdirSync(CUTOUT_DIR, { recursive: true });
+        fs.writeFileSync(file, r.buffer);
+        return r.buffer;
+      } catch (e) {
+        console.warn(`🖼 Fonsiz rasm (${p.id}) tayyorlanmadi:`, e.message);
+        try { fs.mkdirSync(CUTOUT_DIR, { recursive: true }); fs.writeFileSync(failFile, e.message); } catch (_) {}
+        return null;
+      } finally {
+        cutoutJobs.delete(k.key);
+      }
+    });
+    cutoutJobs.set(k.key, job);
+  }
+  return cutoutJobs.get(k.key);
+}
+
+app.get('/api/cutout/:pid', async (req, res) => {
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
+    if (!p) return res.status(404).end();
+    const buf = await getCutout(p);
+    if (!buf) return res.status(404).end();
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    res.end(buf);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
+// Server ishga tushganda banner mahsulotlari uchun oldindan tayyorlab qo'yamiz
+async function prewarmCutouts() {
+  try {
+    const list = (await getProducts()).filter(Boolean);
+    for (const p of list) { await getCutout(p).catch(() => {}); }
+  } catch (_) {}
+}
 
 app.get('/api/img/:pid/:idx', async (req, res) => {
   try {
@@ -2284,6 +2378,7 @@ app.listen(PORT, async () => {
   await assistant.init();
   setTimeout(sweepConfirmedOrders, 20000);
   setInterval(sweepConfirmedOrders, 60000);
+  setTimeout(prewarmCutouts, 30000);
   botFeatures.startSchedulers();
   
   console.log(`👑 Admin IDs: ${ADMIN_IDS.join(', ') || 'belgilanmagan'}`);

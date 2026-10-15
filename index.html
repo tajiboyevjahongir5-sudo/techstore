@@ -9181,7 +9181,8 @@ function buildSlides() {
     // Robust image loader — prefer bannerImage (transparent PNG) for slider
     // Navbat: banner rasmi (server orqali) → asl banner → mahsulot rasmi → emoji
     const viaProxy = (u) => /^https:\/\//.test(u || '') ? `/api/img-proxy?w=700&u=${encodeURIComponent(u)}` : u;
-    const candidates = [...new Set([p.bannerImage && viaProxy(p.bannerImage), p.bannerImage, (p.images && p.images[0]) || p.image].filter(Boolean))];
+    // Navbat: tayyor banner (shaffof PNG) → AI bilan fonsizlashtirilgan mahsulot surati → oddiy surat → emoji
+    const candidates = [...new Set([p.bannerImage && viaProxy(p.bannerImage), p.bannerImage, p.cutout, (p.images && p.images[0]) || p.image].filter(Boolean))];
     const slideImgSrc = candidates[0];
     const imgHtml = slideImgSrc
       ? `<div class="slide-img">
