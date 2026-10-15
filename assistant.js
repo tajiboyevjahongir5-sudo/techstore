@@ -424,6 +424,8 @@ function createAssistant(deps) {
     replyToCustomers: true,
     voiceReplies: true,      // ovozli xabarga ovozli xabar bilan javob
     voiceGender: 'female',   // 'female' (Madina) yoki 'male' (Sardor)
+    voiceLimit: 5,           // har bir xaridorga nechta ovozli javob (0 = cheklovsiz); adminga cheklov yo'q
+    voiceUsage: {},          // { userId: yuborilgan ovozli javoblar soni }
     provider: DEFAULT_PROVIDER,
     model: PROVIDERS[DEFAULT_PROVIDER].defaultModel,
     customBaseUrl: '',
@@ -673,6 +675,7 @@ function createAssistant(deps) {
     if (typeof body.replyToCustomers === 'boolean') config.replyToCustomers = body.replyToCustomers;
     if (typeof body.voiceReplies === 'boolean') config.voiceReplies = body.voiceReplies;
     if (body.voiceGender === 'female' || body.voiceGender === 'male') config.voiceGender = body.voiceGender;
+    if (body.voiceLimit !== undefined && Number.isFinite(Number(body.voiceLimit))) config.voiceLimit = Math.max(0, Math.min(1000, Math.round(Number(body.voiceLimit))));
     if (body.provider && PROVIDERS[body.provider] && body.provider !== config.provider) {
       config.provider = body.provider;
       config.model = PROVIDERS[body.provider].defaultModel;
@@ -721,6 +724,7 @@ function createAssistant(deps) {
       replyToCustomers: config.replyToCustomers,
       voiceReplies: config.voiceReplies !== false,
       voiceGender: config.voiceGender || 'female',
+      voiceLimit: config.voiceLimit ?? 5,
       voiceAvailable: !!(MsEdgeTTS || FFMPEG_PATH),
       voiceLastOk: voiceState.lastOk,
       voiceLastError: voiceState.lastError,
@@ -923,7 +927,7 @@ function createAssistant(deps) {
         if (r.text) {
           const text = chat.role === 'customer' ? r.text.slice(0, 2000) : r.text;
           blocks.push({ type: 'text', text: `[Ovozli xabar — matni]: ${text}` });
-          if (config.voiceReplies !== false && (MsEdgeTTS || FFMPEG_PATH)) {
+          if (canVoice(chat)) {
             chat.replyByVoice = true;
             blocks.push({ type: 'text', text: chat.role === 'admin'
               ? "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — qisqa, kerakli raqamlarni gap ichida ayt; emoji, ro'yxat, qavs va belgilar ishlatma.]"
@@ -934,7 +938,7 @@ function createAssistant(deps) {
         } else {
           console.warn(`🤖 Assistant: ovozli xabarni matnga aylantirib bo'lmadi (${chat.name}): ${r.error}`);
           voiceState.lastError = { at: Date.now(), message: `Ovozni tinglab bo'lmadi: ${r.error}` };
-          if (config.voiceReplies !== false && (MsEdgeTTS || FFMPEG_PATH)) chat.replyByVoice = true;
+          if (canVoice(chat)) chat.replyByVoice = true;
           const why = r.error === 'too_long' ? "juda uzun (10 daqiqadan oshgan)"
             : r.error === 'empty' ? "tushunarli nutq eshitilmadi"
             : r.error === 'no_key' ? "ovozni tinglash sozlanmagan"
@@ -952,7 +956,7 @@ function createAssistant(deps) {
         if (chat.role === 'customer') text = text.slice(0, 2000);
         blocks.push({ type: 'text', text });
         // Yozma xabarda ovoz bilan javob so'ralsa ("golosda ayt", "ovozli yubor", "голосом")
-        if (config.voiceReplies !== false && (MsEdgeTTS || FFMPEG_PATH)
+        if (canVoice(chat)
           && /(golos|голос|ovozl|ovozda|ovoz bilan|ovoz yubor|ovozingni|voice)/i.test(text) && text.length < 200) {
           chat.replyByVoice = true;
           blocks.push({ type: 'text', text: "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — 1-2 qisqa jumla, emojisiz.]" });
@@ -1739,6 +1743,23 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
 
   // Ovozli javob yuborish; muvaffaqiyatsiz bo'lsa false (unda matn yuboriladi)
   const voiceState = { lastOk: null, lastError: null };
+
+  // Ovozli javob berish mumkinmi: admin — cheklovsiz, xaridor — voiceLimit tagacha (keyin matn)
+  function canVoice(chat) {
+    if (config.voiceReplies === false || !(MsEdgeTTS || FFMPEG_PATH)) return false;
+    if (chat.role === 'admin') return true;
+    const limit = config.voiceLimit ?? 5;
+    return limit === 0 || ((config.voiceUsage || {})[chat.id] || 0) < limit;
+  }
+
+  function countVoiceReply(chat) {
+    if (chat.role === 'admin') return;
+    if (!config.voiceUsage || typeof config.voiceUsage !== 'object') config.voiceUsage = {};
+    config.voiceUsage[chat.id] = (config.voiceUsage[chat.id] || 0) + 1;
+    const ids = Object.keys(config.voiceUsage);
+    if (ids.length > 5000) delete config.voiceUsage[ids[0]];
+    persist().catch(e => console.warn('🤖 Assistant: ovoz hisobini saqlab bo\'lmadi:', e.message));
+  }
   async function sendVoiceReply(chat, reply) {
     const setRec = () => client.invoke(new Api.messages.SetTyping({ peer: chat.peer, action: new Api.SendMessageRecordAudioAction() })).catch(() => {});
     setRec();
@@ -1776,6 +1797,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       const links = (String(reply).match(/@\w{4,}|https?:\/\/\S+/g) || []);
       if (links.length) await client.sendMessage(chat.peer, { message: [...new Set(links)].join('\n'), parseMode: false });
       stats.voiceReplies = (stats.voiceReplies || 0) + 1;
+      countVoiceReply(chat);
       voiceState.lastOk = { at: Date.now(), engine: v.engine };
       return true;
     } catch (e) {
@@ -1845,7 +1867,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       chat.replyByVoice = false;
       if (/^\s*\[OVOZ\]/i.test(reply)) {
         reply = reply.replace(/^\s*\[OVOZ\]\s*/i, '');
-        if (config.voiceReplies !== false) byVoice = true;
+        if (canVoice(chat)) byVoice = true;
       }
       reply = reply.replace(/\[OVOZ\]\s*/gi, '');
       if (!(byVoice && await sendVoiceReply(chat, reply))) await sendHumanlike(chat, reply);

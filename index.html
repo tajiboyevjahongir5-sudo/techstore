@@ -4259,6 +4259,9 @@ body.modal-open {
               <option value="female">Madina (ayol ovozi)</option>
               <option value="male">Sardor (erkak ovozi)</option>
             </select>
+            <label class="form-label" style="margin-top:12px">Har bir xaridorga ovozli javoblar soni</label>
+            <input class="form-input" id="asVoiceLimit" type="number" inputmode="numeric" min="0" max="1000" onchange="saveAssistantToggles()">
+            <div class="as-hint">Shundan keyin xaridorga matn bilan javob beriladi. 0 — cheklovsiz. Adminga cheklov yo'q.</div>
             <div class="as-hint" id="asVoiceHint"></div>
           </div>
           <button class="settings-save-btn as-btn-danger" onclick="disconnectAssistant()"><i class="ti ti-logout"></i> Akkauntni uzish</button>
@@ -8597,6 +8600,7 @@ function renderAssistantStatus(st) {
     document.getElementById('asVoiceReplies').checked = st.voiceReplies !== false && st.voiceAvailable !== false;
     document.getElementById('asVoiceReplies').disabled = st.voiceAvailable === false;
     document.getElementById('asVoiceGender').value = st.voiceGender || 'female';
+    if (document.activeElement?.id !== 'asVoiceLimit') document.getElementById('asVoiceLimit').value = st.voiceLimit ?? 5;
     document.getElementById('asVoiceGenderRow').style.display = document.getElementById('asVoiceReplies').checked ? '' : 'none';
     const vh = document.getElementById('asVoiceHint');
     const vErr = st.voiceLastError, vOk = st.voiceLastOk;
@@ -8738,7 +8742,8 @@ async function saveAssistantToggles() {
       enabled: document.getElementById('asEnabled').checked,
       replyToCustomers: document.getElementById('asReplyCustomers').checked,
       voiceReplies: document.getElementById('asVoiceReplies').checked,
-      voiceGender: document.getElementById('asVoiceGender').value
+      voiceGender: document.getElementById('asVoiceGender').value,
+      voiceLimit: Number(document.getElementById('asVoiceLimit').value || 0)
     });
     renderAssistantStatus(data.status);
     showToast('Saqlandi', '✓', 'var(--green)');
