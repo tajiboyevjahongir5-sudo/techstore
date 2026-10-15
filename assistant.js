@@ -721,7 +721,9 @@ function createAssistant(deps) {
       replyToCustomers: config.replyToCustomers,
       voiceReplies: config.voiceReplies !== false,
       voiceGender: config.voiceGender || 'female',
-      voiceAvailable: !!MsEdgeTTS,
+      voiceAvailable: !!(MsEdgeTTS || FFMPEG_PATH),
+      voiceLastOk: voiceState.lastOk,
+      voiceLastError: voiceState.lastError,
       model: config.model,
       provider: config.provider,
       providers: Object.fromEntries(Object.entries(PROVIDERS).map(([k, v]) => [k, { label: v.label, defaultModel: v.defaultModel, envKey: v.envKey, hasKey: !!aiKeyFor(k) }])),
@@ -921,7 +923,7 @@ function createAssistant(deps) {
         if (r.text) {
           const text = chat.role === 'customer' ? r.text.slice(0, 2000) : r.text;
           blocks.push({ type: 'text', text: `[Ovozli xabar — matni]: ${text}` });
-          if (config.voiceReplies !== false && MsEdgeTTS) {
+          if (config.voiceReplies !== false && (MsEdgeTTS || FFMPEG_PATH)) {
             chat.replyByVoice = true;
             blocks.push({ type: 'text', text: chat.role === 'admin'
               ? "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — qisqa, kerakli raqamlarni gap ichida ayt; emoji, ro'yxat, qavs va belgilar ishlatma.]"
@@ -981,7 +983,8 @@ Savol: "Kamerasi qanaqa?" → "200MP asosiy kamera, kechasi ham juda tiniq oladi
 Savol: "Rahmat" → "Arzimaydi! 😊"
 Suhbatdosh qaysi tilda yozsa (o'zbek, rus, ingliz) o'sha tilda javob ber. Narxlarni "18 500 000 so'm" ko'rinishida yoz.
 Foydalanuvchi ovozli xabar yuborsa, sen uning matnini "[Ovozli xabar — matni]: ..." ko'rinishida olasan — xuddi yozma xabardek tushunib, odatdagidek javob ber (matnni qayta takrorlama).
-Mahsulotning "price" maydoni — xaridor to'laydigan haqiqiy narx. Chegirma bo'lsa, "old_price_before_discount" — chizilgan eski narx (masalan: "21 764 706 so'm emas, atigi 18 500 000 so'm — 15% chegirma").
+${config.voiceReplies !== false ? `Sen ovozli xabarlarni tushunasan va ovozli xabar bilan javob bera olasan ("ovozli xabarni tushunmayman" yoki "ovoz yubora olmayman" dema!). Ovozli xabarga javobing avtomatik ovoz bo'lib ketadi. Agar foydalanuvchi YOZMA xabarda ovoz bilan javob so'rasa ("golosda ayt", "ovozli yubor", "голосом"), javobingni [OVOZ] belgisi bilan boshla — u ovozli xabar bo'lib yuboriladi (belgining o'zi ko'rinmaydi). Bunday javobni og'zaki uslubda, emojisiz yoz.
+` : ''}Mahsulotning "price" maydoni — xaridor to'laydigan haqiqiy narx. Chegirma bo'lsa, "old_price_before_discount" — chizilgan eski narx (masalan: "21 764 706 so'm emas, atigi 18 500 000 so'm — 15% chegirma").
 
 ${shopLines}`;
 
@@ -1619,21 +1622,81 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   }
 
   function mp3ToOgg(mp3) {
+    return ffmpegConvert(['-i', 'pipe:0'], mp3);
+  }
+
+  function ffmpegConvert(inputArgs, data) {
     return new Promise((resolve, reject) => {
       if (!FFMPEG_PATH) return reject(new Error('ffmpeg yo\'q'));
-      const ff = spawn(FFMPEG_PATH, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '40k', '-application', 'voip', '-f', 'ogg', 'pipe:1']);
+      const ff = spawn(FFMPEG_PATH, ['-hide_banner', '-loglevel', 'error', ...inputArgs, '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '40k', '-application', 'voip', '-f', 'ogg', 'pipe:1']);
       const out = [];
       ff.stdout.on('data', d => out.push(d));
       ff.on('error', reject);
       ff.on('close', code => code === 0 && out.length ? resolve(Buffer.concat(out)) : reject(new Error('ffmpeg ' + code)));
       ff.stdin.on('error', () => {});
-      ff.stdin.end(mp3);
+      ff.stdin.end(data);
     });
+  }
+
+  const GEMINI_TTS_MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts'];
+  const GEMINI_TTS_VOICES = { female: 'Aoede', male: 'Puck' };
+
+  function pcmToOgg(pcm) {
+    return ffmpegConvert(['-f', 's16le', '-ar', '24000', '-ac', '1', '-i', 'pipe:0'], pcm);
+  }
+
+  // Google Gemini TTS (zaxira): juda tabiiy ovoz, xuddi shu Gemini kaliti bilan ishlaydi
+  async function synthesizeGemini(speech) {
+    const key = aiKeyFor('gemini');
+    if (!key) throw new Error('Gemini kaliti yo\'q');
+    const lang = detectLang(speech);
+    const style = lang === 'ru' ? 'Скажи тепло и естественно, как живой консультант магазина:'
+      : lang === 'en' ? 'Say warmly and naturally, like a friendly shop assistant:'
+      : "Quyidagini o'zbek tilida, iliq va tabiiy ohangda, do'kon maslahatchisidek ayt:";
+    let lastErr = null;
+    for (const model of GEMINI_TTS_MODELS) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `${style}\n${speech.slice(0, 1500)}` }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICES[config.voiceGender === 'male' ? 'male' : 'female'] } } },
+            },
+          }),
+          signal: AbortSignal.timeout(40000),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { lastErr = new Error(`${model} ${res.status} ${(data?.error?.message || '').slice(0, 100)}`); continue; }
+        const b64 = (data.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data)?.inlineData.data;
+        if (!b64) { lastErr = new Error(`${model}: audio qaytmadi`); continue; }
+        const pcm = Buffer.from(b64, 'base64');
+        return { buffer: await pcmToOgg(pcm), name: 'voice.ogg', duration: Math.max(1, Math.round(pcm.length / 48000)), engine: 'gemini' };
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('Gemini TTS ishlamadi');
   }
 
   async function synthesizeVoice(text) {
     const speech = textForSpeech(text);
-    if (!MsEdgeTTS || speech.length < 2) return null;
+    if (speech.length < 2) return null;
+    const errors = [];
+    if (MsEdgeTTS) {
+      try { return await synthesizeEdge(speech); }
+      catch (e) { errors.push('Microsoft: ' + e.message); console.warn('🤖 Assistant: Microsoft ovozi ishlamadi:', e.message); }
+    }
+    if (FFMPEG_PATH && aiKeyFor('gemini')) {
+      try { return await synthesizeGemini(speech); }
+      catch (e) { errors.push('Gemini: ' + e.message); console.warn('🤖 Assistant: Gemini ovozi ishlamadi:', e.message); }
+    }
+    throw new Error(errors.join(' | ') || 'Ovoz yaratish imkoni yo\'q');
+  }
+
+  async function synthesizeEdge(speech) {
     const lang = detectLang(speech);
     const voice = (TTS_VOICES[lang] || TTS_VOICES.uz)[config.voiceGender === 'male' ? 'male' : 'female'];
     const tts = new MsEdgeTTS();
@@ -1652,10 +1715,10 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       if (mp3.length < 1000) throw new Error('bo\'sh audio');
       const duration = Math.max(1, Math.round(mp3.length / 12000)); // 96 kbit/s
       try {
-        return { buffer: await mp3ToOgg(mp3), name: 'voice.ogg', duration };
+        return { buffer: await mp3ToOgg(mp3), name: 'voice.ogg', duration, engine: 'microsoft' };
       } catch (e) {
         console.warn('🤖 Assistant: OGG ga aylantirib bo\'lmadi, MP3 yuboriladi:', e.message);
-        return { buffer: mp3, name: 'voice.mp3', duration };
+        return { buffer: mp3, name: 'voice.mp3', duration, engine: 'microsoft' };
       }
     } finally {
       try { tts.close(); } catch (_) {}
@@ -1663,6 +1726,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   }
 
   // Ovozli javob yuborish; muvaffaqiyatsiz bo'lsa false (unda matn yuboriladi)
+  const voiceState = { lastOk: null, lastError: null };
   async function sendVoiceReply(chat, reply) {
     const setRec = () => client.invoke(new Api.messages.SetTyping({ peer: chat.peer, action: new Api.SendMessageRecordAudioAction() })).catch(() => {});
     setRec();
@@ -1679,9 +1743,12 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       const links = (String(reply).match(/@\w{4,}|https?:\/\/\S+/g) || []);
       if (links.length) await client.sendMessage(chat.peer, { message: [...new Set(links)].join('\n'), parseMode: false });
       stats.voiceReplies = (stats.voiceReplies || 0) + 1;
+      voiceState.lastOk = { at: Date.now(), engine: v.engine };
       return true;
     } catch (e) {
       console.warn('🤖 Assistant: ovozli javobda xato, matn yuboriladi:', e.message);
+      voiceState.lastError = { at: Date.now(), message: String(e.message).slice(0, 300) };
+      log(`Ovozli javob yuborilmadi: ${String(e.message).slice(0, 120)}`);
       return false;
     } finally {
       clearInterval(recTimer);
@@ -1741,8 +1808,13 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         // AI bo'sh javob qaytardi — jim qolmaymiz
         reply = chat.role === 'admin' ? "⚠️ AI bo'sh javob qaytardi. Iltimos, savolni boshqacharoq yozing yoki panelda boshqa model tanlang." : 'Kechirasiz, savolingizni biroz aniqroq yozib bera olasizmi? 🙂';
       }
-      const byVoice = chat.replyByVoice;
+      let byVoice = chat.replyByVoice;
       chat.replyByVoice = false;
+      if (/^\s*\[OVOZ\]/i.test(reply)) {
+        reply = reply.replace(/^\s*\[OVOZ\]\s*/i, '');
+        if (config.voiceReplies !== false) byVoice = true;
+      }
+      reply = reply.replace(/\[OVOZ\]\s*/gi, '');
       if (!(byVoice && await sendVoiceReply(chat, reply))) await sendHumanlike(chat, reply);
 
       chat.aiRetries = 0;

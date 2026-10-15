@@ -4259,6 +4259,7 @@ body.modal-open {
               <option value="female">Madina (ayol ovozi)</option>
               <option value="male">Sardor (erkak ovozi)</option>
             </select>
+            <div class="as-hint" id="asVoiceHint"></div>
           </div>
           <button class="settings-save-btn as-btn-danger" onclick="disconnectAssistant()"><i class="ti ti-logout"></i> Akkauntni uzish</button>
         </div>
@@ -8597,6 +8598,13 @@ function renderAssistantStatus(st) {
     document.getElementById('asVoiceReplies').disabled = st.voiceAvailable === false;
     document.getElementById('asVoiceGender').value = st.voiceGender || 'female';
     document.getElementById('asVoiceGenderRow').style.display = document.getElementById('asVoiceReplies').checked ? '' : 'none';
+    const vh = document.getElementById('asVoiceHint');
+    const vErr = st.voiceLastError, vOk = st.voiceLastOk;
+    const fmtT = t => new Date(t).toLocaleString('uz-UZ', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    vh.innerHTML = vErr && (!vOk || vErr.at > vOk.at)
+      ? `⚠️ Oxirgi ovozli javob yuborilmadi (${fmtT(vErr.at)}): <b>${escHtml(vErr.message)}</b>`
+      : vOk ? `✅ Oxirgi ovozli javob: ${fmtT(vOk.at)} (${vOk.engine === 'gemini' ? 'Google Gemini ovozi' : 'Microsoft ovozi'})`
+      : 'Hali ovozli javob yuborilmagan';
   } else {
     if (st.state === 'awaiting_password') assistantStep(3);
     else if (st.state === 'awaiting_code') assistantStep(2);
