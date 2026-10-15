@@ -1367,7 +1367,12 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: .2px;
+  line-height: 1.3;
   background: rgba(107, 127, 255, 0.06);
   border: 1px solid rgba(107, 127, 255, 0.15);
   padding: 6px 14px;
@@ -2553,6 +2558,11 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .stock-low { background: linear-gradient(135deg, #ff7a45, #ff3d6e); color: #fff; box-shadow: 0 4px 10px rgba(255,61,110,0.35); }
 .prod-card.is-out .prod-img img, .prod-card.is-out .prod-img { filter: grayscale(.85); }
 .prod-card.is-out .add-btn { opacity: .35; }
+input[type="datetime-local"].form-input { min-width: 0; width: 100%; font-size: 14px; color-scheme: dark; }
+.form-row .form-group { min-width: 0; }
+.form-row .form-input { min-width: 0; width: 100%; }
+.cart-item-price { white-space: nowrap; }
+#profile { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
 .detail-add-btn.is-out { filter: grayscale(1); opacity: .6; }
 .pd-stock { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 10px; margin: -6px 0 14px; }
 .pd-stock.out { background: rgba(245,91,91,0.12); color: var(--red); }
@@ -2575,6 +2585,9 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .fs-range span { color: var(--text3); }
 #filterModal .as-toggle-row { margin-top: 10px; }
 #filterModal .settings-save-btn { margin-top: 16px; }
+.ao-filter { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -20px 12px; padding: 2px 20px 4px; }
+.ao-filter::-webkit-scrollbar { display: none; }
+.ao-filter .fs-chip { flex-shrink: 0; height: 32px; font-size: 12px; }
 .pay-intro { font-size: 12.5px; color: var(--text2); line-height: 1.55; margin-bottom: 12px; }
 .pay-intro b { color: var(--text); }
 .pay-way { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.06); }
@@ -4302,7 +4315,14 @@ body.modal-open {
       <div id="adminOrders">
         <div class="section-head" style="padding:0 0 10px">
           <div class="section-title" style="font-size:14px">Buyurtmalar — Cheklar</div>
-          <div class="see-all">Barchasi</div>
+          <div class="see-all" id="adminOrdersCount"></div>
+        </div>
+        <div class="fs-chips ao-filter" id="adminOrderFilter">
+          <button class="fs-chip on" data-f="all" onclick="setAdminOrderFilter('all')">Barchasi</button>
+          <button class="fs-chip" data-f="pending" onclick="setAdminOrderFilter('pending')">⏳ Kutilmoqda</button>
+          <button class="fs-chip" data-f="confirmed" onclick="setAdminOrderFilter('confirmed')">📦 Jo'natish kerak</button>
+          <button class="fs-chip" data-f="shipped" onclick="setAdminOrderFilter('shipped')">🚚 Yo'lda</button>
+          <button class="fs-chip" data-f="done" onclick="setAdminOrderFilter('done')">✅ Yetib bordi</button>
         </div>
         <div class="orders-list" id="adminOrdersList">
           <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px">
@@ -4741,7 +4761,7 @@ body.modal-open {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">
         <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="showOrdersHistory()"><div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileOrderCount">0</div><div style="font-size:10px;color:var(--text2)">Buyurtma</div></div>
         <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="showFavorites()"><div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileFavCount">0</div><div style="font-size:10px;color:var(--text2)">Sevimli</div></div>
-        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;backdrop-filter:var(--blur)"><div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">4.9</div><div style="font-size:10px;color:var(--text2)">Reyting</div></div>
+        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="openReferral()"><div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileRefCount">0</div><div style="font-size:10px;color:var(--text2)">Do'stlar</div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div class="profile-menu-item" onclick="showOrdersHistory()">
@@ -4906,10 +4926,8 @@ body.modal-open {
         <div class="form-group"><label class="form-label"><i class="ti ti-coin" style="color:var(--accent);margin-right:6px"></i>Narx (so'm)</label><input class="form-input" type="number" id="editPrice"></div>
         <div class="form-group"><label class="form-label"><i class="ti ti-discount-2" style="color:var(--accent);margin-right:6px"></i>Chegirma (%)</label><input class="form-input" type="number" id="editDiscount" min="0" max="99"></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label"><i class="ti ti-package" style="color:var(--accent);margin-right:6px"></i>Omborda (dona)</label><input class="form-input" type="number" min="0" placeholder="cheklanmagan" id="editStock"></div>
-        <div class="form-group"><label class="form-label"><i class="ti ti-clock" style="color:var(--accent);margin-right:6px"></i>Chegirma tugashi</label><input class="form-input" type="datetime-local" id="editDiscUntil"></div>
-      </div>
+      <div class="form-group"><label class="form-label"><i class="ti ti-package" style="color:var(--accent);margin-right:6px"></i>Omborda (dona)</label><input class="form-input" type="number" min="0" placeholder="bo'sh — cheklanmagan" id="editStock"></div>
+      <div class="form-group"><label class="form-label"><i class="ti ti-clock" style="color:var(--accent);margin-right:6px"></i>Chegirma tugash vaqti (ixtiyoriy)</label><input class="form-input" type="datetime-local" id="editDiscUntil"></div>
       <div class="form-group"><label class="form-label"><i class="ti ti-file-description" style="color:var(--accent);margin-right:6px"></i>Tavsif</label><input class="form-input" id="editDesc"></div>
       <div class="form-group">
         <label class="form-label"><i class="ti ti-photo" style="color:var(--accent);margin-right:6px"></i>Rasmlar (max 5 ta)</label>
@@ -5611,6 +5629,7 @@ function showTab(id) {
     const ids = ['home','cart','admin','profile'];
     btn.classList.toggle('active', ids[i]===id);
   });
+  if (id === 'profile') refreshProfileStats();
   // Admin panel ochilganda joriy bo'lim ma'lumotlarini yuklaymiz (aks holda "Yuklanmoqda..." da qolib ketadi)
   if (id === 'admin' && adminUnlocked) refreshAdminTab();
   // detail actions fixed
@@ -7009,8 +7028,26 @@ function showFavorites() {
 
 // ===== PROFILE COUNTS =====
 function updateProfileCounts() {
-  document.getElementById('profileOrderCount').textContent = orders.length;
+  document.getElementById('profileOrderCount').textContent = myOrdersCache.length || orders.length;
   document.getElementById('profileFavCount').textContent = favorites.size;
+}
+
+// Profil: buyurtmalar va taklif qilingan do'stlar soni serverdan
+let profileStatsAt = 0;
+async function refreshProfileStats() {
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData || Date.now() - profileStatsAt < 20000) return updateProfileCounts();
+  profileStatsAt = Date.now();
+  const h = { 'X-Telegram-Init-Data': initData };
+  try {
+    const [o, r] = await Promise.all([
+      fetch('/api/me/orders', { headers: h }).then(x => x.ok ? x.json() : null).catch(() => null),
+      fetch('/api/me/referrals', { headers: h }).then(x => x.ok ? x.json() : null).catch(() => null),
+    ]);
+    if (Array.isArray(o)) myOrdersCache = o;
+    if (r) document.getElementById('profileRefCount').textContent = r.count || 0;
+  } catch (e) {}
+  updateProfileCounts();
 }
 
 // ===== ADMIN =====
@@ -7382,6 +7419,13 @@ function closeConfirm(){closeModal('confirmModal')}
 
 // ===== ADMIN CHEK MODAL =====
 // ===== ADMIN ORDERS LOADING =====
+let adminOrderFilter = 'all';
+function setAdminOrderFilter(f) {
+  adminOrderFilter = f;
+  document.querySelectorAll('#adminOrderFilter .fs-chip').forEach(b => b.classList.toggle('on', b.dataset.f === f));
+  loadAdminOrders();
+}
+
 async function loadAdminOrders() {
   const list = document.getElementById('adminOrdersList');
   list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text2);font-size:13px"><i class="ti ti-loader" style="animation:spin 1s linear infinite;font-size:18px"></i> Yuklanmoqda...</div>`;
@@ -7403,6 +7447,17 @@ async function loadAdminOrders() {
       }
       
       orderList.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const fMap = { pending: ['pending', 'new'], confirmed: ['confirmed', 'paid'], shipped: ['shipped'], done: ['delivered'] };
+      const totalCount = orderList.length;
+      if (adminOrderFilter !== 'all') {
+        const keep = fMap[adminOrderFilter] || [];
+        for (let i = orderList.length - 1; i >= 0; i--) if (!keep.includes(orderList[i].status || 'pending')) orderList.splice(i, 1);
+      }
+      document.getElementById('adminOrdersCount').textContent = adminOrderFilter === 'all' ? `${totalCount} ta` : `${orderList.length} / ${totalCount}`;
+      if (!orderList.length) {
+        list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text2);font-size:13px">Bu bo'limda buyurtma yo'q</div>`;
+        return;
+      }
       
       orderList.forEach(o => {
         const row = document.createElement('div');
@@ -7429,8 +7484,8 @@ async function loadAdminOrders() {
         }
         
         row.innerHTML = `
-          <div class="order-icon" style="background:rgba(245,91,91,0.1);color:var(--red);position:relative">
-            <i class="ti ti-receipt"></i>
+          <div class="order-icon" style="background:${{pending:'rgba(255,170,60,0.12)',confirmed:'rgba(34,216,126,0.12)',paid:'rgba(34,216,126,0.12)',shipped:'rgba(107,127,255,0.14)',delivered:'rgba(34,216,126,0.12)'}[o.status] || 'rgba(245,91,91,0.1)'};color:${{pending:'var(--orange)',confirmed:'var(--green)',paid:'var(--green)',shipped:'var(--accent)',delivered:'var(--green)'}[o.status] || 'var(--red)'};position:relative">
+            <i class="ti ${{shipped:'ti-truck',delivered:'ti-home-check',confirmed:'ti-circle-check',paid:'ti-circle-check'}[o.status] || 'ti-receipt'}"></i>
           </div>
           <div class="order-info">
             <div class="order-name">${uName} — ${o.orderNum}</div>
@@ -7497,6 +7552,7 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
     <div class="chek-row"><span>Holat</span><span>${statusHtml}</span></div>
     ${adminOrderTimeline(extra?.order)}`;
     
+  document.getElementById('chekActionsArea').style.display = (status==='new' || status==='pending') ? '' : 'block';
   if (status==='new' || status==='pending') {
     document.getElementById('chekActionsArea').innerHTML = `
       <button class="btn-reject" onclick="rejectChek()"><i class="ti ti-x"></i> Rad etish</button>
@@ -9953,7 +10009,7 @@ async function openReferral() {
   if (!initData) return;
   try {
     const res = await fetch('/api/me/referrals', { headers: { 'X-Telegram-Init-Data': initData } });
-    if (res.ok) { const d = await res.json(); document.getElementById('refCount').textContent = d.count || 0; }
+    if (res.ok) { const d = await res.json(); document.getElementById('refCount').textContent = d.count || 0; document.getElementById('profileRefCount').textContent = d.count || 0; }
   } catch (e) {}
 }
 function copyRefLink() {
