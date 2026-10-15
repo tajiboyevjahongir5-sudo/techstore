@@ -2517,6 +2517,8 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .hs-title { font-size: 15px; font-weight: 800; padding: 0 20px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .hs-timer { font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #ff7a45, #ff3d6e); padding: 3px 8px; border-radius: 8px; font-variant-numeric: tabular-nums; }
 .hs-timer:empty { display: none; }
+.img-fallback-emoji { font-size: 44px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.slide-img img.slide-img-photo { border-radius: 18px; object-fit: cover; box-shadow: 0 12px 28px rgba(0,0,0,0.35); }
 .hs .pd-similar { margin: 0; padding: 2px 20px 6px; scroll-padding-left: 20px; }
 .hs-card .pd-sim-img { position: relative; }
 .hs-card .pd-sim-img img { width: 100%; height: 100%; object-fit: cover; }
@@ -5752,6 +5754,21 @@ function renderProducts(list, opts = {}) {
 function imgLoaded(img) {
   img.parentElement?.classList.remove('is-loading');
 }
+// Rasm ochilmasa — buzilgan belgi o'rniga mahsulot emojisi
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || img.dataset.fallbackDone) return;
+  const holder = img.closest('.prod-img, .pd-sim-img, .cart-item-img, .cmp-img, .st-top-img');
+  if (!holder) return;
+  img.dataset.fallbackDone = '1';
+  const card = img.closest('[data-id]');
+  const p = card ? products.find(x => String(x.id) === String(card.dataset.id)) : null;
+  const span = document.createElement('span');
+  span.className = 'img-fallback-emoji';
+  span.textContent = (p && p.emoji) || '📦';
+  img.replaceWith(span);
+  holder.classList.remove('is-loading');
+}, true);
 
 // Qidiruv har bir harfda emas, yozish to'xtaganda ishlaydi
 let searchDebounceTimer = null;
@@ -6088,7 +6105,7 @@ function fillDetailInfo(p, allImgs) {
     .concat(products.filter(x => x.id !== p.id && x.cat !== p.cat && x.brand === p.brand))
     .slice(0, 8);
   document.getElementById('pdSimilar').innerHTML = similar.map(x => `
-    <div class="pd-sim" onclick="openDetail(${x.id})">
+    <div class="pd-sim" data-id="${x.id}" onclick="openDetail(${x.id})">
       <div class="pd-sim-img">${x.image ? `<img src="${x.image}" alt="" loading="lazy">` : (x.emoji || '📦')}</div>
       <div class="pd-sim-info"><div class="pd-sim-name">${escText(x.name)}</div><div class="pd-sim-price">${formatPrice(x.price)}</div></div>
     </div>`).join('');
@@ -9043,6 +9060,19 @@ const SLIDE_THEMES = [
   { grad:'linear-gradient(135deg,#3b0764,#7c3aed,#581c87)', badge:'rgba(167,139,250,0.3)', badgeBorder:'rgba(167,139,250,0.5)', badgeColor:'rgba(210,190,255,0.95)', cta:'linear-gradient(135deg,#A78BFA,#7c3aed)', priceColor:'#A78BFA' },
 ];
 
+function slideImgFallback(img) {
+  let rest = [];
+  try { rest = JSON.parse(img.dataset.fallbacks || '[]'); } catch (e) {}
+  if (rest.length) {
+    img.dataset.fallbacks = JSON.stringify(rest.slice(1));
+    img.classList.toggle('slide-img-photo', rest[0] === img.dataset.photo);
+    img.src = rest[0];
+    return;
+  }
+  img.style.display = 'none';
+  if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
+}
+
 function getTopProducts() {
   // Haqiqiy ma'lumot: avval chegirmadagilar, keyin haqiqatan ko'p sotilganlar, keyin yangi qo'shilganlar
   return [...products].filter(p => !isOutOfStock(p))
@@ -9069,10 +9099,13 @@ function buildSlides() {
     const fallbackEmoji = p.emoji || '📦';
     
     // Robust image loader — prefer bannerImage (transparent PNG) for slider
-    const slideImgSrc = p.bannerImage || (p.images && p.images[0]) || p.image;
+    // Navbat: banner rasmi (server orqali) → asl banner → mahsulot rasmi → emoji
+    const viaProxy = (u) => /^https:\/\//.test(u || '') ? `/api/img-proxy?w=700&u=${encodeURIComponent(u)}` : u;
+    const candidates = [...new Set([p.bannerImage && viaProxy(p.bannerImage), p.bannerImage, (p.images && p.images[0]) || p.image].filter(Boolean))];
+    const slideImgSrc = candidates[0];
     const imgHtml = slideImgSrc
       ? `<div class="slide-img">
-           <img src="${slideImgSrc}" alt="${p.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+           <img src="${slideImgSrc}" alt="${p.name}" data-fallbacks="${escText(JSON.stringify(candidates.slice(1)))}" data-photo="${escText((p.images && p.images[0]) || p.image || '')}" onerror="slideImgFallback(this)">
            <div class="slide-img-fallback" style="display:none;font-size:64px;justify-content:center;align-items:center;width:100%;height:100%">${fallbackEmoji}</div>
            <div class="slide-shadow"></div>
          </div>`
@@ -9912,7 +9945,7 @@ function pushRecent(id) {
 }
 function miniCard(p, extra = '') {
   const out = isOutOfStock(p);
-  return `<div class="pd-sim hs-card${out ? ' is-out' : ''}" onclick="openDetail(${p.id})">
+  return `<div class="pd-sim hs-card${out ? ' is-out' : ''}" data-id="${p.id}" onclick="openDetail(${p.id})">
     <div class="pd-sim-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy">` : (p.emoji || '📦')}${p.discount > 0 ? `<span class="hs-disc">-${p.discount}%</span>` : ''}${extra}</div>
     <div class="pd-sim-info"><div class="pd-sim-name">${escText(p.name)}</div><div class="pd-sim-price">${formatPrice(p.price)}</div></div>
   </div>`;

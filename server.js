@@ -1019,6 +1019,46 @@ function resizeImage(buf, w) {
   });
 }
 
+// Tashqi sayt rasmlari (banner uchun) server orqali: ba'zi saytlar boshqa domendan to'g'ridan-to'g'ri
+// ochishni bloklaydi. Faqat ruxsat etilgan rasm saytlari, kichraytirib keshlanadi.
+const PROXY_HOSTS = new Set(['store.storeimages.cdn-apple.com', 'upload.wikimedia.org', 'images.samsung.com', 'oasis.opstatics.com',
+  'dji-official-fe.djicdn.com', 'assets.gopro.com', 'i02.appmifile.com', 'i.dell.com', 'assets.bose.com', 'resource.logitech.com',
+  'www.pngmart.com', 'images.unsplash.com']);
+const proxyCache = new Map();
+app.get('/api/img-proxy', async (req, res) => {
+  try {
+    let u;
+    try { u = new URL(String(req.query.u || '')); } catch (_) { return res.status(400).end(); }
+    if (u.protocol !== 'https:' || !PROXY_HOSTS.has(u.hostname)) return res.status(403).end();
+    const w = Math.max(120, Math.min(1200, parseInt(req.query.w) || 700));
+    const key = `${u.href}|${w}`;
+    let hit = proxyCache.get(key);
+    if (!hit) {
+      const r = await fetch(u.href, { headers: { 'User-Agent': 'Mozilla/5.0 (TechStore image proxy)', Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*' }, signal: AbortSignal.timeout(15000) });
+      const type = (r.headers.get('content-type') || '').split(';')[0];
+      if (!r.ok || !type.startsWith('image/')) {
+        proxyCache.set(key, { fail: true, at: Date.now() });
+        return res.status(404).end();
+      }
+      const orig = Buffer.from(await r.arrayBuffer());
+      let out = { type, buf: orig };
+      try { const webp = await resizeImage(orig, w); if (webp.length < orig.length) out = { type: 'image/webp', buf: webp }; } catch (_) {}
+      hit = out;
+      if (proxyCache.size > 120) proxyCache.delete(proxyCache.keys().next().value);
+      proxyCache.set(key, hit);
+    } else if (hit.fail) {
+      if (Date.now() - hit.at < 30 * 60e3) return res.status(404).end();
+      proxyCache.delete(key);
+      return res.redirect(302, req.originalUrl);
+    }
+    res.setHeader('Content-Type', hit.type);
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.end(hit.buf);
+  } catch (e) {
+    res.status(502).end();
+  }
+});
+
 app.get('/api/img/:pid/:idx', async (req, res) => {
   try {
     const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
