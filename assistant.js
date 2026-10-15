@@ -1634,10 +1634,13 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     return ffmpegConvert(['-i', 'pipe:0'], mp3);
   }
 
-  function ffmpegConvert(inputArgs, data) {
+  const OPUS_OUT = ['-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '40k', '-application', 'voip', '-f', 'ogg', 'pipe:1'];
+  const MP3_OUT = ['-ac', '1', '-ar', '44100', '-c:a', 'libmp3lame', '-b:a', '96k', '-f', 'mp3', 'pipe:1'];
+
+  function ffmpegConvert(inputArgs, data, outputArgs = OPUS_OUT) {
     return new Promise((resolve, reject) => {
       if (!FFMPEG_PATH) return reject(new Error('ffmpeg yo\'q'));
-      const ff = spawn(FFMPEG_PATH, ['-hide_banner', '-loglevel', 'error', ...inputArgs, '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '40k', '-application', 'voip', '-f', 'ogg', 'pipe:1']);
+      const ff = spawn(FFMPEG_PATH, ['-hide_banner', '-loglevel', 'error', ...inputArgs, ...outputArgs]);
       const out = [];
       ff.stdout.on('data', d => out.push(d));
       ff.on('error', reject);
@@ -1743,11 +1746,32 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     try {
       const v = await synthesizeVoice(reply);
       if (!v) return false;
-      await client.sendFile(chat.peer, {
-        file: new CustomFile(v.name, v.buffer.length, '', v.buffer),
-        voiceNote: true,
-        attributes: [new Api.DocumentAttributeAudio({ voice: true, duration: v.duration })],
-      });
+      // Ba'zi xaridorlar (Telegram Premium) "ovozli xabarlarni faqat kontaktlardan" qilib qo'ygan bo'ladi —
+      // unda VOICE_MESSAGES_FORBIDDEN qaytadi. Bunday holatda xuddi shu ovozni audio fayl sifatida yuboramiz.
+      let sentAsVoice = false;
+      if (!chat.voiceForbidden) {
+        try {
+          await client.sendFile(chat.peer, {
+            file: new CustomFile(v.name, v.buffer.length, '', v.buffer),
+            voiceNote: true,
+            attributes: [new Api.DocumentAttributeAudio({ voice: true, duration: v.duration })],
+          });
+          sentAsVoice = true;
+        } catch (e) {
+          if (!/VOICE_MESSAGES_FORBIDDEN/.test(e.message || e.errorMessage || '')) throw e;
+          chat.voiceForbidden = true;
+          log(`${chat.name}: ovozli xabarlar yopiq — audio fayl yuboriladi`);
+        }
+      }
+      if (!sentAsVoice) {
+        let audio = v.buffer, fname = 'javob.ogg';
+        try { audio = await ffmpegConvert(['-i', 'pipe:0'], v.buffer, MP3_OUT); fname = 'javob.mp3'; } catch (_) {}
+        await client.sendFile(chat.peer, {
+          file: new CustomFile(fname, audio.length, '', audio),
+          forceDocument: false,
+          attributes: [new Api.DocumentAttributeAudio({ voice: false, duration: v.duration, title: 'Javob 🎧', performer: config.name || 'TechStore' })],
+        });
+      }
       // Username / havola bo'lsa — alohida qisqa matn (ovozda o'qilmaydi)
       const links = (String(reply).match(/@\w{4,}|https?:\/\/\S+/g) || []);
       if (links.length) await client.sendMessage(chat.peer, { message: [...new Set(links)].join('\n'), parseMode: false });
