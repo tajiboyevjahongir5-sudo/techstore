@@ -862,7 +862,7 @@ function createAssistant(deps) {
         role: 'user',
         parts: [
           { inline_data: { mime_type: mime, data: buffer.toString('base64') } },
-          { text: "Bu Telegram ovozli xabari. Uni so'zma-so'z, aynan aytilgan tilda (o'zbek, rus, ingliz yoki aralash) matnga aylantir. Faqat aytilgan matnni qaytar — izoh, tarjima yoki qo'shimcha so'z yozma. Agar tushunarli nutq bo'lmasa, faqat [nutq yo'q] deb yoz." },
+          { text: "Bu Telegram ovozli xabari. Uni so'zma-so'z, aynan aytilgan tilda (o'zbek, rus, ingliz yoki aralash) matnga aylantir. Faqat aytilgan matnni qaytar — izoh, tarjima yoki qo'shimcha so'z yozma. Xabar juda qisqa yoki biroz noaniq bo'lsa ham, eshitganingni eng to'g'ri taxmin bilan yoz (masalan: «salom», «narxi qancha»). Faqat butunlay jimlik yoki shovqin bo'lsa, [nutq yo'q] deb yoz." },
         ],
       }],
       generationConfig: { temperature: 0 },
@@ -932,6 +932,9 @@ function createAssistant(deps) {
           plain.push(`🎤 ${text}`);
           if (chat.role === 'admin') stats.voiceMessages = (stats.voiceMessages || 0) + 1;
         } else {
+          console.warn(`🤖 Assistant: ovozli xabarni matnga aylantirib bo'lmadi (${chat.name}): ${r.error}`);
+          voiceState.lastError = { at: Date.now(), message: `Ovozni tinglab bo'lmadi: ${r.error}` };
+          if (config.voiceReplies !== false && (MsEdgeTTS || FFMPEG_PATH)) chat.replyByVoice = true;
           const why = r.error === 'too_long' ? "juda uzun (10 daqiqadan oshgan)"
             : r.error === 'empty' ? "tushunarli nutq eshitilmadi"
             : r.error === 'no_key' ? "ovozni tinglash sozlanmagan"
@@ -948,6 +951,12 @@ function createAssistant(deps) {
         let text = msg.message;
         if (chat.role === 'customer') text = text.slice(0, 2000);
         blocks.push({ type: 'text', text });
+        // Yozma xabarda ovoz bilan javob so'ralsa ("golosda ayt", "ovozli yubor", "голосом")
+        if (config.voiceReplies !== false && (MsEdgeTTS || FFMPEG_PATH)
+          && /(golos|голос|ovozl|ovozda|ovoz bilan|ovoz yubor|ovozingni|voice)/i.test(text) && text.length < 200) {
+          chat.replyByVoice = true;
+          blocks.push({ type: 'text', text: "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — 1-2 qisqa jumla, emojisiz.]" });
+        }
         plain.push(text);
       }
     }
