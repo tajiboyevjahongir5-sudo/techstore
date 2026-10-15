@@ -27,7 +27,7 @@ const PROVIDERS = {
   gemini: {
     label: 'Google Gemini (bepul)',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    defaultModel: 'gemini-flash-latest',
+    defaultModel: 'gemini-flash-lite-latest',
     envKey: 'GEMINI_API_KEY',
   },
   anthropic: {
@@ -44,7 +44,10 @@ const PROVIDERS = {
 };
 const DEFAULT_PROVIDER = 'gemini';
 // Gemini modeli band (503) yoki limiti tugagan (429) bo'lsa, navbatdagi modelga o'tamiz
-const GEMINI_FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+// Doimiy taxalluslar (Google o'zi eng yangi modelga yo'naltiradi). Qolgan zaxira modellar
+// kalit uchun haqiqatan mavjud modellar ro'yxatidan avtomatik olinadi (eskirganlari tushib qoladi).
+const GEMINI_FALLBACK_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
+const GEMINI_MODELS_REFRESH_MS = 6 * 3600000;
 const TRANSIENT_STATUSES = [429, 500, 502, 503, 504];
 const AI_RETRY_DELAY_MS = 25000; // hammasi band bo'lsa, xabarni shuncha vaqtdan keyin qayta ishlaymiz
 const MAX_AI_RETRIES = 3;
@@ -432,6 +435,10 @@ function createAssistant(deps) {
     config = { ...config, ...saved };
     if (!PROVIDERS[config.provider]) config.provider = DEFAULT_PROVIDER;
     if (!config.model) config.model = PROVIDERS[config.provider].defaultModel;
+    // Eski standart model (kunlik bepul limiti juda kichik) — admin o'zi tanlamagan bo'lsa yangisiga o'tamiz
+    if (config.provider === 'gemini' && config.model === 'gemini-flash-latest' && !config.modelChosen) {
+      config.model = PROVIDERS.gemini.defaultModel;
+    }
     secrets = { session: '', aiKey: '', aiKeys: {} };
     if (saved.secretsEnc && secretKey()) {
       try {
@@ -634,7 +641,10 @@ function createAssistant(deps) {
       config.provider = body.provider;
       config.model = PROVIDERS[body.provider].defaultModel;
     }
-    if (typeof body.model === 'string' && /^[\w.:\/@-]{2,120}$/.test(body.model.trim())) config.model = body.model.trim();
+    if (typeof body.model === 'string' && /^[\w.:\/@-]{2,120}$/.test(body.model.trim())) {
+      if (body.model.trim() !== config.model) config.modelChosen = true;
+      config.model = body.model.trim();
+    }
     if (typeof body.customBaseUrl === 'string') {
       const url = body.customBaseUrl.trim();
       if (url && !/^https:\/\//.test(url)) throw new Error("API manzili https:// bilan boshlanishi kerak");
@@ -1167,9 +1177,48 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   // ularga urinib vaqt yo'qotmasdan darhol ishlayotgan modelga murojaat qilamiz.
   const modelCooldown = new Map(); // model -> qachongacha chetlab o'tiladi (ms)
 
+  // Kalit uchun mavjud Gemini Flash modellari (6 soatda bir yangilanadi)
+  const geminiModels = { list: [], at: 0, loading: null };
+
+  function versionOf(id) {
+    const m = String(id).match(/gemini-(\d+(?:\.\d+)?)/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+
+  async function refreshGeminiModels(force) {
+    if (!force && Date.now() - geminiModels.at < GEMINI_MODELS_REFRESH_MS) return geminiModels.list;
+    if (geminiModels.loading) return geminiModels.loading;
+    const key = aiKeyFor('gemini');
+    if (!key) return [];
+    geminiModels.loading = (async () => {
+      try {
+        const res = await fetch(PROVIDERS.gemini.baseUrl + '/models', { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15000) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const ids = (data.data || []).map(m => String(m.id || '').replace(/^models\//, ''))
+          .filter(id => /^gemini-[\d.]+-flash/.test(id) && !/tts|image|live|audio|embedding|thinking|exp|computer|robotics/.test(id));
+        // Avval barqaror (preview emas) va eng yangi versiyalar, lite oldinroq (bepul limiti katta)
+        ids.sort((a, b) => (/preview/.test(a) - /preview/.test(b)) || (versionOf(b) - versionOf(a)) || (/lite/.test(b) - /lite/.test(a)));
+        geminiModels.list = [...new Set(ids)].slice(0, 4);
+        geminiModels.at = Date.now();
+        console.log('🤖 Assistant: mavjud Gemini modellari:', geminiModels.list.join(', ') || '—');
+      } catch (e) {
+        console.warn('🤖 Assistant: Gemini modellar ro\'yxatini olib bo\'lmadi:', e.message);
+        geminiModels.at = Date.now() - GEMINI_MODELS_REFRESH_MS + 10 * 60000; // 10 daqiqadan keyin qayta urinish
+      } finally {
+        geminiModels.loading = null;
+      }
+      return geminiModels.list;
+    })();
+    return geminiModels.loading;
+  }
+
   function modelOrder() {
     const models = [config.model];
-    if (config.provider === 'gemini') GEMINI_FALLBACK_MODELS.forEach(m => { if (!models.includes(m)) models.push(m); });
+    if (config.provider === 'gemini' || !config.provider) {
+      refreshGeminiModels().catch(() => {});
+      [...GEMINI_FALLBACK_MODELS, ...geminiModels.list].forEach(m => { if (!models.includes(m)) models.push(m); });
+    }
     const now = Date.now();
     const ready = models.filter(m => !(modelCooldown.get(m) > now));
     const cooling = models.filter(m => modelCooldown.get(m) > now).sort((a, b) => modelCooldown.get(a) - modelCooldown.get(b));
@@ -1177,8 +1226,10 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   }
 
   async function chatCompletion(body) {
+    if (config.provider === 'gemini') await refreshGeminiModels().catch(() => {});
     const models = modelOrder();
     let lastErr = null;
+    let transientErr = null; // band/limit xatosi "model topilmadi"dan muhimroq — foydalanuvchiga shuni ko'rsatamiz
 
     for (const model of models) {
       let res, data;
@@ -1198,6 +1249,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         console.warn(`🤖 Assistant: AI ${model} → ${timedOut ? 'timeout' : e.message}`);
         modelCooldown.set(model, Date.now() + MODEL_COOLDOWN_MS.busy);
         lastErr = Object.assign(new Error(timedOut ? 'AI juda uzoq javob bermadi' : 'AI serveriga ulanib bo\'lmadi'), { aiError: true, transient: true });
+        transientErr = transientErr || lastErr;
         continue;
       }
       if (res.ok) {
@@ -1218,14 +1270,16 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       lastErr.transient = transient;
       console.warn(`🤖 Assistant: ${model} → ${res.status} ${detail.slice(0, 120)}`);
 
-      if (res.status === 404 && models.length > 1) {          // bu model yo'q — uzoq muddat chetlab o'tamiz
+      if (res.status === 404 && models.length > 1) {          // bu model yo'q (eskirgan) — chetlab o'tamiz
         modelCooldown.set(model, Date.now() + 24 * 3600000);
+        geminiModels.list = geminiModels.list.filter(m => m !== model);
         continue;
       }
       if (!transient) throw lastErr;                            // kalit xato va h.k. — boshqa model ham yordam bermaydi
+      transientErr = lastErr;
       modelCooldown.set(model, Date.now() + (res.status === 429 ? MODEL_COOLDOWN_MS.limit : MODEL_COOLDOWN_MS.busy));
     }
-    throw lastErr || new Error('AI javob bermadi');
+    throw transientErr || lastErr || new Error('AI javob bermadi');
   }
 
   async function runOpenAICompat(chat, userBlocks) {

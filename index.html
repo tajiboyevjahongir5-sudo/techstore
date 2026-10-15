@@ -4313,7 +4313,7 @@ body.modal-open {
           <div class="form-group">
             <label class="form-label">Model</label>
             <div style="display:flex;gap:8px">
-              <input class="form-input" id="asModel" list="asModelList" autocomplete="off" placeholder="gemini-flash-latest" style="flex:1">
+              <input class="form-input" id="asModel" list="asModelList" autocomplete="off" placeholder="gemini-flash-lite-latest" style="flex:1">
               <button class="as-mini-btn" id="asLoadModelsBtn" onclick="loadAssistantModels()" title="Mavjud modellarni yuklash"><i class="ti ti-loader"></i></button>
             </div>
             <datalist id="asModelList"></datalist>
@@ -8726,7 +8726,7 @@ const AS_PROVIDER_INFO = {
   gemini: {
     keyLabel: 'Gemini API kaliti',
     placeholder: 'AIza...',
-    help: `<b>Bepul.</b> <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> sahifasida Google akkaunt bilan kirib <b>"Create API key"</b> ni bosing — karta talab qilinmaydi. Bepul tarifda kunlik so'rovlar soni cheklangan; ko'p yozishma bo'lsa <b>gemini-flash-lite-latest</b> modelini tanlang (limiti kattaroq).`
+    help: `<b>Bepul.</b> <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> sahifasida Google akkaunt bilan kirib <b>"Create API key"</b> ni bosing — karta talab qilinmaydi. Bepul tarifda kunlik so'rovlar soni cheklangan. <b>gemini-flash-lite-latest</b> tavsiya etiladi — tez va kunlik limiti eng katta.`
   },
   anthropic: {
     keyLabel: 'Anthropic API kaliti',
