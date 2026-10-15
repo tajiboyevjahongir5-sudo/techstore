@@ -412,22 +412,211 @@ async function setOrderStatus(orderId, status) {
   const order = await firebaseGet(orderPath);
   if (!order) return { error: "Buyurtma topilmadi" };
 
-  await firebasePatch(orderPath, { status });
+  const patch = { status };
+  if (status === 'confirmed' && !order.confirmedAt) patch.confirmedAt = Date.now();
+  await firebasePatch(orderPath, patch);
 
-  if (order.userId && BOT_TOKEN && global.telegramBotInstance) {
-    const userMsg = status === 'confirmed'
-      ? `✅ <b>Buyurtmangiz tasdiqlandi!</b>\n\n` +
-        `📦 Buyurtma: <b>#${orderId}</b>\n` +
-        `🚀 Admin siz bilan tez orada bog'lanadi va mahsulot yetkaziladi!\n\n` +
-        `<i>TechStore — Ishonchli xarid</i>`
-      : `❌ <b>Buyurtmangiz rad etildi!</b>\n\nSiz yuborgan to'lov tasdiqlanmadi. Muammo bo'lsa admin bilan bog'laning.`;
-    global.telegramBotInstance.sendMessage(order.userId, userMsg, { parse_mode: 'HTML' })
+  if (status === 'confirmed') {
+    // Yordamchi admin: asosiy adminga to'liq ma'lumot + xaridorga xabar
+    handleConfirmedOrder(orderId).catch(e => console.error('Buyurtmani qayta ishlashda xato:', e.message));
+  } else if (status === 'rejected' && order.userId && global.telegramBotInstance) {
+    global.telegramBotInstance.sendMessage(order.userId,
+      `❌ <b>Buyurtmangiz rad etildi!</b>\n\nSiz yuborgan to'lov tasdiqlanmadi. Muammo bo'lsa admin bilan bog'laning.`,
+      { parse_mode: 'HTML' })
       .catch(err => console.error("Foydalanuvchiga xabar yuborishda xato:", err.message));
   }
 
   const p = pendingPayments.find(x => x.orderNum === '#' + orderId);
   if (p) await deletePendingPaymentFromDb(p);
   return { success: true };
+}
+
+// ===== BUYURTMANI YETKAZISH JARAYONI (yordamchi admin kuzatadi) =====
+// 1) To'lov tasdiqlanadi → asosiy adminga to'liq ma'lumot + "Buyurtma yuborildi" tugmasi, xaridorga xabar
+// 2) Admin tugmani bosib BTS chekini yuboradi → xaridorga chek bilan "jo'natildi" xabari, fikr so'raladi
+const awaitingShipProof = new Map();   // adminChatId -> orderId
+const fulfillmentLocks = new Set();
+
+function fmtOrderTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function orderLines(order, orderId) {
+  return { num: order.orderNum || ('#' + orderId), products: order.products || 'Mahsulot', addr: order.addr || '', phone: order.phone || '' };
+}
+
+// Xaridorga xabar: avval yordamchi akkaunt orqali, bo'lmasa bot orqali
+async function messageCustomer(order, { text, html, photoBuffer, photoFileId }) {
+  if (!order.userId) return false;
+  const user = await firebaseGet(`users/${order.userId}`).catch(() => null);
+  try {
+    const ok = await assistant.sendToCustomer({ userId: order.userId, username: user?.username || '', text, photo: photoBuffer });
+    if (ok) return 'assistant';
+  } catch (e) {
+    console.warn('Yordamchi orqali xaridorga yozib bo\'lmadi:', e.message);
+  }
+  if (!botInstance) return false;
+  try {
+    if (photoFileId) await botInstance.sendPhoto(order.userId, photoFileId, { caption: html, parse_mode: 'HTML' });
+    else await botInstance.sendMessage(order.userId, html, { parse_mode: 'HTML' });
+    return 'bot';
+  } catch (e) {
+    console.warn('Bot orqali xaridorga yozib bo\'lmadi:', e.message);
+    return false;
+  }
+}
+
+async function handleConfirmedOrder(orderId) {
+  if (fulfillmentLocks.has(orderId)) return;
+  fulfillmentLocks.add(orderId);
+  try {
+    const order = await firebaseGet(`orders/${orderId}`);
+    if (!order || order.fulfillment?.adminNotifiedAt) return;
+    if (!botInstance || !ADMIN_IDS.length) return;   // keyinroq kuzatuvchi qayta urinadi
+    const o = orderLines(order, orderId);
+    const user = order.userId ? await firebaseGet(`users/${order.userId}`).catch(() => null) : null;
+    const adminText =
+      `🛒 <b>YANGI BUYURTMA — TO'LOV TASDIQLANDI</b>\n\n` +
+      `📦 Buyurtma: <b>${escHtml(o.num)}</b>\n` +
+      `👤 Xaridor: <b>${escHtml(order.userName || 'Foydalanuvchi')}</b>${user?.username ? ' (@' + escHtml(user.username) + ')' : ''}\n` +
+      `🆔 ID: <code>${escHtml(order.userId || '—')}</code>\n` +
+      `📞 Telefon: ${escHtml(o.phone || '—')}\n` +
+      `📍 Manzil: ${escHtml(o.addr || '—')}\n` +
+      `🛍 Mahsulot: <b>${escHtml(o.products)}</b>\n` +
+      `💰 Summa: <b>${fmtSom(order.total)}</b>\n` +
+      `🕐 Vaqt: ${fmtOrderTime(order.createdAt)}\n` +
+      `🚚 Yetkazish: BTS pochta\n\n` +
+      `Mahsulotni BTS orqali jo'natgach, pastdagi tugmani bosing va chekni yuboring 👇`;
+    const adminMessages = [];
+    for (const id of ADMIN_IDS) {
+      try {
+        const m = await botInstance.sendMessage(id, adminText, {
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '📦 Buyurtma yuborildi', callback_data: `ship:${orderId}` }]] },
+        });
+        adminMessages.push({ chatId: m.chat.id, messageId: m.message_id });
+      } catch (e) {
+        console.error(`Adminga (${id}) buyurtma xabarini yuborib bo'lmadi:`, e.message);
+      }
+    }
+    if (!adminMessages.length) {
+      await firebasePatch(`orders/${orderId}`, { fulfillment: { ...(order.fulfillment || {}), lastAttemptAt: Date.now() } });
+      return;
+    }
+
+    const name = String(order.userName || '').trim();
+    const text =
+      `Assalomu alaykum${name && name !== 'Foydalanuvchi' ? ', ' + name : ''}! ✅ To'lovingiz tasdiqlandi.\n\n` +
+      `📦 ${o.num} buyurtmangiz haqidagi ma'lumot adminga jo'natildi. Tez orada buyurtmangiz BTS pochta orqali siz tanlagan manzilga yetib boradi` +
+      (o.addr ? `:\n📍 ${o.addr}` : '.') +
+      `\n\nSavollaringiz bo'lsa, shu yerga yozing 😊`;
+    const html =
+      `✅ <b>To'lovingiz tasdiqlandi!</b>\n\n` +
+      `📦 <b>${escHtml(o.num)}</b> buyurtmangiz haqidagi ma'lumot adminga jo'natildi. Tez orada buyurtmangiz <b>BTS pochta</b> orqali siz tanlagan manzilga yetib boradi.` +
+      (o.addr ? `\n📍 ${escHtml(o.addr)}` : '') +
+      `\n\n<i>TechStore — ishonchli xarid</i> 💜`;
+    const via = await messageCustomer(order, { text, html });
+
+    await firebasePatch(`orders/${orderId}`, {
+      fulfillment: { ...(order.fulfillment || {}), adminNotifiedAt: Date.now(), adminMessages, customerNotifiedVia: via || null },
+    });
+    console.log(`📦 Buyurtma ${o.num}: adminga yuborildi, xaridorga ${via || 'yuborilmadi'}`);
+  } finally {
+    fulfillmentLocks.delete(orderId);
+  }
+}
+
+// Kuzatuvchi: tasdiqlangan, lekin hali adminga yuborilmagan buyurtmalar (masalan bot vaqtincha ishlamagan bo'lsa)
+async function sweepConfirmedOrders() {
+  try {
+    const orders = await firebaseGet('orders');
+    if (!orders) return;
+    for (const [id, o] of Object.entries(orders)) {
+      if (o && o.status === 'confirmed' && o.confirmedAt && !o.fulfillment?.adminNotifiedAt && Date.now() - o.confirmedAt < 7 * 86400e3
+        && Date.now() - (o.fulfillment?.lastAttemptAt || 0) > 10 * 60e3) {
+        await handleConfirmedOrder(id);
+      }
+    }
+  } catch (e) {
+    console.warn('Buyurtmalarni kuzatishda xato:', e.message);
+  }
+}
+
+async function startShipFlow(bot, query) {
+  const orderId = String(query.data).slice(5);
+  const fromId = String(query.from.id);
+  if (ADMIN_IDS.length && !ADMIN_IDS.includes(fromId)) {
+    return bot.answerCallbackQuery(query.id, { text: "Bu amal faqat admin uchun", show_alert: true });
+  }
+  const order = await firebaseGet(`orders/${orderId}`);
+  if (!order) return bot.answerCallbackQuery(query.id, { text: 'Buyurtma topilmadi', show_alert: true });
+  if (order.status === 'shipped') return bot.answerCallbackQuery(query.id, { text: 'Bu buyurtma allaqachon yuborilgan ✅', show_alert: true });
+  awaitingShipProof.set(String(query.message.chat.id), orderId);
+  await bot.answerCallbackQuery(query.id);
+  await bot.sendMessage(query.message.chat.id,
+    `📸 <b>${escHtml(order.orderNum || '#' + orderId)}</b> buyurtmasi uchun BTS pochta chekini (rasm) yuboring.\n\nBekor qilish uchun: /cancel`,
+    { parse_mode: 'HTML', reply_markup: { force_reply: true, input_field_placeholder: 'Chek rasmini yuboring' } });
+}
+
+// Admin chek yuborsa: xaridorga chek bilan "jo'natildi" xabari. true — xabar shu jarayonga tegishli edi
+async function handleShipProofMessage(bot, msg) {
+  const chatId = String(msg.chat.id);
+  const orderId = awaitingShipProof.get(chatId);
+  if (!orderId) return false;
+  if (msg.text && /^\/cancel/.test(msg.text)) {
+    awaitingShipProof.delete(chatId);
+    await bot.sendMessage(chatId, 'Bekor qilindi.');
+    return true;
+  }
+  const photo = msg.photo?.length ? msg.photo[msg.photo.length - 1] : (msg.document?.mime_type?.startsWith('image/') ? msg.document : null);
+  if (!photo) {
+    if (msg.text && msg.text.startsWith('/')) return false;
+    await bot.sendMessage(chatId, '📸 Iltimos, chekni rasm ko\'rinishida yuboring (yoki /cancel).');
+    return true;
+  }
+  awaitingShipProof.delete(chatId);
+  const order = await firebaseGet(`orders/${orderId}`);
+  if (!order) { await bot.sendMessage(chatId, 'Buyurtma topilmadi.'); return true; }
+  const o = orderLines(order, orderId);
+
+  let buffer = null;
+  try {
+    const link = await bot.getFileLink(photo.file_id);
+    const r = await fetch(link, { signal: AbortSignal.timeout(30000) });
+    if (r.ok) buffer = Buffer.from(await r.arrayBuffer());
+  } catch (e) {
+    console.warn('Chek rasmini yuklab bo\'lmadi:', e.message);
+  }
+
+  const note = (msg.caption || '').trim();
+  const text =
+    `🚚 Buyurtmangiz yo'lga chiqdi!\n\n` +
+    `📦 ${o.num} — ${o.products}\n` +
+    `BTS pochta orqali muvaffaqiyatli jo'natildi, chek rasmda 👆` +
+    (o.addr ? `\n📍 ${o.addr}` : '') +
+    (note ? `\n📝 ${note}` : '') +
+    `\n\nBuyurtmangiz qo'lingizga yetib borgach, iltimos, mahsulot rasmini va qisqa fikringizni shu yerga yozib yuboring — biz uchun juda muhim 🙏\n\nTechStore'ni tanlaganingiz uchun rahmat! 💜`;
+  const html =
+    `🚚 <b>Buyurtmangiz yo'lga chiqdi!</b>\n\n` +
+    `📦 <b>${escHtml(o.num)}</b> — ${escHtml(o.products)}\n` +
+    `BTS pochta orqali muvaffaqiyatli jo'natildi, chek rasmda 👆` +
+    (o.addr ? `\n📍 ${escHtml(o.addr)}` : '') +
+    (note ? `\n📝 ${escHtml(note)}` : '') +
+    `\n\nBuyurtmangiz yetib borgach, iltimos, mahsulot rasmini va qisqa fikringizni yozib yuboring 🙏\n\n<i>TechStore'ni tanlaganingiz uchun rahmat!</i> 💜`;
+  const via = await messageCustomer(order, { text, html, photoBuffer: buffer, photoFileId: photo.file_id });
+
+  await firebasePatch(`orders/${orderId}`, {
+    status: 'shipped',
+    fulfillment: { ...(order.fulfillment || {}), shippedAt: Date.now(), shipProofFileId: photo.file_id, shippedBy: String(msg.from?.id || ''), shipNote: note || null, customerShipNotifiedVia: via || null },
+  });
+  for (const m of order.fulfillment?.adminMessages || []) {
+    bot.editMessageReplyMarkup({ inline_keyboard: [[{ text: '✅ Buyurtma yuborildi', callback_data: 'noop' }]] }, { chat_id: m.chatId, message_id: m.messageId }).catch(() => {});
+  }
+  await bot.sendMessage(chatId, via
+    ? `✅ ${o.num}: xaridorga chek bilan "buyurtma jo'natildi" xabari yuborildi${via === 'bot' ? ' (bot orqali)' : ''}.`
+    : `⚠️ ${o.num} "yuborildi" deb belgilandi, lekin xaridorga xabar yetkazib bo'lmadi (u botni bloklagan yoki yozishmani boshlamagan bo'lishi mumkin). Telefon: ${o.phone || '—'}`);
+  return true;
 }
 
 // ===== EXPRESS =====
@@ -1247,7 +1436,7 @@ async function getStoreStats() {
   ]);
   const list = Object.values(orders);
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-  const confirmed = list.filter(o => o.status === 'confirmed');
+  const confirmed = list.filter(o => o.status === 'confirmed' || o.status === 'shipped' || o.status === 'paid');
   const today = list.filter(o => (o.createdAt || 0) >= startOfDay.getTime());
   return {
     products: prods.length,
@@ -1257,7 +1446,7 @@ async function getStoreStats() {
     orders_rejected: list.filter(o => o.status === 'rejected').length,
     revenue_confirmed: confirmed.reduce((s, o) => s + (Number(o.total) || 0), 0),
     orders_today: today.length,
-    revenue_today: today.filter(o => o.status === 'confirmed').reduce((s, o) => s + (Number(o.total) || 0), 0),
+    revenue_today: today.filter(o => o.status === 'confirmed' || o.status === 'shipped' || o.status === 'paid').reduce((s, o) => s + (Number(o.total) || 0), 0),
     ...userStats(users, orders),
     note: "users_total — botga /start bosgan, Mini App'ni ochgan yoki yordamchiga yozgan barcha noyob Telegram foydalanuvchilar (hisob yuritish boshlangandan beri). Telegram bot obunachilarining to'liq sonini API orqali bermaydi, shuning uchun hisob shu tizim ishga tushgan paytdan boshlanadi. users_with_orders — kamida bitta buyurtma berganlar."
   };
@@ -1385,6 +1574,7 @@ function initializeTelegramBot() {
   
   try {
     const bot = new TelegramBot(BOT_TOKEN, {
+      ...(process.env.TELEGRAM_API_URL ? { baseApiUrl: process.env.TELEGRAM_API_URL } : {}),
       polling: {
         interval: 300,
         autoStart: true,
@@ -1478,8 +1668,29 @@ function initializeTelegramBot() {
       handlePaymentMessage(msg);
     });
 
-    bot.on('message', (msg) => {
+    bot.on('callback_query', (query) => {
+      const data = String(query.data || '');
+      if (data.startsWith('ship:')) {
+        startShipFlow(bot, query).catch(e => {
+          console.error('ship tugmasi xatosi:', e.message);
+          bot.answerCallbackQuery(query.id, { text: 'Xatolik, qayta urinib ko\'ring' }).catch(() => {});
+        });
+      } else {
+        bot.answerCallbackQuery(query.id).catch(() => {});
+      }
+    });
+
+    bot.on('message', async (msg) => {
       if (msg.chat && msg.chat.type === 'private') trackUser(msg.from, 'bot');
+      if (msg.chat?.type === 'private' && awaitingShipProof.has(String(msg.chat.id))) {
+        try {
+          if (await handleShipProofMessage(bot, msg)) return;
+        } catch (e) {
+          console.error('Chekni qayta ishlashda xato:', e.message);
+          bot.sendMessage(msg.chat.id, '⚠️ Xatolik yuz berdi: ' + e.message).catch(() => {});
+          return;
+        }
+      }
       if (msg.text && msg.text.startsWith('/')) return;
       handlePaymentMessage(msg);
     });
@@ -1507,34 +1718,9 @@ function handlePaymentMessage(msg) {
     if (cleanText.includes(amountStr)) {
       console.log(`🎯 TO'LOV MOS KELDI! Summa: ${p.amount} so'm, Buyurtma: ${p.orderNum}`);
 
-      const userMsg = `🎉 <b>To'lov qabul qilindi!</b>\n\n` +
-        `Salom, <b>${p.userName}</b>!\n` +
-        `Sizning <b>${p.amount.toLocaleString('uz')} so'm</b> to'lovingiz avtomatik ravishda tasdiqlandi. ✅\n\n` +
-        `📦 Buyurtma raqami: <b>${p.orderNum}</b>\n\n` +
-        `📞 Admin bilan bog'lanib buyurtmangizni olishingiz mumkin:\n` +
-        `👉 <b>@Jahongir_1220</b>\n\n` +
-        `Siz bilan hamkorlikdan mamnunmiz! ⚡`;
-
-      if (botInstance) {
-        botInstance.sendMessage(p.userId, userMsg, { parse_mode: 'HTML' })
-          .then(() => console.log(`✉️ Foydalanuvchiga tasdiqlash xabari yuborildi: ${p.userId}`))
-          .catch(err => console.error(`❌ Foydalanuvchiga xabar yuborishda xato:`, err.message));
-
-        ADMIN_IDS.forEach(adminId => {
-          const adminMsg = `✅ <b>AVTOMATIK TO'LOV TASDIQLANDI</b>\n\n` +
-            `👤 Foydalanuvchi: <b>${p.userName}</b> (ID: ${p.userId})\n` +
-            `📦 Buyurtma: <b>${p.orderNum}</b>\n` +
-            `💰 Summa: <b>${p.amount.toLocaleString('uz')} so'm</b>\n` +
-            `📞 Tel: ${p.phone}\n` +
-            `📍 Manzil: ${p.addr}`;
-
-          botInstance.sendMessage(adminId, adminMsg, { parse_mode: 'HTML' })
-            .catch(err => console.error(`❌ Adminga xabar yuborishda xato:`, err.message));
-        });
-      }
-
-      firebasePatch(`orders/${p.orderNum.replace('#','')}`, { status: 'confirmed' })
-        .catch(e => console.error("Failed to update status in Firebase:", e));
+      // Holat "tasdiqlandi" ga o'tadi — adminga to'liq ma'lumot va xaridorga xabarni yordamchi yuboradi
+      setOrderStatus(p.orderNum.replace('#', ''), 'confirmed')
+        .catch(e => console.error("Buyurtma holatini yangilab bo'lmadi:", e.message));
 
       deletePendingPaymentFromDb(p);
     }
@@ -1552,6 +1738,8 @@ app.listen(PORT, async () => {
   await loadPendingPayments();
   initializeTelegramBot();
   await assistant.init();
+  setTimeout(sweepConfirmedOrders, 20000);
+  setInterval(sweepConfirmedOrders, 60000);
   
   console.log(`👑 Admin IDs: ${ADMIN_IDS.join(', ') || 'belgilanmagan'}`);
 });

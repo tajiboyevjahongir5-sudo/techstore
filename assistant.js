@@ -317,7 +317,7 @@ const TOOL_DEFS = {
     input_schema: {
       type: 'object',
       properties: {
-        status: { type: 'string', enum: ['pending', 'confirmed', 'rejected', 'all'] },
+        status: { type: 'string', enum: ['pending', 'confirmed', 'shipped', 'rejected', 'all'] },
         limit: { type: 'integer', description: 'Standart 15' },
       },
       additionalProperties: false,
@@ -997,7 +997,8 @@ Savol: "Rahmat" → "Arzimaydi! 😊"
 Suhbatdosh qaysi tilda yozsa (o'zbek, rus, ingliz) o'sha tilda javob ber. Narxlarni "18 500 000 so'm" ko'rinishida yoz.
 Foydalanuvchi ovozli xabar yuborsa, sen uning matnini "[Ovozli xabar — matni]: ..." ko'rinishida olasan — xuddi yozma xabardek tushunib, odatdagidek javob ber (matnni qayta takrorlama).
 ${config.voiceReplies !== false ? `Sen ovozli xabarlarni tushunasan va ovozli xabar bilan javob bera olasan ("ovozli xabarni tushunmayman" yoki "ovoz yubora olmayman" dema!). Ovozli xabarga javobing avtomatik ovoz bo'lib ketadi. Agar foydalanuvchi YOZMA xabarda ovoz bilan javob so'rasa ("golosda ayt", "ovozli yubor", "голосом"), javobingni [OVOZ] belgisi bilan boshla — u ovozli xabar bo'lib yuboriladi (belgining o'zi ko'rinmaydi). Bunday javobni og'zaki uslubda, emojisiz yoz.
-` : ''}Mahsulotning "price" maydoni — xaridor to'laydigan haqiqiy narx. Chegirma bo'lsa, "old_price_before_discount" — chizilgan eski narx (masalan: "21 764 706 so'm emas, atigi 18 500 000 so'm — 15% chegirma").
+` : ''}Agar xaridor buyurtmasi yetib kelgani haqida yozsa yoki mahsulot rasmi/fikrini yuborsa — chin dildan rahmat ayt, xursand ekaningni bildir va notify_admin bilan adminga qisqa xabar ber (xaridor fikri).
+Mahsulotning "price" maydoni — xaridor to'laydigan haqiqiy narx. Chegirma bo'lsa, "old_price_before_discount" — chizilgan eski narx (masalan: "21 764 706 so'm emas, atigi 18 500 000 so'm — 15% chegirma").
 
 ${shopLines}`;
 
@@ -1282,6 +1283,30 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     await client.sendMessage(target.entity, { message: msg, parseMode: false });
     const c = chats.get(target.id);
     if (c) c.history.push({ role: 'assistant', content: `[Admin topshirig'i bilan yuborildi] ${msg}` });
+  }
+
+  // Server (buyurtma jarayoni) uchun: xaridorga yordamchi akkaunt nomidan xabar/rasm yuborish
+  async function sendToCustomer({ userId, username, text, photo }) {
+    if (!client || state !== 'connected' || !config.enabled) return false;
+    const id = String(userId || '');
+    let peer = chats.get(id)?.peer || null;
+    if (!peer && id) { try { peer = await client.getInputEntity(id); } catch (_) { peer = null; } }
+    if (!peer && username) { try { peer = await client.getInputEntity('@' + String(username).replace(/^@/, '')); } catch (_) { peer = null; } }
+    if (!peer && id) {
+      // Yaqinda yozishganlar ichidan qidiramiz (sessiya keshi bo'sh bo'lsa)
+      try { peer = (await customerDialogs('all')).find(c => c.id === id)?.entity || null; } catch (_) { peer = null; }
+    }
+    if (!peer) return false;
+    const msg = String(text || '').slice(0, photo ? 1000 : 4000);
+    if (photo && Buffer.isBuffer(photo) && photo.length) {
+      await client.sendFile(peer, { file: new CustomFile('chek.jpg', photo.length, '', photo), caption: msg, parseMode: false, forceDocument: false });
+    } else {
+      await client.sendMessage(peer, { message: msg, parseMode: false });
+    }
+    const c = chats.get(id);
+    if (c) c.history.push({ role: 'assistant', content: msg });
+    log(`Xaridorga buyurtma xabari yuborildi (ID ${id})`);
+    return true;
   }
 
   async function notifyAdmins(text) {
@@ -1920,9 +1945,9 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   }
 
   return {
-    init, status, publicContact, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
+    init, status, publicContact, sendToCustomer, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
     // Testlar uchun ichki funksiyalar
-    _internals: { getChat, processChat, executeTool, onPhoneCall, setClient: (c) => { client = c; } },
+    _internals: { getChat, processChat, executeTool, onPhoneCall, setClient: (c) => { client = c; }, setState: (s) => { state = s; } },
   };
 }
 

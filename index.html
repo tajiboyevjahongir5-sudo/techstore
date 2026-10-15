@@ -6359,7 +6359,7 @@ function listenOrderStatus(orderId, tgUser) {
       const res = await fetch(`/api/orders/${orderId}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'confirmed' || data.status === 'paid') {
+        if (data.status === 'confirmed' || data.status === 'paid' || data.status === 'shipped') {
           clearInterval(intervalId);
 
           // Buyurtma holati yangilanadi
@@ -6688,7 +6688,10 @@ async function loadAdminOrders() {
         
         let statusClass = 'status-chek';
         let statusText = 'Kutilmoqda';
-        if (o.status === 'confirmed' || o.status === 'paid') {
+        if (o.status === 'shipped') {
+          statusClass = 'status-done';
+          statusText = 'Yuborildi';
+        } else if (o.status === 'confirmed' || o.status === 'paid') {
           statusClass = 'status-done';
           statusText = 'Tasdiqlandi';
         } else if (o.status === 'rejected') {
@@ -6751,6 +6754,7 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
   }
 
   const statusHtml = (status==='new' || status==='pending') ? '<span class="status-badge status-chek">Tekshirilmoqda</span>':
+    status==='shipped' ? '<span class="status-badge status-done">Yuborildi 🚚</span>':
     (status==='done' || status==='confirmed' || status==='paid') ? '<span class="status-badge status-done">Tasdiqlandi</span>':
     '<span class="status-badge status-proc">Rad etildi</span>';
   document.getElementById('chekInfo').innerHTML=`
@@ -6866,7 +6870,7 @@ async function loadAdminStats() {
     const usersList = await resUsers.json();
 
     const totalOrders = orderList.length;
-    const confirmedOrders = orderList.filter(o => o.status === 'confirmed' || o.status === 'paid');
+    const confirmedOrders = orderList.filter(o => o.status === 'confirmed' || o.status === 'paid' || o.status === 'shipped');
     const confirmedCount = confirmedOrders.length;
     const totalRevenue = confirmedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const totalUsers = usersList.length;

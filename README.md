@@ -38,3 +38,9 @@ Shundan so'ng:
 - **Admin** yordamchi akkauntga rasm yuborib "shu mahsulotni qo'sh, narxi 12 mln" deb yozsa — yordamchi mahsulotni aniqlaydi, tavsif va xususiyatlarini yozib katalogga qo'shadi. Mahsulotni tahrirlash/o'chirish, buyurtmalarni ko'rish/tasdiqlash, statistika va xaridorlarga xabar yuborish ham mumkin.
 - **Xaridorlar** yozsa — yordamchi katalog asosida maslahat beradi, rasmlarini ko'rsatadi va xaridga undaydi. Xaridorlarda mahsulot yoki buyurtmalarni o'zgartiruvchi hech qanday imkoniyat yo'q (ruxsatlar server tomonida Telegram ID bo'yicha ajratiladi).
 - **Ovozli xabarlar** — xaridor ovozli xabar yuborsa, yordamchi uni tushunadi va (sozlamada yoqilgan bo'lsa) Microsoft neural ovozida (Madina yoki Sardor) ovozli xabar bilan javob qaytaradi. Ovoz yaratib bo'lmasa, javob matn sifatida yuboriladi.
+
+## Buyurtmani yetkazish jarayoni
+
+1. To'lov tasdiqlansa (panelda, yordamchi orqali yoki avtomatik), bot asosiy admin(lar)ga to'liq ma'lumot va **📦 Buyurtma yuborildi** tugmasini yuboradi; xaridorga (yordamchi akkaunt, bo'lmasa bot orqali) "ma'lumot adminga jo'natildi, BTS orqali yetib boradi" xabari boradi.
+2. Admin tugmani bosib BTS chekini (rasm) botga yuboradi → xaridorga chek bilan "buyurtma jo'natildi" xabari boradi va yetib borgach rasm/fikr yuborish so'raladi. Buyurtma holati "Yuborildi" bo'ladi.
+3. Server har daqiqada tasdiqlangan, lekin hali adminga yuborilmagan buyurtmalarni tekshiradi.
