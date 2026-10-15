@@ -902,9 +902,11 @@ function createAssistant(deps) {
         if (r.text) {
           const text = chat.role === 'customer' ? r.text.slice(0, 2000) : r.text;
           blocks.push({ type: 'text', text: `[Ovozli xabar — matni]: ${text}` });
-          if (chat.role === 'customer' && config.voiceReplies !== false && MsEdgeTTS) {
+          if (config.voiceReplies !== false && MsEdgeTTS) {
             chat.replyByVoice = true;
-            blocks.push({ type: 'text', text: "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — 1-2 qisqa jumla, emoji, ro'yxat, qavs va belgilar ishlatma. Username yoki havola kerak bo'lsa ham ayt — u alohida matn bilan yuboriladi.]" });
+            blocks.push({ type: 'text', text: chat.role === 'admin'
+              ? "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — qisqa, kerakli raqamlarni gap ichida ayt; emoji, ro'yxat, qavs va belgilar ishlatma.]"
+              : "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — 1-2 qisqa jumla, emoji, ro'yxat, qavs va belgilar ishlatma. Username yoki havola kerak bo'lsa ham ayt — u alohida matn bilan yuboriladi.]" });
           }
           plain.push(`🎤 ${text}`);
           if (chat.role === 'admin') stats.voiceMessages = (stats.voiceMessages || 0) + 1;
@@ -1663,7 +1665,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         // AI bo'sh javob qaytardi — jim qolmaymiz
         reply = chat.role === 'admin' ? "⚠️ AI bo'sh javob qaytardi. Iltimos, savolni boshqacharoq yozing yoki panelda boshqa model tanlang." : 'Kechirasiz, savolingizni biroz aniqroq yozib bera olasizmi? 🙂';
       }
-      const byVoice = chat.replyByVoice && !actions.length;
+      const byVoice = chat.replyByVoice;
       chat.replyByVoice = false;
       if (!(byVoice && await sendVoiceReply(chat, reply))) await sendHumanlike(chat, reply);
 
