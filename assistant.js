@@ -161,6 +161,9 @@ function productSummary(p) {
     discount_percent: p.discount || 0,
     old_price_before_discount: oldPrice(p) || undefined,
     images: (p.images && p.images.length) || (p.image ? 1 : 0),
+    stock: (p.stock === null || p.stock === undefined || p.stock === '') ? 'cheklanmagan' : Number(p.stock),
+    sold: p.sold || 0,
+    discount_until: p.discountUntil ? new Date(p.discountUntil).toISOString() : undefined,
   };
 }
 
@@ -221,6 +224,72 @@ const SPECS_SCHEMA = {
   },
 };
 
+const NEW_ADMIN_TOOL_DEFS = {
+  get_order: {
+    name: 'get_order',
+    description: "Bitta buyurtmaning to'liq ma'lumoti: mahsulotlar, summa, xaridor, telefon, manzil, holat tarixi (tasdiqlangan/jo'natilgan/yetib kelgan vaqtlar), to'lov qanday tasdiqlangani, xaridor bahosi.",
+    input_schema: { type: 'object', properties: { order_id: { type: 'string', description: 'Buyurtma raqami (# siz)' } }, required: ['order_id'], additionalProperties: false },
+  },
+  ship_order: {
+    name: 'ship_order',
+    description: "Buyurtmani 'jo'natildi' (BTS) qiladi: xaridorga chek rasmi bilan xabar boradi va yetib kelgach baho so'raladi. Admin chek rasmini yuborgan bo'lsa image_id ni ber. Faqat to'lovi tasdiqlangan buyurtma uchun.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        order_id: { type: 'string' },
+        image_id: { type: 'string', description: 'Admin yuborgan BTS chek rasmi ID si (masalan photo_2)' },
+        note: { type: 'string', description: 'Izoh: trek raqami va h.k.' },
+      },
+      required: ['order_id'],
+      additionalProperties: false,
+    },
+  },
+  sales_report: {
+    name: 'sales_report',
+    description: "Savdo hisoboti tanlangan davr uchun: buyurtmalar soni (holatlar bo'yicha), daromad, o'rtacha chek, eng ko'p sotilgan mahsulotlar, yangi foydalanuvchilar, jo'natilishi kerak bo'lganlar.",
+    input_schema: { type: 'object', properties: { period: { type: 'string', enum: ['today', 'yesterday', 'week', 'month', 'all'] } }, additionalProperties: false },
+  },
+  low_stock_products: {
+    name: 'low_stock_products',
+    description: "Omborda kam qolgan yoki tugagan mahsulotlar ro'yxati.",
+    input_schema: { type: 'object', properties: { threshold: { type: 'integer', description: 'Shu sondan kam yoki teng (standart 5)' } }, additionalProperties: false },
+  },
+  list_reviews: {
+    name: 'list_reviews',
+    description: "Mijozlar fikrlari (baho, matn, mahsulot), eng yangilari birinchi.",
+    input_schema: { type: 'object', properties: { limit: { type: 'integer' } }, additionalProperties: false },
+  },
+  delete_review: {
+    name: 'delete_review',
+    description: "Nomaqbul fikrni o'chiradi. Faqat admin so'raganda.",
+    input_schema: { type: 'object', properties: { product_id: { type: 'string' }, review_id: { type: 'string' } }, required: ['product_id', 'review_id'], additionalProperties: false },
+  },
+  check_payment: {
+    name: 'check_payment',
+    description: "Admin yuborgan bank/karta xabari matnidagi summani kutilayotgan buyurtmalar bilan solishtiradi va mos kelganini avtomatik tasdiqlaydi.",
+    input_schema: { type: 'object', properties: { text: { type: 'string', description: 'Bank xabari matni (summa bilan)' } }, required: ['text'], additionalProperties: false },
+  },
+  broadcast_message: {
+    name: 'broadcast_message',
+    description: "Bot orqali BARCHA foydalanuvchilarga xabar (reklama/yangilik) yuboradi, tagida 'Do'konni ochish' tugmasi bo'ladi. Avval confirm=false bilan chaqir — nechta odamga ketishini adminga ayt va tasdiqlashini so'ra; admin rozi bo'lgach confirm=true bilan qayta chaqir.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Xabar matni' },
+        image_id: { type: 'string', description: 'Admin yuborgan rasm ID si (ixtiyoriy)' },
+        confirm: { type: 'boolean' },
+      },
+      required: ['text', 'confirm'],
+      additionalProperties: false,
+    },
+  },
+  remind_pending_payments: {
+    name: 'remind_pending_payments',
+    description: "To'lovi hali tasdiqlanmagan (kutilayotgan) buyurtma egalariga muloyim eslatma yuboradi: aniq summani o'tkazish yoki savol bo'lsa yozish.",
+    input_schema: { type: 'object', properties: { older_than_hours: { type: 'integer', description: 'Shuncha soatdan eski buyurtmalar (standart 1)' } }, additionalProperties: false },
+  },
+};
+
 const TOOL_DEFS = {
   list_products: {
     name: 'list_products',
@@ -275,6 +344,8 @@ const TOOL_DEFS = {
         specs: SPECS_SCHEMA,
         image_ids: { type: 'array', items: { type: 'string' }, description: 'Rasm ID lari (max 5), birinchisi asosiy rasm' },
         emoji: { type: 'string', description: "Rasm bo'lmasa ko'rsatiladigan emoji" },
+        stock: { type: 'integer', description: "Omborda nechta bor (admin aytsa). Aytilmasa yuborma — cheklanmagan bo'ladi." },
+        discount_until: { type: 'string', description: "Chegirma tugash vaqti ISO formatda (masalan 2026-10-20T23:59:00+05:00), admin aytsa" },
       },
       required: ['name', 'brand', 'price', 'category', 'description'],
       additionalProperties: false,
@@ -296,6 +367,8 @@ const TOOL_DEFS = {
         specs: SPECS_SCHEMA,
         image_ids: { type: 'array', items: { type: 'string' } },
         add_image_ids: { type: 'array', items: { type: 'string' } },
+        stock: { type: 'integer', description: "Ombordagi yangi soni; -1 — cheklanmagan qilish" },
+        discount_until: { type: 'string', description: "Chegirma tugash vaqti ISO formatda; bo'sh satr — muddatsiz qilish" },
       },
       required: ['id'],
       additionalProperties: false,
@@ -317,7 +390,8 @@ const TOOL_DEFS = {
     input_schema: {
       type: 'object',
       properties: {
-        status: { type: 'string', enum: ['pending', 'confirmed', 'shipped', 'rejected', 'all'] },
+        status: { type: 'string', enum: ['pending', 'confirmed', 'shipped', 'delivered', 'rejected', 'all'] },
+        query: { type: 'string', description: "Xaridor ismi, telefon raqami yoki buyurtma raqami bo'yicha qidiruv" },
         limit: { type: 'integer', description: 'Standart 15' },
       },
       additionalProperties: false,
@@ -405,8 +479,11 @@ const TOOL_DEFS = {
   },
 };
 
+Object.assign(TOOL_DEFS, NEW_ADMIN_TOOL_DEFS);
+
 const ADMIN_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'add_product', 'update_product', 'delete_product',
-  'list_orders', 'update_order_status', 'get_stats', 'list_users', 'list_customer_chats', 'send_message_to_customer', 'message_customers'];
+  'list_orders', 'update_order_status', 'get_stats', 'list_users', 'list_customer_chats', 'send_message_to_customer', 'message_customers',
+  ...Object.keys(NEW_ADMIN_TOOL_DEFS)];
 const CUSTOMER_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'notify_admin'];
 
 function buildTools(names) {
@@ -814,9 +891,26 @@ function createAssistant(deps) {
       const senderId = String(msg.senderId || '');
       if (!senderId || senderId === TELEGRAM_SERVICE_ID) return;
       const sender = await msg.getSender();
-      if (!sender || sender.bot || sender.self) return;
+      if (!sender || sender.self) return;
+      // Bank/karta botlari xabarlari (HUMO, CardXabar va h.k.) — to'lovni avtomatik tekshirish uchun
+      if (sender.bot) {
+        if (msg.message && deps.onPaymentText) {
+          deps.onPaymentText(msg.message, '@' + (sender.username || 'bot'))
+            .then(list => { if (list.length) log(`To'lov tasdiqlandi (${sender.username}): ${list.map(m => m.orderNum).join(', ')}`); })
+            .catch(e => console.warn("Assistant: to'lovni tekshirishda xato:", e.message));
+        }
+        return;
+      }
 
       const role = adminIdSet().has(senderId) ? 'admin' : 'customer';
+      // Admin bank xabarini forward qilsa — avval to'lovni tekshiramiz
+      if (role === 'admin' && msg.fwdFrom && msg.message && deps.onPaymentText) {
+        const list = await deps.onPaymentText(msg.message, 'admin forward (yordamchi)').catch(() => []);
+        if (list.length) {
+          await client.sendMessage(msg.peerId, { message: `✅ To'lov topildi va tasdiqlandi: ${list.map(m => `${m.orderNum} (${m.userName || 'xaridor'})`).join(', ')}`, parseMode: false });
+          return;
+        }
+      }
       if (role === 'customer' && !config.replyToCustomers) return;
 
       const chat = getChat(senderId, sender);
@@ -1015,6 +1109,11 @@ Admin bilan ishlash qoidalari:
 - Amal bajarilgach natijani bitta qatorda xabar qil, masalan: "✅ Qo'shildi: AirPods 4 — 5 000 000 so'm (ID 1234)".
 - Admin savoliga javob berganda ham qisqa bo'l: faqat so'ralgan raqam yoki fakt. Statistika so'ralsa — ixcham ro'yxat (3-6 qator), izohsiz.
 - Xaridorlarga xabar yuborishni faqat admin so'raganda bajar. Bittasiga — send_message_to_customer, ko'pchilikka ("bugun yozishganlarning hammasiga ayt...") — message_customers (period: "bugun" → today, "kecha/24 soat" → last_24h, "hafta" → last_7d, "hammasiga" → all). Xabar matnini xaridorga murojaat qilib, tabiiy va xushmuomala o'zing tuz. So'ng nechta odamga yuborilganini ayt.
+- Admin BTS chekini rasm qilib yuborib "#1042 jo'natildi" desa — ship_order (image_id bilan). Buyurtma haqida so'rasa — get_order; ism/telefon bo'yicha qidirsa — list_orders query bilan.
+- Bank/karta xabarini yuborsa yoki "to'lov keldimi" desa — check_payment. "To'lamaganlarga eslat" — remind_pending_payments.
+- Hisobot ("bugun qancha sotdik", "haftalik hisobot") — sales_report; "nima tugayapti" — low_stock_products; "omborda 5 ta qoldi" — update_product stock bilan.
+- Hammaga reklama/yangilik — broadcast_message: avval confirm=false, adminga matn va odamlar sonini aytib tasdiq so'ra, keyin confirm=true.
+- Fikrlar — list_reviews / delete_review.
 - Admin topshiriq bersa, tushunganingcha darhol bajar — "hozir yo'q" deb rad etma. Avval tegishli asbob bilan haqiqiy ma'lumotni tekshir (xaridorlar ro'yxati uchun list_customer_chats). Topshiriq noaniq bo'lsa, bitta qisqa aniqlashtiruvchi savol ber.
 - Raqamlar va statistika (foydalanuvchilar, buyurtmalar, daromad) haqida so'ralsa, HAR DOIM avval get_stats (yoki list_users, list_orders) ni chaqir va faqat natijadagi aniq raqamlarni ayt. Raqamlarni batafsil ko'rsat (masalan: jami, bugun qo'shilgan, bot/Mini App orqali, buyurtma berganlar).
 - Bilmagan narsangni to'qib chiqarma va taxminiy tushuntirish berma. Ma'lumotda biror narsa bo'lmasa, aniq ayt: nima hisoblanadi va nima hisoblanmaydi (get_stats natijasidagi note'ga tayan).`;
@@ -1128,6 +1227,8 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
           emoji: input.emoji || null,
           image: images[0] || null,
           images,
+          stock: Number.isInteger(input.stock) && input.stock >= 0 ? input.stock : null,
+          discountUntil: input.discount_until ? Date.parse(input.discount_until) || null : null,
         });
         if (result.error) return result;
         stats.actions++;
@@ -1144,6 +1245,8 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         if (typeof input.discount === 'number') patch.discount = input.discount;
         if (input.category) patch.cat = input.category;
         if (input.description) patch.desc = input.description;
+        if (Number.isInteger(input.stock)) patch.stock = input.stock < 0 ? null : input.stock;
+        if (typeof input.discount_until === 'string') patch.discountUntil = input.discount_until ? (Date.parse(input.discount_until) || null) : null;
         const specs = specsFromInput(input.specs);
         if (specs) patch.specs = specs;
         let missing = [];
@@ -1172,6 +1275,12 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         const orders = await store.listOrders();
         let list = Object.entries(orders || {}).map(([id, o]) => ({ id, ...o }));
         if (input.status && input.status !== 'all') list = list.filter(o => o.status === input.status);
+        if (input.query) {
+          const q = String(input.query).toLowerCase().replace(/^#/, '');
+          const qd = q.replace(/\D/g, '');
+          list = list.filter(o => String(o.id).toLowerCase().includes(q) || String(o.userName || '').toLowerCase().includes(q)
+            || (qd.length >= 4 && String(o.phone || '').replace(/\D/g, '').includes(qd)));
+        }
         list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         const limit = Math.min(Math.max(parseInt(input.limit) || 15, 1), 50);
         return {
@@ -1231,6 +1340,104 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         stats.actions++;
         log(`${sentTo.length} ta xaridorga xabar yuborildi`);
         return { sent: sentTo.length, recipients: sentTo, failed };
+      }
+      case 'get_order': {
+        const id = String(input.order_id || '').replace(/^#/, '');
+        const o = store.getOrder ? await store.getOrder(id) : null;
+        if (!o) return { error: 'Buyurtma topilmadi' };
+        const f = o.fulfillment || {};
+        const t = (ts) => ts ? new Date(ts).toISOString() : null;
+        return {
+          order_id: id, status: o.status, products: o.products, items: o.items || undefined, total: o.total,
+          customer: o.userName, customer_id: o.userId, phone: o.phone, address: o.addr,
+          created_at: t(o.createdAt), confirmed_at: t(o.confirmedAt), paid_via: o.paidVia || undefined,
+          shipped_at: t(f.shippedAt), ship_note: f.shipNote || undefined, delivered_at: t(f.deliveredAt),
+          has_payment_check_image: !!o.chekImg, review: o.review || undefined,
+        };
+      }
+      case 'ship_order': {
+        if (!store.shipOrder) return { error: 'Mavjud emas' };
+        let imgData = null;
+        if (input.image_id) {
+          imgData = chat.photos.get(String(input.image_id)) || null;
+          if (!imgData) return { error: `Rasm topilmadi: ${input.image_id}` };
+        }
+        const r = await store.shipOrder(String(input.order_id).replace(/^#/, ''), { imgData, note: input.note || '', shippedBy: 'yordamchi' });
+        if (r.error) return r;
+        stats.actions++;
+        log(`Buyurtma jo'natildi: ${r.num}`);
+        return { success: true, order: r.num, customer_notified: !!r.via, via: r.via || undefined, note: r.via ? undefined : "Xaridorga xabar yetkazib bo'lmadi — telefon orqali bog'laning" };
+      }
+      case 'sales_report': {
+        const orders = Object.entries((await store.listOrders()) || {}).map(([id, o]) => ({ id, ...o })).filter(o => o && o.createdAt);
+        const TZ = 5 * 3600e3, DAY = 86400e3, now = Date.now();
+        const today = Math.floor((now + TZ) / DAY) * DAY - TZ;
+        const ranges = { today: [today, now], yesterday: [today - DAY, today], week: [now - 7 * DAY, now], month: [now - 30 * DAY, now], all: [0, now] };
+        const [from, to] = ranges[input.period] || ranges.today;
+        const list = orders.filter(o => o.createdAt >= from && o.createdAt < to + 1);
+        const paidSt = ['confirmed', 'paid', 'shipped', 'delivered'];
+        const paid = list.filter(o => paidSt.includes(o.status));
+        const revenue = paid.reduce((s, o) => s + (Number(o.total) || 0), 0);
+        const byStatus = {};
+        list.forEach(o => { byStatus[o.status || 'pending'] = (byStatus[o.status || 'pending'] || 0) + 1; });
+        const top = {};
+        paid.forEach(o => (Array.isArray(o.items) && o.items.length ? o.items : String(o.products || '').split(',').map(n => ({ name: n.trim(), qty: 1 }))).forEach(it => {
+          if (!it.name) return; top[it.name] = (top[it.name] || 0) + (Number(it.qty) || 1);
+        }));
+        const newUsers = store.countNewUsers ? await store.countNewUsers(from, to).catch(() => undefined) : undefined;
+        return {
+          period: input.period || 'today', orders: list.length, by_status: byStatus, paid_orders: paid.length,
+          revenue, average_check: paid.length ? Math.round(revenue / paid.length) : 0,
+          top_products: Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, qty]) => ({ name, qty })),
+          awaiting_shipment: orders.filter(o => o.status === 'confirmed' || o.status === 'paid').map(o => o.orderNum || '#' + o.id),
+          new_users: newUsers,
+        };
+      }
+      case 'low_stock_products': {
+        const th = Number.isInteger(input.threshold) ? input.threshold : 5;
+        const list = (await store.listProducts()).filter(p => p.stock !== null && p.stock !== undefined && p.stock !== '' && Number(p.stock) <= th);
+        return { threshold: th, count: list.length, products: list.sort((a, b) => a.stock - b.stock).map(p => ({ id: p.id, name: p.name, stock: Number(p.stock), sold: p.sold || 0 })) };
+      }
+      case 'list_reviews': {
+        if (!store.listReviews) return { error: 'Mavjud emas' };
+        const list = (await store.listReviews()).filter(r => !r.dup).slice(0, Math.min(parseInt(input.limit) || 15, 50));
+        return { count: list.length, reviews: list.map(r => ({ product_id: r.pid, review_id: r.rid, product: r.product, customer: r.name, rating: r.rating, text: r.text, has_photo: !!r.photo, date: new Date(r.createdAt).toISOString() })) };
+      }
+      case 'delete_review': {
+        if (!store.deleteReview) return { error: 'Mavjud emas' };
+        const r = await store.deleteReview(String(input.product_id), String(input.review_id));
+        if (r.error) return r;
+        stats.actions++;
+        log("Fikr o'chirildi");
+        return { deleted: true };
+      }
+      case 'check_payment': {
+        if (!deps.onPaymentText) return { error: 'Mavjud emas' };
+        const list = await deps.onPaymentText(String(input.text || ''), 'admin (yordamchi)');
+        if (list.length) { stats.actions++; log(`To'lov tasdiqlandi: ${list.map(m => m.orderNum).join(', ')}`); }
+        return { matched: list, note: list.length ? undefined : "Bu summa bilan kutilayotgan buyurtma topilmadi (summa aynan unikal summa bilan bir xil bo'lishi kerak)" };
+      }
+      case 'broadcast_message': {
+        if (!store.broadcast) return { error: 'Mavjud emas' };
+        let photo = null;
+        if (input.image_id) {
+          photo = chat.photos.get(String(input.image_id)) || null;
+          if (!photo) return { error: `Rasm topilmadi: ${input.image_id}` };
+        }
+        if (!input.confirm) {
+          const n = await store.broadcast({ countOnly: true });
+          return { needs_confirmation: true, recipients: n, note: "Adminga matnni ko'rsatib, nechta odamga ketishini ayt va tasdiqlashini so'ra" };
+        }
+        const r = await store.broadcast({ text: String(input.text).slice(0, 3500), photoData: photo });
+        stats.actions++;
+        log(`Reklama yuborildi: ${r.ok} ta`);
+        return { sent: r.ok, failed: r.fail };
+      }
+      case 'remind_pending_payments': {
+        if (!store.remindPending) return { error: 'Mavjud emas' };
+        const r = await store.remindPending(Number.isInteger(input.older_than_hours) ? input.older_than_hours : 1);
+        if (r.sent) { stats.actions++; log(`To'lov eslatmasi: ${r.sent} ta`); }
+        return r;
       }
       case 'notify_admin': {
         const text = `🔔 Xaridor so'rovi\n👤 ${chat.name}${chat.username ? ' (@' + chat.username + ')' : ''} — ID: ${chat.id}\n${input.customer_phone ? '📞 ' + input.customer_phone + '\n' : ''}\n${input.summary}`;
@@ -1334,7 +1541,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     } catch (e) {
       result = { error: e.message };
     }
-    if (!result?.error && !['list_products', 'get_product', 'get_stats', 'list_users', 'list_orders', 'list_customer_chats'].includes(name)) {
+    if (!result?.error && !['list_products', 'get_product', 'get_stats', 'list_users', 'list_orders', 'list_customer_chats', 'get_order', 'sales_report', 'low_stock_products', 'list_reviews'].includes(name) && !(name === 'broadcast_message' && result?.needs_confirmation)) {
       actions.push(name + (result.product ? `(${result.product.name}, ID ${result.product.id})` : ''));
     }
     return result ?? { ok: true };
@@ -1947,7 +2154,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   return {
     init, status, publicContact, sendToCustomer, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
     // Testlar uchun ichki funksiyalar
-    _internals: { getChat, processChat, executeTool, onPhoneCall, setClient: (c) => { client = c; }, setState: (s) => { state = s; } },
+    _internals: { getChat, processChat, executeTool, onPhoneCall, onNewMessage, setClient: (c) => { client = c; }, setState: (s) => { state = s; } },
   };
 }
 

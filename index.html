@@ -2575,6 +2575,21 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .fs-range span { color: var(--text3); }
 #filterModal .as-toggle-row { margin-top: 10px; }
 #filterModal .settings-save-btn { margin-top: 16px; }
+.pay-intro { font-size: 12.5px; color: var(--text2); line-height: 1.55; margin-bottom: 12px; }
+.pay-intro b { color: var(--text); }
+.pay-way { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.06); }
+.pay-way > div { flex: 1; min-width: 0; }
+.pay-way b { font-size: 13px; display: block; margin-bottom: 3px; }
+.pay-way small { font-size: 11.5px; color: var(--text2); line-height: 1.5; display: block; }
+.pay-num { width: 24px; height: 24px; border-radius: 50%; background: var(--grad); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pay-url { margin-top: 8px; font: 600 11px monospace; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px dashed var(--glass-border); word-break: break-all; color: var(--green); }
+.pay-note { font-size: 11.5px; color: var(--text2); background: rgba(255,255,255,0.04); border-radius: 10px; padding: 9px 11px; margin-top: 4px; }
+.pay-log { display: flex; flex-direction: column; gap: 8px; }
+.pay-log-row { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 9px 11px; }
+.pay-log-row.ok { border-color: rgba(34,216,126,0.35); background: rgba(34,216,126,0.06); }
+.pay-log-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.pay-log-top span { color: var(--text3); font-size: 11px; white-space: nowrap; }
+.pay-log-text { font-size: 11px; color: var(--text2); margin-top: 4px; white-space: pre-wrap; word-break: break-word; max-height: 48px; overflow: hidden; }
 .st-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; padding: 16px; margin-bottom: 14px; }
 .st-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .st-title { font-size: 14px; font-weight: 700; }
@@ -4536,6 +4551,18 @@ body.modal-open {
           <div class="form-group" style="margin-bottom:0"><label class="form-label">Karta egasi</label><input class="form-input" id="settCardOwner" placeholder="Tojiboyev Jahongir"></div>
           <button class="settings-save-btn btn-cyan" onclick="saveCardSettings()"><i class="ti ti-device-floppy"></i> Ma'lumotlarni saqlash</button>
         </div>
+        <div class="settings-section card-green pay-auto" style="margin-top:14px;margin-bottom:0">
+          <div class="settings-section-title">⚡ TO'LOVNI AVTOMATIK TEKSHIRISH</div>
+          <div class="pay-intro">Har bir buyurtmaga unikal summa beriladi (masalan <b>18 500 003</b>). Shu summa yozilgan bank xabari quyidagi yo'llardan biri orqali kelsa — buyurtma <b>o'zi tasdiqlanadi</b>.</div>
+          <div class="pay-way"><span class="pay-num">1</span><div><b>Telefondagi SMS'ni avtomatik yuborish (eng qulay)</b><small>Karta SMS xabarlari keladigan Android telefonga "SMS Forwarder" (yoki shunga o'xshash "SMS to webhook") ilovasini o'rnating va quyidagi manzilni webhook sifatida kiriting. Har bir yangi SMS shu yerga yuboriladi.</small>
+            <div class="pay-url" id="payHookUrl">Yuklanmoqda...</div>
+            <button class="ot-btn" style="width:100%;margin-top:8px" onclick="copyPayHook()"><i class="ti ti-copy"></i> Manzilni nusxalash</button></div></div>
+          <div class="pay-way"><span class="pay-num">2</span><div><b>Bank botini yordamchi akkauntga ulash</b><small>HUMO / Uzcard (CardXabar) kabi bank botlarini yordamchi akkauntda ishga tushiring — ular yuborgan to'lov xabarlarini yordamchi o'zi o'qib tekshiradi.</small></div></div>
+          <div class="pay-way"><span class="pay-num">3</span><div><b>Qo'lda forward qilish</b><small>Bank xabarini @bot ga yoki yordamchi akkauntga forward qiling — summasi mos buyurtma darhol tasdiqlanadi.</small></div></div>
+          <div class="pay-note">🔒 Xaridorlar botga summa yozib o'zini tasdiqlay olmaydi — faqat admin va yuqoridagi manbalar hisobga olinadi.</div>
+          <div class="fs-label" style="margin-top:14px">Oxirgi tekshirilgan xabarlar</div>
+          <div id="payLog" class="pay-log"><div class="st-empty">Hali xabar kelmadi</div></div>
+        </div>
         <div class="settings-section card-purple" style="margin-top:14px;margin-bottom:0">
           <div class="settings-section-title">📢 TELEGRAM KANAL</div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">Kanal username (ixtiyoriy)</label><input class="form-input" id="settChannel" placeholder="@techstore_uz" maxlength="70"></div>
@@ -5450,7 +5477,29 @@ async function resetToDefaultProducts() {
   }
 }
 
+async function loadPaymentHookInfo() {
+  try {
+    const res = await fetch('/api/admin/payment-hook', { headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    document.getElementById('payHookUrl').textContent = d.url;
+    const log = document.getElementById('payLog');
+    log.innerHTML = d.log && d.log.length ? d.log.map(l => `<div class="pay-log-row ${l.matched.length ? 'ok' : ''}">
+        <div class="pay-log-top"><b>${l.matched.length ? '✅ ' + escHtml(l.matched.join(', ')) : '— mos kelmadi'}</b><span>${escHtml(l.source)} · ${new Date(l.at).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</span></div>
+        <div class="pay-log-text">${escHtml(l.text)}</div></div>`).join('') : '<div class="st-empty">Hali xabar kelmadi</div>';
+  } catch (e) {
+    document.getElementById('payHookUrl').textContent = "Ma'lumotni yuklab bo'lmadi";
+  }
+}
+function copyPayHook() {
+  const url = document.getElementById('payHookUrl').textContent;
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(
+    () => showToast('Manzil nusxalandi', '✓', 'var(--green)'),
+    () => { const t = document.createElement('textarea'); t.value = url; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); showToast('Manzil nusxalandi', '✓', 'var(--green)'); } catch (e) {} t.remove(); });
+}
+
 function loadSettingsUI() {
+  if (adminUnlocked && document.getElementById('payHookUrl')) loadPaymentHookInfo();
   document.getElementById('settCardNumber').value = CARD_NUMBER;
   document.getElementById('settCardOwner').value = CARD_OWNER;
   if(document.getElementById('settBotToken')) document.getElementById('settBotToken').value = BOT_TOKEN;

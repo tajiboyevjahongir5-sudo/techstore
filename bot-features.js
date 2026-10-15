@@ -297,6 +297,31 @@ function createBotFeatures(deps) {
       { chat_id: chatId, message_id: query.message.message_id }).catch(() => b.sendMessage(chatId, `📣 Yuborildi: ${ok}, yetmadi: ${fail}`));
   }
 
+  // Yordamchi admin uchun: hammaga matn (va rasm) yuborish
+  async function broadcastText({ text = '', photoData = null, countOnly = false } = {}) {
+    const ids = await allUserIds();
+    if (countOnly) return ids.length;
+    const b = bot();
+    if (!b) return { ok: 0, fail: ids.length };
+    const m = photoData && String(photoData).match(/^data:image\/[a-z+]+;base64,(.+)$/i);
+    const photo = m ? Buffer.from(m[1], 'base64') : null;
+    let ok = 0, fail = 0, fileId = null;
+    const markup = { inline_keyboard: [[shopButton()]] };
+    for (const uid of ids) {
+      try {
+        if (photo) {
+          const r = await safeSend(() => b.sendPhoto(uid, fileId || photo, { caption: text.slice(0, 1000), reply_markup: markup }, fileId ? {} : { filename: 'reklama.jpg', contentType: 'image/jpeg' }));
+          if (!fileId && r?.photo?.length) fileId = r.photo[r.photo.length - 1].file_id;
+        } else {
+          await safeSend(() => b.sendMessage(uid, text, { reply_markup: markup }));
+        }
+        ok++;
+      } catch (_) { fail++; }
+      await sleep(60);
+    }
+    return { ok, fail };
+  }
+
   // ---------- Kunlik hisobot ----------
   async function buildReport() {
     const [orders, users] = await Promise.all([firebaseGet('orders').then(o => o || {}), firebaseGet('users').then(u => u || {})]);
@@ -570,7 +595,7 @@ function createBotFeatures(deps) {
   return {
     sendWelcome, sendMyOrders, sendArrivedPrompt, handleMessage, handleCallback, setCommands,
     syncUserData, onProductUpdated, listReviews, reviewPhoto, startSchedulers,
-    addReview, markDelivered, listAllReviews, deleteReview, STATUS_LABELS,
+    addReview, markDelivered, listAllReviews, deleteReview, broadcastText, STATUS_LABELS,
     _internals: { buildReport, sweepCarts, sweepUnshipped, maybeDailyReport, states },
   };
 }

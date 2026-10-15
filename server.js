@@ -1269,6 +1269,30 @@ app.post('/api/admin/orders/:orderId/ship', apiRateLimiter, verifyAdmin, async (
   }
 });
 
+// ===== SMS / tashqi xizmatdan to'lov xabari (webhook) =====
+function paymentHookKey() {
+  return crypto.createHash('sha256').update(`payhook:${BOT_TOKEN || ''}:${process.env.SESSION_SECRET || process.env.RAILWAY_PROJECT_ID || 'ts'}`).digest('hex').slice(0, 32);
+}
+app.all('/api/payment-hook/:key', express.text({ type: '*/*', limit: '64kb' }), async (req, res) => {
+  if (req.params.key !== paymentHookKey()) return res.status(403).json({ error: 'kalit noto\'g\'ri' });
+  let text = '';
+  const b = req.body;
+  if (typeof b === 'string') {
+    try { const j = JSON.parse(b); text = [j.text, j.message, j.body, j.sms, j.msg, j.content].filter(Boolean).join('\n') || b; } catch (_) { text = b; }
+  } else if (b && typeof b === 'object') {
+    text = [b.text, b.message, b.body, b.sms, b.msg, b.content].filter(Boolean).join('\n');
+  }
+  if (!text && req.query.text) text = String(req.query.text);
+  try {
+    const matched = await matchPaymentText(text, 'SMS');
+    res.json({ ok: true, matched });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/admin/payment-hook', apiRateLimiter, verifyAdmin, (req, res) => {
+  res.json({ url: `${APP_URL.replace(/\/$/, '')}/api/payment-hook/${paymentHookKey()}`, log: paymentLog.slice(0, 10) });
+});
+
 // Admin: mijozlar fikrlari
 app.get('/api/admin/reviews', apiRateLimiter, verifyAdmin, async (req, res) => {
   try { res.json(await botFeatures.listAllReviews()); } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1709,6 +1733,7 @@ const assistant = createAssistant({
   getShopInfo: () => ({ botUsername, adminIds: ADMIN_IDS, adminContact: '@Jahongir_1220', appUrl: APP_URL }),
   getStorageInfo,
   dataDir: VOLUME_DIR ? path.join(VOLUME_DIR, '.data') : null,
+  onPaymentText: (text, source) => matchPaymentText(text, source),
   notifyAdminsViaBot: async (text) => {
     if (!botInstance) return;
     await Promise.all(ADMIN_IDS.map(id => botInstance.sendMessage(id, text).catch(() => {})));
@@ -1723,9 +1748,37 @@ const assistant = createAssistant({
     setOrderStatus,
     getStats: getStoreStats,
     listUsers,
-    trackUser
+    trackUser,
+    getOrder: (id) => firebaseGet(`orders/${id}`),
+    shipOrder: (id, opts) => shipOrder(id, opts),
+    listReviews: () => botFeatures.listAllReviews(),
+    deleteReview: (pid, rid) => botFeatures.deleteReview(pid, rid),
+    broadcast: (opts) => botFeatures.broadcastText(opts),
+    remindPending: (hours) => remindPendingPayments(hours),
+    countNewUsers: async (from, to) => Object.values((await firebaseGet('users')) || {}).filter(u => u && (u.joinedAt || 0) >= from && (u.joinedAt || 0) <= to).length,
   }
 });
+
+// To'lovi kutilayotgan buyurtmalarga muloyim eslatma (bir buyurtmaga bir marta)
+async function remindPendingPayments(hours = 1) {
+  const orders = (await firebaseGet('orders')) || {};
+  const now = Date.now();
+  let sent = 0, failed = 0;
+  const list = [];
+  for (const [id, o] of Object.entries(orders)) {
+    if (!o || o.status !== 'pending' || o.paymentReminderAt || !o.createdAt) continue;
+    if (now - o.createdAt < hours * 3600e3 || now - o.createdAt > 3 * 86400e3) continue;
+    const num = plainText(o.orderNum || '#' + id);
+    const sum = fmtSom(o.total);
+    const text = `Assalomu alaykum! 😊 ${num} buyurtmangiz bo'yicha to'lovni hali ko'rmadik.\n\n💳 Karta: ${CARD_NUMBER} (${CARD_OWNER})\n💰 Aynan ${sum} o'tkazing — shunda to'lov avtomatik tasdiqlanadi.\n\nTo'lagan bo'lsangiz yoki savolingiz bo'lsa, shu yerga yozing.`;
+    const html = `⏳ <b>${escHtml(num)}</b> buyurtmangiz bo'yicha to'lovni hali ko'rmadik.\n\n💳 Karta: <code>${escHtml(CARD_NUMBER)}</code> (${escHtml(CARD_OWNER)})\n💰 Aynan <b>${sum}</b> o'tkazing — to'lov avtomatik tasdiqlanadi.\n\nSavolingiz bo'lsa, yozing 😊`;
+    const via = await messageCustomer(o, { text, html }).catch(() => false);
+    await firebasePatch(`orders/${id}`, { paymentReminderAt: now });
+    if (via) { sent++; list.push(num); } else failed++;
+    if (sent + failed >= 30) break;
+  }
+  return { sent, failed, orders: list };
+}
 
 const botFeatures = createBotFeatures({
   firebaseGet, firebasePatch, firebaseDelete, getProducts, updateProduct,
@@ -2031,7 +2084,7 @@ function initializeTelegramBot() {
     });
 
     bot.on('channel_post', (msg) => {
-      handlePaymentMessage(msg);
+      handlePaymentMessage(msg, { trusted: true });
     });
 
     bot.on('callback_query', (query) => {
@@ -2078,29 +2131,78 @@ function initializeTelegramBot() {
 }
 
 // ===== TO'LOV XABARLARINI AVTOMATIK KUZATISH TIZIMI =====
-function handlePaymentMessage(msg) {
-  const text = msg.text || msg.caption;
-  if (!text) return;
-
-  const cleanText = text.replace(/[^0-9]/g, '');
-  if (!cleanText) return;
-
-  console.log(`📩 Kuzatilayotgan xabar: "${text.replace(/\n/g, ' ')}"`);
-
-  for (let i = pendingPayments.length - 1; i >= 0; i--) {
-    const p = pendingPayments[i];
-    const amountStr = String(p.amount);
-
-    if (cleanText.includes(amountStr)) {
-      console.log(`🎯 TO'LOV MOS KELDI! Summa: ${p.amount} so'm, Buyurtma: ${p.orderNum}`);
-
-      // Holat "tasdiqlandi" ga o'tadi — adminga to'liq ma'lumot va xaridorga xabarni yordamchi yuboradi
-      setOrderStatus(p.orderNum.replace('#', ''), 'confirmed')
-        .catch(e => console.error("Buyurtma holatini yangilab bo'lmadi:", e.message));
-
-      deletePendingPaymentFromDb(p);
+// Har bir buyurtmaga unikal summa beriladi (masalan 18 500 003). Bank/karta xabarida aynan shu summa
+// uchrasa, buyurtma avtomatik tasdiqlanadi. Xabar manbalari:
+//   • admin @bot ga yoki yordamchi akkauntga bank xabarini forward qiladi;
+//   • yordamchi akkauntdagi bank/karta botlari xabarlari (masalan HUMO, CardXabar);
+//   • telefondagi SMS'ni yuboruvchi ilova (webhook: /api/payment-hook/<kalit>);
+//   • bot admin bo'lgan kanal postlari.
+// Oddiy xaridor botga summa yozsa — hisobga olinmaydi (aks holda o'zini "to'ladim" deb tasdiqlab olardi).
+function amountsInText(text) {
+  const found = new Set();
+  const lines = String(text || '').split(/\n/);
+  for (const line of lines) {
+    // "18 500 003.00", "18,500,003", "18500003" kabi raqamlar guruhlari
+    const tokens = line.match(/\d[\d\s.,  ']*\d|\d/g) || [];
+    for (const tok of tokens) {
+      const clean = tok.replace(/[.,]\d{1,2}$/, '');              // tiyinlar (.00)
+      const groups = clean.split(/[\s.,  ']+/).filter(Boolean);
+      for (let i = 0; i < groups.length; i++) {
+        let acc = '';
+        for (let j = i; j < groups.length; j++) {
+          if (j > i && groups[j].length !== 3) break;
+          acc += groups[j];
+          found.add(acc.replace(/^0+/, ''));
+        }
+      }
     }
   }
+  return found;
+}
+
+const paymentLog = [];   // admin panel uchun oxirgi to'lov xabarlari
+async function matchPaymentText(text, source = 'unknown') {
+  if (!text || !/\d{4,}/.test(String(text).replace(/[\s., ]/g, ''))) return [];
+  const amounts = amountsInText(text);
+  const orders = (await firebaseGet('orders')) || {};
+  const now = Date.now();
+  const matched = [];
+  for (const [id, o] of Object.entries(orders)) {
+    if (!o || o.status !== 'pending' || !o.total) continue;
+    if (o.createdAt && now - o.createdAt > 7 * 86400e3) continue;
+    if (amounts.has(String(Math.round(Number(o.total))))) matched.push({ id, order: o });
+  }
+  // pendingPayments ro'yxatidagilar ham (bazada holati yo'qolgan bo'lsa)
+  for (const p of pendingPayments.slice()) {
+    const id = String(p.orderNum || '').replace('#', '');
+    if (!matched.some(m => m.id === id) && amounts.has(String(p.amount)) && orders[id]?.status === 'pending') {
+      matched.push({ id, order: orders[id] });
+    }
+  }
+  paymentLog.unshift({ at: now, source, text: String(text).slice(0, 200), matched: matched.map(m => m.order.orderNum || '#' + m.id) });
+  if (paymentLog.length > 20) paymentLog.pop();
+  for (const m of matched) {
+    console.log(`🎯 TO'LOV MOS KELDI (${source}): ${m.order.total} so'm → ${m.order.orderNum}`);
+    await setOrderStatus(m.id, 'confirmed').catch(e => console.error("Buyurtma holatini yangilab bo'lmadi:", e.message));
+    await firebasePatch(`orders/${m.id}`, { paidVia: source, paidAt: now }).catch(() => {});
+  }
+  return matched.map(m => ({ id: m.id, orderNum: m.order.orderNum, total: m.order.total, userName: m.order.userName }));
+}
+
+function handlePaymentMessage(msg, { trusted = false } = {}) {
+  const text = msg.text || msg.caption;
+  if (!text) return;
+  const fromId = String(msg.from?.id || '');
+  // Faqat ishonchli manbalar: admin (forward qilingan bank xabari) yoki kanal posti
+  if (!trusted && !ADMIN_IDS.includes(fromId)) return;
+  const source = msg.chat?.type === 'channel' ? 'kanal' : (msg.forward_from || msg.forward_sender_name || msg.forward_origin ? 'admin forward' : 'admin');
+  matchPaymentText(text, source).then(list => {
+    if (msg.chat?.type === 'private' && botInstance && (list.length || source === 'admin forward')) {
+      botInstance.sendMessage(msg.chat.id, list.length
+        ? `✅ To'lov topildi va tasdiqlandi: ${list.map(m => m.orderNum).join(', ')}`
+        : `🔍 Bu xabarda kutilayotgan buyurtma summasi topilmadi.`).catch(() => {});
+    }
+  }).catch(e => console.error("To'lovni tekshirishda xato:", e.message));
 }
 
 // ===== SERVER =====
