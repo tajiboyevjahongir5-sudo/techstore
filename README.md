@@ -53,3 +53,13 @@ Shundan so'ng:
 - **Narx tushdi** — sevimlilarga qo'shilgan mahsulot arzonlashsa xabar.
 - **Admin:** har kuni 21:00 da kunlik hisobot (`/hisobot` — istalgan payt), `/reklama` — hammaga xabar (oldindan ko'rish va tasdiqlash bilan), to'lovdan 24 soat o'tib ham jo'natilmagan buyurtma eslatmasi.
 - Admin panel → Sozlamalar → **Telegram kanal** — /start dagi obuna tugmasi uchun.
+
+## Mini App imkoniyatlari
+
+- **Buyurtmalarim** — serverdan: holat bosqichlari (berildi → tasdiqlandi → yo'lda → yetib keldi), BTS cheki, "Yetib keldi" va baho/fikr (rasm bilan).
+- **Filtr va saralash** — narx oralig'i, brend, chegirmadagilar, mavjudlari; arzon/qimmat/reyting/yangi/chegirma bo'yicha.
+- **Ombor** — mahsulotda "Omborda (dona)": "N ta qoldi", 0 bo'lsa "Tugagan" (sotib bo'lmaydi); to'lov tasdiqlanganda avtomatik kamayadi.
+- **Bosh sahifa** — "Chegirma tugayapti" (tugash vaqti bilan ortga sanoq), "Ko'p sotilganlar", "Yaqinda ko'rganlaringiz".
+- **Solishtirish** — 3 tagacha mahsulot yonma-yon; **do'stlarni taklif qilish** havolasi (bonussiz); bosh ekranga qo'shish va to'liq ekran.
+- **Tezlik** — yuklangan rasmlar avtomatik kichraytiriladi (WebP), katalog keshlanadi, skelet yuklanish.
+- **Admin** — buyurtma oynasidan chek bilan jo'natish, 14 kunlik daromad grafigi, eng ko'p sotilganlar, fikrlarni o'chirish.

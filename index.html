@@ -2507,6 +2507,143 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   color: rgba(255, 255, 255, 0.25);
 }
 
+.filter-btn { position: relative; }
+.hs { margin: 4px 0 14px; }
+.hs-title { font-size: 15px; font-weight: 800; padding: 0 20px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.hs-timer { font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #ff7a45, #ff3d6e); padding: 3px 8px; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.hs-timer:empty { display: none; }
+.hs .pd-similar { margin: 0; padding: 2px 20px 6px; scroll-padding-left: 20px; }
+.hs-card .pd-sim-img { position: relative; }
+.hs-card .pd-sim-img img { width: 100%; height: 100%; object-fit: cover; }
+.hs-disc { position: absolute; top: 6px; left: 6px; font-size: 10px; font-weight: 800; color: #fff; background: var(--red); padding: 2px 6px; border-radius: 6px; }
+.hs-rank { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #ffd166, #f5a623); color: #3a2400; font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(245,166,35,0.45); }
+.hs-card.is-out { opacity: .5; }
+.cmp-fab { position: fixed; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 60; display: flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px; border-radius: 21px; border: none; background: var(--grad); color: #fff; font: 800 13px 'Plus Jakarta Sans', sans-serif; box-shadow: 0 8px 24px rgba(107,127,255,0.45); cursor: pointer; animation: fabIn .45s cubic-bezier(0.34,1.56,0.64,1); }
+.cmp-fab b { background: rgba(255,255,255,0.25); border-radius: 10px; padding: 1px 7px; }
+@keyframes fabIn { from { transform: translateY(20px) scale(.8); opacity: 0; } }
+#home:not(.active) ~ .cmp-fab, .screen:not(#home) .cmp-fab { display: none; }
+.pd-cmp-btn { width: 100%; height: 46px; border-radius: 16px; border: 1px dashed var(--glass-border); background: transparent; color: var(--text2); font: 700 13px 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; cursor: pointer; }
+.pd-cmp-btn.on { border-style: solid; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.cmp-sheet { max-height: 88vh; }
+.cmp-wrap { overflow-x: auto; margin: 10px -20px 0; padding: 0 20px 6px; }
+.cmp-cells { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(118px, 1fr)); gap: 10px; }
+.cmp-head { margin-bottom: 8px; }
+.cmp-col { position: relative; background: var(--card); border: 1px solid var(--glass-border); border-radius: 16px; padding: 8px; text-align: center; }
+.cmp-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text2); border-style: dashed; font-size: 12px; font-weight: 700; cursor: pointer; }
+.cmp-x { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(0,0,0,0.45); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; z-index: 1; }
+.cmp-img { height: 84px; display: flex; align-items: center; justify-content: center; font-size: 40px; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.03); }
+.cmp-img img { width: 100%; height: 100%; object-fit: cover; }
+.cmp-name { font-size: 12px; font-weight: 700; margin-top: 6px; line-height: 1.3; }
+.cmp-row { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.cmp-label { font-size: 11px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.cmp-cell { font-size: 13px; color: var(--text); word-break: break-word; }
+.cmp-cell small { color: var(--text3); }
+.cmp-best { color: var(--green); }
+.cmp-foot { margin-top: 12px; }
+.cmp-foot .ot-btn { width: 100%; }
+.ref-hero { font-size: 54px; text-align: center; margin: 4px 0 6px; animation: fabIn .6s cubic-bezier(0.34,1.56,0.64,1); }
+.ref-sub { text-align: center; font-size: 13px; color: var(--text2); line-height: 1.5; margin: -4px 0 16px; }
+.ref-link { font: 700 13px 'Plus Jakarta Sans', monospace; text-align: center; padding: 14px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px dashed var(--glass-border); word-break: break-all; color: var(--accent); }
+.ref-actions { display: flex; gap: 8px; margin-top: 12px; }
+.ref-stat { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(34,216,126,0.08); font-size: 12px; color: var(--text2); }
+.ref-stat b { font-size: 22px; color: var(--green); }
+.tg-fs .screen { padding-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)); }
+.stock-out, .stock-low { position: absolute; left: 8px; bottom: 8px; z-index: 2; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; }
+.stock-out { background: rgba(10,10,20,0.78); color: #fff; letter-spacing: .4px; }
+.stock-low { background: linear-gradient(135deg, #ff7a45, #ff3d6e); color: #fff; box-shadow: 0 4px 10px rgba(255,61,110,0.35); }
+.prod-card.is-out .prod-img img, .prod-card.is-out .prod-img { filter: grayscale(.85); }
+.prod-card.is-out .add-btn { opacity: .35; }
+.detail-add-btn.is-out { filter: grayscale(1); opacity: .6; }
+.pd-stock { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 10px; margin: -6px 0 14px; }
+.pd-stock.out { background: rgba(245,91,91,0.12); color: var(--red); }
+.pd-stock.low { background: rgba(255,122,69,0.12); color: #ff7a45; }
+.pd-stock.ok { background: rgba(34,216,126,0.1); color: var(--green); }
+.pd-countdown { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; font-weight: 700; color: #ff7a45; }
+.pd-countdown b { font-variant-numeric: tabular-nums; background: rgba(255,122,69,0.14); padding: 3px 7px; border-radius: 7px; }
+.filter-count { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px var(--bg, #0b0d24); }
+.sort-pill { margin-left: auto; display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid var(--glass-border); background: var(--card); color: var(--text2); font: 700 12px 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+.sort-pill.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.sort-pill i { font-size: 14px; }
+.fs-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.fs-reset { background: none; border: none; color: var(--accent); font: 700 13px 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+.fs-label { font-size: 12px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin: 16px 0 8px; }
+.fs-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fs-chip { height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: var(--text); font: 600 13px 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all .2s; }
+.fs-chip.on { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(107,127,255,0.35); }
+.fs-range { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.fs-range .form-input { margin: 0; height: 42px; }
+.fs-range span { color: var(--text3); }
+#filterModal .as-toggle-row { margin-top: 10px; }
+#filterModal .settings-save-btn { margin-top: 16px; }
+.st-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; padding: 16px; margin-bottom: 14px; }
+.st-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.st-title { font-size: 14px; font-weight: 700; }
+.st-sub { font-size: 12px; color: var(--accent); font-weight: 700; }
+.st-bars { display: flex; align-items: flex-end; gap: 4px; height: 130px; }
+.st-bar-col { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+.st-bar { width: 100%; max-width: 18px; height: var(--h); border-radius: 6px 6px 3px 3px; background: linear-gradient(180deg, #8b9cff, #6B7FFF); transform-origin: bottom; animation: barUp .7s cubic-bezier(0.22,1,0.36,1) both; animation-delay: calc(var(--i) * 35ms); }
+@keyframes barUp { from { transform: scaleY(0); } }
+.st-bar-val { font-size: 8px; color: var(--text2); font-weight: 700; white-space: nowrap; }
+.st-bar-day { font-size: 9px; color: var(--text3); }
+.st-top { display: flex; flex-direction: column; gap: 10px; }
+.st-top-row { display: flex; align-items: center; gap: 10px; }
+.st-top-rank { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.08); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.st-top-row:first-child .st-top-rank { background: linear-gradient(135deg, #ffd166, #f5a623); color: #3a2400; }
+.st-top-img { width: 38px; height: 38px; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 20px; background: rgba(255,255,255,0.05); flex-shrink: 0; }
+.st-top-img img { width: 100%; height: 100%; object-fit: cover; }
+.st-top-info { flex: 1; min-width: 0; }
+.st-top-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+.st-top-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.st-top-bar span { display: block; height: 100%; border-radius: 3px; background: var(--grad); }
+.st-top-qty { font-size: 12px; font-weight: 800; color: var(--green); }
+.st-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 10px; }
+.st-revs { display: flex; flex-direction: column; gap: 10px; }
+.st-rev { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 10px 12px; }
+.st-rev-top { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.st-rev-stars { color: #f5a623; font-size: 12px; letter-spacing: 1px; }
+.st-rev-del { margin-left: auto; width: 30px; height: 30px; }
+.st-rev-prod { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.st-rev-text { font-size: 12px; color: var(--text2); margin-top: 6px; line-height: 1.45; }
+.st-rev-photo { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
+.ship-form { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 16px; padding: 12px; margin-bottom: 10px; }
+.ship-title { font-size: 13px; font-weight: 800; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.ship-form .rv-photo { height: 110px; margin-bottom: 10px; }
+.ship-form .form-input { margin-bottom: 10px; }
+.ot-steps { display: flex; flex-direction: column; gap: 0; margin: 12px 0 4px; padding-left: 2px; }
+.ot-step { display: flex; align-items: flex-start; gap: 10px; position: relative; padding-bottom: 12px; opacity: .45; }
+.ot-step:last-child { padding-bottom: 0; }
+.ot-step:not(:last-child)::before { content: ''; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--glass-border); }
+.ot-step.done { opacity: 1; }
+.ot-step.done:not(:last-child)::before { background: linear-gradient(var(--green), color-mix(in srgb, var(--green) 40%, transparent)); }
+.ot-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); font-size: 14px; flex-shrink: 0; color: var(--text3); }
+.ot-step.done .ot-dot { background: color-mix(in srgb, var(--green) 18%, transparent); border-color: color-mix(in srgb, var(--green) 50%, transparent); color: var(--green); }
+.ot-step.cur .ot-dot { box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 18%, transparent); animation: otPulse 2s ease-in-out infinite; }
+@keyframes otPulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--green) 6%, transparent); } }
+.ot-lbl { font-size: 13px; font-weight: 600; padding-top: 4px; display: flex; flex-direction: column; }
+.ot-lbl small { font-size: 11px; color: var(--text3); font-weight: 500; }
+.ot-rejected, .ot-note { font-size: 12px; margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; display: flex; gap: 6px; align-items: center; }
+.ot-rejected { color: var(--red); background: rgba(245,91,91,0.1); }
+.ot-note { color: var(--text2); background: rgba(255,255,255,0.05); }
+.ot-review { font-size: 12px; color: var(--text2); margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(245,166,35,0.08); }
+.ot-review b { color: #f5a623; letter-spacing: 1px; }
+.ot-review div { margin-top: 4px; font-style: italic; }
+.ot-actions { display: flex; gap: 8px; margin-top: 12px; }
+.ot-btn { flex: 1; height: 42px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: var(--text); font: 700 13px 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.ot-btn-main { background: var(--grad); border: none; color: #fff; box-shadow: 0 4px 14px rgba(107,127,255,0.35); }
+.rv-product { text-align: center; font-size: 13px; color: var(--text2); margin: -4px 0 10px; }
+.rv-stars { display: flex; justify-content: center; gap: 6px; }
+.rv-stars button { background: none; border: none; font-size: 40px; color: rgba(255,255,255,0.18); cursor: pointer; transition: transform .2s cubic-bezier(0.34,1.56,0.64,1), color .2s; padding: 0 2px; }
+.rv-stars button.on { color: #f5a623; transform: scale(1.12); text-shadow: 0 0 18px rgba(245,166,35,0.45); }
+.rv-star-label { text-align: center; font-size: 13px; font-weight: 700; color: var(--text2); margin: 4px 0 14px; min-height: 18px; }
+.rv-photo { display: flex; align-items: center; justify-content: center; gap: 8px; height: 90px; border-radius: 14px; border: 1.5px dashed var(--glass-border); color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; overflow: hidden; margin-bottom: 14px; }
+.rv-photo i { font-size: 20px; }
+.rv-photo img { width: 100%; height: 100%; object-fit: cover; }
+.sk { background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.05) 63%); background-size: 400% 100%; animation: skShine 1.3s ease infinite; border-radius: 8px; }
+@keyframes skShine { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+.sk-line { height: 12px; margin-bottom: 10px; }
+.sk-prod { pointer-events: none; animation: none !important; }
+.sk-prod .prod-img { border-radius: 18px 18px 0 0; }
+.sk-block { height: 90px; border-radius: 12px; }
 .orders-hist-wrap {
   padding: 20px;
   display: flex;
@@ -3813,7 +3950,7 @@ body.modal-open {
       <div class="search-bar">
         <i class="ti ti-search"></i>
         <input type="text" placeholder="Mahsulot qidirish..." id="searchInput" oninput="onSearchInput()">
-        <button class="filter-btn"><i class="ti ti-adjustments-horizontal"></i></button>
+        <button class="filter-btn" onclick="openFilterSheet()"><i class="ti ti-adjustments-horizontal"></i><span class="filter-count" id="filterCount" style="display:none"></span></button>
       </div>
     </div>
     <div class="banner-wrap">
@@ -3834,7 +3971,9 @@ body.modal-open {
       <div class="cat-chip" onclick="filterCat(this,'Dronlar')">🚁 Dronlar</div>
       <div class="cat-chip" onclick="filterCat(this,'Smart TV')">📺 Smart TV</div>
     </div>
-    <div class="section-head"><div class="section-title">Mahsulotlar</div><div class="see-all" id="noResultsMsg" style="display:none;color:var(--text2)">Topilmadi</div></div>
+    <div id="homeSections"></div>
+    <button class="cmp-fab" id="cmpFab" onclick="openCompare()" style="display:none"><i class="ti ti-scale"></i> Solishtirish <b id="cmpFabCount">0</b></button>
+    <div class="section-head"><div class="section-title">Mahsulotlar</div><div class="see-all" id="noResultsMsg" style="display:none;color:var(--text2)">Topilmadi</div><button class="sort-pill" id="sortPill" onclick="openFilterSheet()"><i class="ti ti-arrows-sort"></i> <span id="sortPillText">Tavsiya</span></button></div>
     <div class="products-grid" id="productsGrid"></div>
   </div>
 
@@ -3879,7 +4018,9 @@ body.modal-open {
           <span class="detail-old-price" id="detailOldPrice"></span>
           <span class="pd-save" id="pdSave"></span>
         </div>
+        <div class="pd-countdown" id="pdCountdown" style="display:none"></div>
       </div>
+      <div class="pd-stock" id="pdStock" style="display:none"></div>
 
       <div class="pd-perks pd-anim" style="--d:5">
         <button class="pd-perk" onclick="showPerkInfo('delivery')"><i class="ti ti-truck"></i><span>Tekin<br>yetkazish</span></button>
@@ -3891,6 +4032,8 @@ body.modal-open {
         <span class="pd-share-txt"><b>Do'stlarga ulashish</b><small>Rasm va havola bilan chiroyli xabar</small></span>
         <i class="ti ti-chevron-right"></i>
       </button>
+
+      <button class="pd-cmp-btn pd-anim" style="--d:6" id="pdCmpBtn" onclick="toggleCompare(currentDetailId)"><i class="ti ti-scale"></i> <span>Solishtirishga qo'shish</span></button>
 
       <div class="pd-section pd-anim" style="--d:6" id="pdDescSection">
         <div class="pd-section-title">Tavsif</div>
@@ -4211,6 +4354,18 @@ body.modal-open {
             <!-- Dinamik kunlar ro'yxati -->
           </div>
         </div>
+        <div class="st-card">
+          <div class="st-head"><div class="st-title">Daromad — so'nggi 14 kun</div><div class="st-sub" id="statRev14Total"></div></div>
+          <div class="st-bars" id="statRevBars"></div>
+        </div>
+        <div class="st-card">
+          <div class="st-head"><div class="st-title">🏆 Eng ko'p sotilganlar</div></div>
+          <div id="statTopProducts" class="st-top"></div>
+        </div>
+        <div class="st-card">
+          <div class="st-head"><div class="st-title">⭐ Mijozlar fikrlari</div><div class="st-sub" id="statReviewsCount"></div></div>
+          <div id="statReviews" class="st-revs"></div>
+        </div>
       </div>
 
       <!-- USERS TAB -->
@@ -4391,6 +4546,70 @@ body.modal-open {
     </div>
   </div>
 
+  <!-- COMPARE MODAL -->
+  <div class="modal-overlay" id="compareModal" onclick="if(event.target===this)closeModal('compareModal')">
+    <div class="modal-sheet cmp-sheet">
+      <div class="modal-handle"></div>
+      <div class="fs-head"><div class="modal-title" style="margin:0"><i class="ti ti-scale" style="color:var(--accent);margin-right:8px;vertical-align:middle"></i>Solishtirish</div><button class="fs-reset" onclick="clearCompare()">Tozalash</button></div>
+      <div class="cmp-wrap" id="cmpTable"></div>
+    </div>
+  </div>
+
+  <!-- REFERRAL MODAL -->
+  <div class="modal-overlay" id="refModal" onclick="if(event.target===this)closeModal('refModal')">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="ref-hero">🎁</div>
+      <div class="modal-title" style="text-align:center">Do'stlaringizni taklif qiling</div>
+      <div class="ref-sub">Do'stlaringizga TechStore'ni tavsiya qiling — ular ham original texnikani ishonchli va qulay xarid qilsin.</div>
+      <div class="ref-link" id="refLink">—</div>
+      <div class="ref-actions">
+        <button class="ot-btn" onclick="copyRefLink()"><i class="ti ti-copy"></i> Nusxa olish</button>
+        <button class="ot-btn ot-btn-main" onclick="shareRefLink()"><i class="ti ti-send"></i> Ulashish</button>
+      </div>
+      <div class="ref-stat"><b id="refCount">0</b><span>do'stingiz sizning havolangiz orqali qo'shildi</span></div>
+    </div>
+  </div>
+
+  <!-- FILTER MODAL -->
+  <div class="modal-overlay" id="filterModal" onclick="if(event.target===this)closeModal('filterModal')">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="fs-head"><div class="modal-title" style="margin:0"><i class="ti ti-adjustments-horizontal" style="color:var(--accent);margin-right:8px;vertical-align:middle"></i>Filtr va saralash</div><button class="fs-reset" onclick="resetFilters()">Tozalash</button></div>
+      <div class="fs-label">Saralash</div>
+      <div class="fs-chips" id="fsSort"></div>
+      <div class="fs-label">Narx (mln so'm)</div>
+      <div class="fs-chips" id="fsPrice"></div>
+      <div class="fs-range">
+        <input class="form-input" id="fsMin" type="number" inputmode="decimal" min="0" placeholder="dan" oninput="onPriceInput()">
+        <span>—</span>
+        <input class="form-input" id="fsMax" type="number" inputmode="decimal" min="0" placeholder="gacha" oninput="onPriceInput()">
+      </div>
+      <div class="fs-label">Brend</div>
+      <div class="fs-chips" id="fsBrands"></div>
+      <label class="as-toggle-row"><span><b>Faqat chegirmadagilar</b><small>Chegirmasi bor mahsulotlar</small></span><input type="checkbox" class="as-switch" id="fsDiscount" onchange="filterDraft.discount=this.checked;renderFilterSheet()"></label>
+      <label class="as-toggle-row"><span><b>Faqat mavjudlari</b><small>Tugagan mahsulotlarni yashirish</small></span><input type="checkbox" class="as-switch" id="fsStock" onchange="filterDraft.inStock=this.checked;renderFilterSheet()"></label>
+      <button class="settings-save-btn btn-purple" id="fsApply" onclick="applyFilters()">Ko'rsatish</button>
+    </div>
+  </div>
+
+  <!-- REVIEW MODAL -->
+  <div class="modal-overlay" id="reviewModal" onclick="if(event.target===this)closeModal('reviewModal')">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title"><i class="ti ti-star" style="color:#f5a623;margin-right:8px;font-size:22px;vertical-align:middle"></i>Mahsulotni baholang</div>
+      <div class="rv-product" id="rvProduct"></div>
+      <div class="rv-stars" id="rvStars">
+        <button onclick="setReviewRating(1)">★</button><button onclick="setReviewRating(2)">★</button><button onclick="setReviewRating(3)">★</button><button onclick="setReviewRating(4)">★</button><button onclick="setReviewRating(5)">★</button>
+      </div>
+      <div class="rv-star-label" id="rvStarLabel">Baholang</div>
+      <div class="form-group"><textarea class="form-input" id="rvText" rows="3" maxlength="1000" placeholder="Mahsulot sizga yoqdimi? Fikringizni yozing..."></textarea></div>
+      <label class="rv-photo" id="rvPhotoPrev" for="rvPhotoInput"><i class="ti ti-camera-plus"></i><span>Rasm qo'shish</span></label>
+      <input type="file" accept="image/*" id="rvPhotoInput" style="display:none" onchange="pickReviewPhoto(this)">
+      <button class="settings-save-btn btn-purple" id="rvSubmit" onclick="submitReview()"><i class="ti ti-send"></i> Fikrni yuborish</button>
+    </div>
+  </div>
+
   <!-- ADD PRODUCT MODAL (outside admin screen to prevent scroll-through) -->
   <div class="modal-overlay" id="addModal">
     <div class="modal-sheet">
@@ -4400,7 +4619,7 @@ body.modal-open {
       <div class="form-group"><label class="form-label"><i class="ti ti-building-store" style="color:var(--accent);margin-right:6px"></i>Brend</label><input class="form-input" placeholder="masalan: Apple" id="prodBrand"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label"><i class="ti ti-coin" style="color:var(--accent);margin-right:6px"></i>Narx (so'm)</label><input class="form-input" type="number" placeholder="18500000" id="prodPrice"></div>
-        <div class="form-group"><label class="form-label"><i class="ti ti-package" style="color:var(--accent);margin-right:6px"></i>Miqdor</label><input class="form-input" type="number" placeholder="50" id="prodQty"></div>
+        <div class="form-group"><label class="form-label"><i class="ti ti-package" style="color:var(--accent);margin-right:6px"></i>Omborda (dona)</label><input class="form-input" type="number" min="0" placeholder="cheklanmagan" id="prodQty"></div>
       </div>
       <div class="form-group">
         <label class="form-label"><i class="ti ti-category" style="color:var(--accent);margin-right:6px"></i>Kategoriya</label>
@@ -4442,6 +4661,7 @@ body.modal-open {
         <input type="file" id="prodImgInput" accept="image/*" multiple style="display:none" onchange="addProductImages(this)">
       </div>
       <div class="form-group"><label class="form-label"><i class="ti ti-discount-2" style="color:var(--accent);margin-right:6px"></i>Chegirma (%)</label><input class="form-input" type="number" placeholder="0" id="prodDiscount" min="0" max="99"></div>
+      <div class="form-group"><label class="form-label"><i class="ti ti-clock" style="color:var(--accent);margin-right:6px"></i>Chegirma tugash vaqti (ixtiyoriy)</label><input class="form-input" type="datetime-local" id="prodDiscUntil"></div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeAddModal()">Bekor</button>
         <button class="btn-save" id="saveProductBtn" onclick="saveProduct()">Saqlash</button>
@@ -4513,6 +4733,27 @@ body.modal-open {
             <div class="profile-menu-label">Admin bilan bog'lanish</div>
             <div style="font-size:11px;color:var(--text2);margin-top:2px">Mahsulot sotmoqchi yoki taklifingiz bormi?</div>
           </div>
+          <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
+        </div>
+        <div class="profile-menu-item" onclick="openReferral()">
+          <div class="profile-menu-icon green"><i class="ti ti-user-plus" style="font-size:20px"></i></div>
+          <div style="flex:1">
+            <div class="profile-menu-label">Do'stlarni taklif qilish</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px" id="refMenuSub">Shaxsiy havolangizni ulashing</div>
+          </div>
+          <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
+        </div>
+        <div class="profile-menu-item" id="homeScreenItem" onclick="addToHomeScreen()" style="display:none">
+          <div class="profile-menu-icon blue"><i class="ti ti-apps" style="font-size:20px"></i></div>
+          <div style="flex:1">
+            <div class="profile-menu-label">Bosh ekranga qo'shish</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">Do'konni ilovadek bir bosishda oching</div>
+          </div>
+          <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
+        </div>
+        <div class="profile-menu-item" id="fullscreenItem" onclick="toggleFullscreen()" style="display:none">
+          <div class="profile-menu-icon orange"><i class="ti ti-maximize" style="font-size:20px"></i></div>
+          <div class="profile-menu-label" id="fullscreenLabel">To'liq ekran rejimi</div>
           <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
         </div>
         <div class="profile-menu-item" onclick="openDevModal()">
@@ -4637,6 +4878,10 @@ body.modal-open {
       <div class="form-row">
         <div class="form-group"><label class="form-label"><i class="ti ti-coin" style="color:var(--accent);margin-right:6px"></i>Narx (so'm)</label><input class="form-input" type="number" id="editPrice"></div>
         <div class="form-group"><label class="form-label"><i class="ti ti-discount-2" style="color:var(--accent);margin-right:6px"></i>Chegirma (%)</label><input class="form-input" type="number" id="editDiscount" min="0" max="99"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label"><i class="ti ti-package" style="color:var(--accent);margin-right:6px"></i>Omborda (dona)</label><input class="form-input" type="number" min="0" placeholder="cheklanmagan" id="editStock"></div>
+        <div class="form-group"><label class="form-label"><i class="ti ti-clock" style="color:var(--accent);margin-right:6px"></i>Chegirma tugashi</label><input class="form-input" type="datetime-local" id="editDiscUntil"></div>
       </div>
       <div class="form-group"><label class="form-label"><i class="ti ti-file-description" style="color:var(--accent);margin-right:6px"></i>Tavsif</label><input class="form-input" id="editDesc"></div>
       <div class="form-group">
@@ -4955,13 +5200,25 @@ async function loadData() {
     if(f)  favorites    = new Set(JSON.parse(f));
   } catch(e) {}
 
-  // Fallback default mahsulotlar
-  products = [...DEFAULT_PRODUCTS];
-  renderProducts(products);
-  buildSlides();
+  // Oldingi safar yuklangan katalog darhol ko'rsatiladi (keyin serverdan yangilanadi),
+  // bo'lmasa — skelet kartalar
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem('ts_products_cache') || 'null'); } catch (e) {}
+  if (Array.isArray(cached) && cached.length) {
+    products = cached;
+    filterProducts(true);
+    buildSlides();
+  } else {
+    renderSkeletonGrid();
+  }
 
   // API dan real mahsulotlarni va settingsni yuklash
-  await loadProductsFromServer();
+  const ok = await loadProductsFromServer();
+  if (!ok && !(Array.isArray(cached) && cached.length)) {
+    products = [...DEFAULT_PRODUCTS];
+    filterProducts();
+    buildSlides();
+  }
   await loadPublicSettingsFromServer();
   updateProfileCounts();
 }
@@ -4976,15 +5233,32 @@ async function loadProductsFromServer() {
         const bannerMap = {};
         DEFAULT_PRODUCTS.forEach(dp => { if(dp.bannerImage) bannerMap[dp.id] = dp.bannerImage; });
         data.forEach(p => { if(!p.bannerImage && bannerMap[p.id]) p.bannerImage = bannerMap[p.id]; });
+        const changed = JSON.stringify(data) !== JSON.stringify(products);
         products = data;
-        renderProducts(products);
-        buildSlides();
+        try {
+          const json = JSON.stringify(data);
+          if (json.length < 1.5e6) localStorage.setItem('ts_products_cache', json);
+        } catch (e) {}
+        if (changed || !document.querySelector('#productsGrid .prod-card')) {
+          filterProducts(true);
+          buildSlides();
+        }
         renderAdminProducts && renderAdminProducts();
+        return true;
       }
     }
   } catch (e) {
     console.warn("Mahsulotlarni serverdan yuklashda xatolik:", e);
   }
+  return false;
+}
+
+function renderSkeletonGrid() {
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = Array.from({ length: 6 }, () => `<div class="prod-card sk-prod">
+    <div class="prod-img sk"></div>
+    <div class="prod-info"><div class="sk sk-line" style="width:40%;height:9px"></div><div class="sk sk-line" style="width:85%"></div><div class="sk sk-line" style="width:60%"></div></div>
+  </div>`).join('');
 }
 
 async function loadPublicSettingsFromServer() {
@@ -5369,8 +5643,11 @@ function renderProducts(list, opts = {}) {
     card.style.animationDelay = `${Math.min(idx, 8) * stagger}s`;
     card.dataset.id = p.id;
     card.dataset.cat = p.cat;
+    const out = isOutOfStock(p);
+    const low = !out && p.stock !== null && p.stock !== undefined && p.stock !== '' && Number(p.stock) <= 5;
+    if (out) card.classList.add('is-out');
     card.innerHTML = `
-      <div class="prod-img${p.image?' is-loading':''}">${p.image?`<img src="${p.image}" alt="${p.name}" loading="${idx<4?'eager':'lazy'}" decoding="async" onload="imgLoaded(this)" onerror="imgLoaded(this)">`:p.emoji}${p.discount>0?`<span class="prod-badge">-${p.discount}%</span>`:''}
+      <div class="prod-img${p.image?' is-loading':''}">${out ? '<span class="stock-out">Tugagan</span>' : low ? `<span class="stock-low">🔥 ${p.stock} ta qoldi</span>` : ''}${p.image?`<img src="${p.image}" alt="${p.name}" loading="${idx<4?'eager':'lazy'}" decoding="async" onload="imgLoaded(this)" onerror="imgLoaded(this)">`:p.emoji}${p.discount>0?`<span class="prod-badge">-${p.discount}%</span>`:''}
         <button class="fav-btn-card ${isFav?'active':''}" onclick="toggleFav(event,${p.id})"><i class="ti ti-heart${isFav?'-filled':''}" style="color:${isFav?'var(--red)':'rgba(255,255,255,0.7)'}"></i></button>
       </div>
       <div class="prod-info">
@@ -5406,6 +5683,109 @@ function onSearchInput() {
 }
 
 // ===== SEARCH & FILTER =====
+// ===== FILTR VA SARALASH =====
+const SORTS = {
+  rec: { label: 'Tavsiya', fn: null },
+  cheap: { label: 'Arzonroq', fn: (a, b) => a.price - b.price },
+  exp: { label: 'Qimmatroq', fn: (a, b) => b.price - a.price },
+  rating: { label: 'Reyting', fn: (a, b) => (b.rating || 0) - (a.rating || 0) || (b.reviews || 0) - (a.reviews || 0) },
+  new: { label: 'Yangilar', fn: (a, b) => b.id - a.id },
+  disc: { label: 'Chegirma', fn: (a, b) => (b.discount || 0) - (a.discount || 0) },
+};
+const PRICE_PRESETS = [
+  { label: '3 mln gacha', min: 0, max: 3e6 },
+  { label: '3–10 mln', min: 3e6, max: 10e6 },
+  { label: '10–20 mln', min: 10e6, max: 20e6 },
+  { label: '20 mln+', min: 20e6, max: 0 },
+];
+let filterState = { sort: 'rec', min: 0, max: 0, brands: [], discount: false, inStock: false };
+try { const saved = JSON.parse(localStorage.getItem('ts_filter') || 'null'); if (saved) filterState = { ...filterState, ...saved, brands: Array.isArray(saved.brands) ? saved.brands : [] }; } catch (e) {}
+let filterDraft = null;
+
+function activeFilterCount(f = filterState) {
+  return (f.min || f.max ? 1 : 0) + (f.brands.length ? 1 : 0) + (f.discount ? 1 : 0) + (f.inStock ? 1 : 0);
+}
+
+function applyFilterState(list, f = filterState) {
+  let out = list.filter(p =>
+    (!f.min || p.price >= f.min) && (!f.max || p.price <= f.max) &&
+    (!f.brands.length || f.brands.includes(p.brand)) &&
+    (!f.discount || (p.discount || 0) > 0) &&
+    (!f.inStock || !isOutOfStock(p)));
+  const sorter = SORTS[f.sort]?.fn;
+  if (sorter) out = out.slice().sort(sorter);
+  // Tugagan mahsulotlar ro'yxat oxirida
+  return out.slice().sort((a, b) => (isOutOfStock(a) ? 1 : 0) - (isOutOfStock(b) ? 1 : 0));
+}
+
+function isOutOfStock(p) {
+  return p && p.stock !== undefined && p.stock !== null && p.stock !== '' && Number(p.stock) <= 0;
+}
+
+function updateFilterBadge() {
+  const n = activeFilterCount();
+  const el = document.getElementById('filterCount');
+  el.textContent = n; el.style.display = n ? '' : 'none';
+  document.getElementById('sortPillText').textContent = SORTS[filterState.sort]?.label || 'Tavsiya';
+  document.getElementById('sortPill').classList.toggle('on', filterState.sort !== 'rec' || n > 0);
+}
+
+function openFilterSheet() {
+  filterDraft = JSON.parse(JSON.stringify(filterState));
+  renderFilterSheet();
+  openModal('filterModal');
+}
+
+function renderFilterSheet() {
+  const f = filterDraft;
+  document.getElementById('fsSort').innerHTML = Object.entries(SORTS).map(([k, v]) =>
+    `<button class="fs-chip ${f.sort === k ? 'on' : ''}" onclick="filterDraft.sort='${k}';renderFilterSheet()">${v.label}</button>`).join('');
+  document.getElementById('fsPrice').innerHTML = PRICE_PRESETS.map((pr, i) =>
+    `<button class="fs-chip ${f.min === pr.min && f.max === pr.max ? 'on' : ''}" onclick="setPricePreset(${i})">${pr.label}</button>`).join('');
+  const minEl = document.getElementById('fsMin'), maxEl = document.getElementById('fsMax');
+  if (document.activeElement !== minEl) minEl.value = f.min ? f.min / 1e6 : '';
+  if (document.activeElement !== maxEl) maxEl.value = f.max ? f.max / 1e6 : '';
+  const brands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  document.getElementById('fsBrands').innerHTML = brands.map(b =>
+    `<button class="fs-chip ${f.brands.includes(b) ? 'on' : ''}" onclick="toggleBrandFilter(this.dataset.b)" data-b="${escText(b)}">${escText(b)}</button>`).join('');
+  document.getElementById('fsDiscount').checked = !!f.discount;
+  document.getElementById('fsStock').checked = !!f.inStock;
+  const n = applyFilterState(products.filter(p => currentCat === 'all' || p.cat === currentCat), f).length;
+  document.getElementById('fsApply').innerHTML = `<i class="ti ti-check"></i> ${n} ta mahsulotni ko'rsatish`;
+}
+
+function setPricePreset(i) {
+  const pr = PRICE_PRESETS[i];
+  const same = filterDraft.min === pr.min && filterDraft.max === pr.max;
+  filterDraft.min = same ? 0 : pr.min; filterDraft.max = same ? 0 : pr.max;
+  renderFilterSheet();
+}
+function onPriceInput() {
+  const mn = parseFloat(String(document.getElementById('fsMin').value).replace(',', '.'));
+  const mx = parseFloat(String(document.getElementById('fsMax').value).replace(',', '.'));
+  filterDraft.min = mn > 0 ? Math.round(mn * 1e6) : 0;
+  filterDraft.max = mx > 0 ? Math.round(mx * 1e6) : 0;
+  renderFilterSheet();
+}
+function toggleBrandFilter(b) {
+  const i = filterDraft.brands.indexOf(b);
+  if (i >= 0) filterDraft.brands.splice(i, 1); else filterDraft.brands.push(b);
+  renderFilterSheet();
+}
+function resetFilters() {
+  filterDraft = { sort: 'rec', min: 0, max: 0, brands: [], discount: false, inStock: false };
+  renderFilterSheet();
+}
+function applyFilters() {
+  filterDraft.discount = document.getElementById('fsDiscount').checked;
+  filterDraft.inStock = document.getElementById('fsStock').checked;
+  filterState = filterDraft;
+  try { localStorage.setItem('ts_filter', JSON.stringify(filterState)); } catch (e) {}
+  closeModal('filterModal');
+  updateFilterBadge();
+  filterProducts();
+}
+
 function filterProducts(quick) {
   const q = document.getElementById('searchInput').value.toLowerCase();
   const filtered = products.filter(p => {
@@ -5413,7 +5793,10 @@ function filterProducts(quick) {
     const matchQ = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
     return matchCat && matchQ;
   });
-  renderProducts(filtered, { quick: !!quick });
+  renderProducts(applyFilterState(filtered), { quick: !!quick });
+  updateFilterBadge();
+  renderHomeSections();
+  updateCompareUI();
 }
 
 function filterCat(el, cat) {
@@ -5578,6 +5961,16 @@ function fillDetailInfo(p, allImgs) {
     discEl.style.display = 'none'; heroBadge.style.display = 'none'; sub.style.display = 'none';
     document.getElementById('pdBarOld').textContent = '';
   }
+  startDiscountCountdown(p);
+
+  // Ombordagi soni
+  const stockEl = document.getElementById('pdStock');
+  const hasStock = p.stock !== null && p.stock !== undefined && p.stock !== '';
+  if (isOutOfStock(p)) { stockEl.className = 'pd-stock out'; stockEl.innerHTML = '<i class="ti ti-alert-circle"></i> Hozircha tugagan — tez orada keltiramiz'; stockEl.style.display = ''; }
+  else if (hasStock && Number(p.stock) <= 5) { stockEl.className = 'pd-stock low'; stockEl.innerHTML = `<i class="ti ti-flame"></i> Shoshiling! Faqat ${p.stock} ta qoldi`; stockEl.style.display = ''; }
+  else if (hasStock) { stockEl.className = 'pd-stock ok'; stockEl.innerHTML = '<i class="ti ti-circle-check"></i> Omborda bor'; stockEl.style.display = ''; }
+  else stockEl.style.display = 'none';
+  applyIconFallback(stockEl);
 
   // Tavsif (uzun bo'lsa qisqartirib "Ko'proq o'qish")
   const desc = document.getElementById('detailDesc');
@@ -5620,6 +6013,8 @@ function fillDetailInfo(p, allImgs) {
     </div>`).join('');
   document.getElementById('pdSimilarSection').style.display = similar.length ? '' : 'none';
   loadProductReviews(p.id);
+  pushRecent(p.id);
+  updateCompareUI();
 
   updateDetailFavBtn();
   updateDetailCartBtn();
@@ -5670,8 +6065,29 @@ function updateDetailCartBtn() {
   const btn = document.getElementById('pdAddBtn');
   if (!btn) return;
   const inCart = cart.some(c => c.id === currentDetailId);
+  const out = isOutOfStock(products.find(x => x.id === currentDetailId));
   btn.classList.toggle('in-cart', inCart);
-  btn.querySelector('span').textContent = inCart ? "Savatga o'tish" : "Savatga qo'shish";
+  btn.classList.toggle('is-out', out && !inCart);
+  btn.querySelector('span').textContent = inCart ? "Savatga o'tish" : out ? 'Tugagan' : "Savatga qo'shish";
+}
+
+// Chegirma tugashiga ortga sanoq
+let discountTimer = null;
+function startDiscountCountdown(p) {
+  clearInterval(discountTimer);
+  const el = document.getElementById('pdCountdown');
+  if (!p.discountUntil || !(p.discount > 0) || p.discountUntil <= Date.now()) { el.style.display = 'none'; return; }
+  const tick = () => {
+    const ms = p.discountUntil - Date.now();
+    if (ms <= 0 || currentDetailId !== p.id) { clearInterval(discountTimer); el.style.display = 'none'; return; }
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, sec = Math.floor(ms / 1e3) % 60;
+    const pad = n => String(n).padStart(2, '0');
+    el.innerHTML = `<i class="ti ti-clock"></i> Chegirma tugashiga: ${d ? `<b>${d} kun</b>` : ''}<b>${pad(h)}:${pad(m)}:${pad(sec)}</b>`;
+    applyIconFallback(el);
+  };
+  el.style.display = 'flex';
+  tick();
+  discountTimer = setInterval(tick, 1000);
 }
 
 async function shareProduct() {
@@ -5750,6 +6166,7 @@ function addToCartById(e, id, btn) {
   e.stopPropagation();
   const p = products.find(x=>x.id===id);
   if(!p) return;
+  if (!canAddMore(p)) return;
   if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 
   // Tugma: "+" aylanib "✓" ga aylanadi, yashil to'lqin
@@ -5780,13 +6197,24 @@ function addToCartFromDetail() {
   const btn = document.getElementById('pdAddBtn');
   // Ikkinchi bosishda savatga o'tamiz
   if (cart.some(c => c.id === p.id)) { showTab('cart'); return; }
-  addProductToCart(p);
+  if (!addProductToCart(p)) { if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error'); return; }
   updateDetailCartBtn();
   if (btn) { btn.classList.remove('bump'); void btn.offsetWidth; btn.classList.add('bump'); }
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 }
 
+// Ombordagi soniga qarab savatga qo'shish mumkinmi (aks holda xabar chiqadi)
+function canAddMore(p, extra = 1) {
+  if (isOutOfStock(p)) { showToast('Bu mahsulot hozircha tugagan', '😔', 'var(--red)'); return false; }
+  if (p.stock !== null && p.stock !== undefined && p.stock !== '') {
+    const inCart = cart.find(c => c.id === p.id)?.qty || 0;
+    if (inCart + extra > Number(p.stock)) { showToast(`Omborda faqat ${p.stock} ta bor`, '📦', 'var(--orange)'); return false; }
+  }
+  return true;
+}
+
 function addProductToCart(p, opts = {}) {
+  if (!canAddMore(p)) return false;
   const existing = cart.find(c=>c.id===p.id);
   if(existing) { existing.qty++; }
   else { cart.push({id:p.id,name:p.name,brand:p.brand,emoji:p.emoji,image:p.image||null,price:p.price,qty:1}); }
@@ -5794,6 +6222,7 @@ function addProductToCart(p, opts = {}) {
   if (!opts.silent) showToast('Savatga qo\'shildi','🛒','var(--accent)');
   renderCart();
   saveData();
+  return true;
 }
 
 // ===== SAVATGA UCHISH ANIMATSIYASI =====
@@ -6014,13 +6443,25 @@ function renderCart() {
       <div class="summary-row summary-total"><span>Jami</span><span style="color:var(--accent)" id="cartTotal">${sub} so'm</span></div>
     </div>
     <div style="padding:0 20px 20px">
-      <button class="checkout-btn" onclick="showTab('address')"><i class="ti ti-map-pin" style="font-size:18px"></i> Manzil kiritish</button>
+      <button class="checkout-btn" onclick="goCheckout()"><i class="ti ti-map-pin" style="font-size:18px"></i> Manzil kiritish</button>
     </div>`;
+}
+
+function goCheckout() {
+  for (const c of cart) {
+    const p = products.find(x => x.id === c.id);
+    if (!p) { showToast(`"${c.name}" endi sotuvda yo'q — savatdan olib tashlang`, '⚠️', 'var(--orange)'); return; }
+    if (isOutOfStock(p)) { showToast(`"${p.name}" tugagan — savatdan olib tashlang`, '😔', 'var(--red)'); return; }
+    if (p.stock !== null && p.stock !== undefined && p.stock !== '' && c.qty > Number(p.stock)) { showToast(`"${p.name}" dan faqat ${p.stock} ta bor`, '📦', 'var(--orange)'); return; }
+  }
+  showTab('address');
 }
 
 function chQty(id, delta) {
   const item = cart.find(c=>c.id===id);
   if(!item) return;
+  const prod = products.find(x => x.id === id);
+  if (delta > 0 && prod && !canAddMore(prod, delta)) return;
   item.qty += delta;
   if(item.qty < 1) {
     removeFromCart(id);
@@ -6306,7 +6747,163 @@ function goHomeAfterOrder() {
 }
 
 // ===== ORDERS HISTORY =====
-function showOrdersHistory() {
+// Telegram ichida — buyurtmalar serverdan (haqiqiy holat bilan), aks holda qurilmadagi nusxa
+let myOrdersCache = [];
+async function showOrdersHistory() {
+  const el = document.getElementById('ordersHistContent');
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData) return showLocalOrdersHistory();
+  el.className = 'orders-hist-wrap';
+  el.innerHTML = [1, 2].map(() => '<div class="hist-card sk-card"><div class="sk sk-line" style="width:45%"></div><div class="sk sk-line" style="width:70%"></div><div class="sk sk-block"></div></div>').join('');
+  showTab('ordersHistory');
+  try {
+    const res = await fetch('/api/me/orders', { headers: { 'X-Telegram-Init-Data': initData } });
+    if (!res.ok) throw new Error('http ' + res.status);
+    myOrdersCache = await res.json();
+    renderServerOrders();
+  } catch (e) {
+    showLocalOrdersHistory();
+  }
+}
+
+const ORDER_STEPS = [
+  { key: 'createdAt', label: 'Buyurtma berildi', icon: 'ti-receipt' },
+  { key: 'confirmedAt', label: "To'lov tasdiqlandi", icon: 'ti-circle-check' },
+  { key: 'shippedAt', label: "Yo'lga chiqdi (BTS)", icon: 'ti-truck' },
+  { key: 'deliveredAt', label: 'Yetib keldi', icon: 'ti-home-check' },
+];
+const ORDER_STATUS_UI = {
+  pending: { text: 'Tekshirilmoqda', color: 'var(--orange)', step: 0 },
+  confirmed: { text: 'Tasdiqlandi', color: 'var(--green)', step: 1 },
+  paid: { text: 'Tasdiqlandi', color: 'var(--green)', step: 1 },
+  shipped: { text: "Yo'lda 🚚", color: 'var(--accent)', step: 2 },
+  delivered: { text: 'Yetib keldi', color: 'var(--green)', step: 3 },
+  rejected: { text: 'Rad etildi', color: 'var(--red)', step: 0 },
+};
+
+function renderServerOrders() {
+  const el = document.getElementById('ordersHistContent');
+  if (!myOrdersCache.length) {
+    el.className = '';
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📦</div>
+      <div class="empty-title">Buyurtmalar yo'q</div>
+      <div class="empty-sub">Siz hali hech narsa buyurtma bermagansiz.</div>
+      <button class="empty-btn" onclick="showTab('home')">Xarid qilish</button>
+    </div>`;
+    return;
+  }
+  el.className = 'orders-hist-wrap';
+  el.innerHTML = myOrdersCache.map(o => {
+    const ui = ORDER_STATUS_UI[o.status] || ORDER_STATUS_UI.pending;
+    const fmt = ts => ts ? new Date(ts).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    const items = Array.isArray(o.items) && o.items.length
+      ? o.items.map(it => `<div class="hist-item-row"><span>${escText(it.name)} × ${it.qty || 1}</span></div>`).join('')
+      : `<div class="hist-item-row"><span>${escText(o.products)}</span></div>`;
+    const steps = o.status === 'rejected'
+      ? `<div class="ot-rejected"><i class="ti ti-alert-circle"></i> To'lov tasdiqlanmadi. Savol bo'lsa, yordamchiga yozing.</div>`
+      : `<div class="ot-steps">${ORDER_STEPS.map((st, i) => {
+          const done = i <= ui.step && (i === 0 || o[st.key] || i <= ui.step);
+          const cur = i === ui.step;
+          return `<div class="ot-step ${done ? 'done' : ''} ${cur ? 'cur' : ''}">
+            <div class="ot-dot"><i class="ti ${st.icon}"></i></div>
+            <div class="ot-lbl">${st.label}<small>${done ? fmt(o[st.key]) : ''}</small></div>
+          </div>`;
+        }).join('')}</div>`;
+    const actions = [];
+    if (o.shipProof) actions.push(`<button class="ot-btn" onclick="openZoomFromSrc('${o.shipProof}')"><i class="ti ti-file-invoice"></i> BTS cheki</button>`);
+    if (o.status === 'shipped') actions.push(`<button class="ot-btn ot-btn-main" onclick="markOrderDelivered('${o.id}')"><i class="ti ti-package"></i> Yetib keldi</button>`);
+    if (o.status === 'delivered' && !o.review) actions.push(`<button class="ot-btn ot-btn-main" onclick="openReviewModal('${o.id}')"><i class="ti ti-star"></i> Baholash</button>`);
+    const review = o.review ? `<div class="ot-review">Sizning bahoingiz: <b>${'★'.repeat(o.review.rating)}${'☆'.repeat(5 - o.review.rating)}</b>${o.review.text ? `<div>“${escText(o.review.text)}”</div>` : ''}</div>` : '';
+    return `<div class="hist-card">
+      <div class="hist-header">
+        <div><div class="hist-order-num">${escText(o.orderNum)}</div><div class="hist-date">${fmt(o.createdAt)}${o.addr ? ' · ' + escText(o.addr) : ''}</div></div>
+        <span class="status-badge" style="background:color-mix(in srgb, ${ui.color} 14%, transparent);color:${ui.color}">${ui.text}</span>
+      </div>
+      <div class="hist-items">${items}</div>
+      ${steps}
+      ${o.shipNote ? `<div class="ot-note"><i class="ti ti-notes"></i> ${escText(o.shipNote)}</div>` : ''}
+      ${review}
+      <div class="hist-total"><span>Jami</span><span>${Number(o.total).toLocaleString('uz')} so'm</span></div>
+      ${actions.length ? `<div class="ot-actions">${actions.join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function markOrderDelivered(id) {
+  try {
+    const res = await fetch(`/api/me/orders/${encodeURIComponent(id)}/delivered`, { method: 'POST', headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Xatolik');
+    const o = myOrdersCache.find(x => x.id === id);
+    if (o) { o.status = 'delivered'; o.deliveredAt = Date.now(); }
+    renderServerOrders();
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    showToast('Xaridingiz muborak! 🎉', '✓', 'var(--green)');
+    setTimeout(() => openReviewModal(id), 500);
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  }
+}
+
+// ===== FIKR QOLDIRISH =====
+let reviewState = { id: null, rating: 0, photo: null };
+function openReviewModal(id) {
+  reviewState = { id, rating: 0, photo: null };
+  const o = myOrdersCache.find(x => x.id === id);
+  document.getElementById('rvProduct').textContent = o ? (o.products || o.orderNum) : '';
+  document.getElementById('rvText').value = '';
+  document.getElementById('rvPhotoPrev').innerHTML = '<i class="ti ti-camera-plus"></i><span>Rasm qo\'shish</span>';
+  setReviewRating(0);
+  openModal('reviewModal');
+}
+function setReviewRating(n) {
+  reviewState.rating = n;
+  document.querySelectorAll('#rvStars button').forEach((b, i) => b.classList.toggle('on', i < n));
+  const labels = ['', 'Yomon', "O'rtacha emas", 'Yaxshi', 'Juda yaxshi', 'Ajoyib! 😍'];
+  document.getElementById('rvStarLabel').textContent = labels[n] || 'Baholang';
+  if (n && tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+}
+function pickReviewPhoto(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const max = 1000, k = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    reviewState.photo = c.toDataURL('image/jpeg', 0.82);
+    URL.revokeObjectURL(url);
+    document.getElementById('rvPhotoPrev').innerHTML = `<img src="${reviewState.photo}" alt="">`;
+  };
+  img.onerror = () => showToast("Rasmni o'qib bo'lmadi", '✗', 'var(--red)');
+  img.src = url;
+}
+async function submitReview() {
+  if (!reviewState.rating) { showToast('Avval yulduzcha bilan baholang', '⭐', 'var(--orange)'); return; }
+  setBtnLoading('rvSubmit', true, 'Yuborilmoqda...');
+  try {
+    const res = await fetch(`/api/me/orders/${encodeURIComponent(reviewState.id)}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' },
+      body: JSON.stringify({ rating: reviewState.rating, text: document.getElementById('rvText').value.trim(), photo: reviewState.photo })
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Xatolik');
+    const o = myOrdersCache.find(x => x.id === reviewState.id);
+    if (o) { o.review = { rating: reviewState.rating, text: document.getElementById('rvText').value.trim() }; o.status = 'delivered'; }
+    closeModal('reviewModal');
+    renderServerOrders();
+    showToast('Rahmat! Fikringiz qabul qilindi 💜', '✓', 'var(--green)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  } finally {
+    setBtnLoading('rvSubmit', false);
+  }
+}
+
+function showLocalOrdersHistory() {
   const el = document.getElementById('ordersHistContent');
   if(orders.length===0) {
     el.innerHTML = `<div class="empty-state">
@@ -6409,7 +7006,7 @@ function renderAdminProducts() {
       <div class="admin-prod-emoji">${p.image?`<img src="${p.image}" alt="">`:p.emoji}</div>
       <div class="admin-prod-info">
         <div class="admin-prod-name">${p.name}</div>
-        <div class="admin-prod-meta">${p.brand} · ${(p.price/1000000).toFixed(1)}M · ${p.cat}</div>
+        <div class="admin-prod-meta">${p.brand} · ${(p.price/1000000).toFixed(1)}M · ${p.cat}${(p.stock !== null && p.stock !== undefined && p.stock !== '') ? ` · <span style="color:${Number(p.stock) <= 0 ? 'var(--red)' : Number(p.stock) <= 5 ? 'var(--orange)' : 'var(--green)'}">📦 ${p.stock}</span>` : ''}${p.sold ? ` · 🛒 ${p.sold} sotildi` : ''}</div>
       </div>
       <div class="admin-prod-actions">
         <div class="admin-edit-btn" onclick="openEditModal(${p.id})"><i class="ti ti-pencil"></i></div>
@@ -6570,7 +7167,7 @@ function openAddModal() {
   editingProdId = null;
   document.getElementById('addModalTitle').innerHTML = '<i class="ti ti-circle-plus" style="color:var(--accent);margin-right:8px;font-size:22px;vertical-align:middle"></i>Yangi mahsulot';
   document.getElementById('saveProductBtn').textContent = 'Saqlash';
-  ['prodName','prodBrand','prodPrice','prodQty','prodDiscount','prodDesc'].forEach(id=>document.getElementById(id).value='');
+  ['prodName','prodBrand','prodPrice','prodQty','prodDiscount','prodDesc','prodDiscUntil'].forEach(id=>document.getElementById(id).value='');
   newProdImages = [];
   renderImgGrid(newProdImages, 'addImgGrid', 'addImgCount', 'removeNewImg');
   document.getElementById('prodImgInput').value = '';
@@ -6596,8 +7193,12 @@ async function saveProduct() {
   const specs = getSpecsFromFields();
   if(!specs.length) specs.push(['Narx',(price/1000000).toFixed(1)+'M so\'m'],['Brend',brand]);
   const catEmojis = {'Telefonlar':'📱','Kompyuterlar':'💻','Audio':'🎧','Aksessuarlar':'⌚','Kameralar':'📷',"O'yinlar":'🎮','Dronlar':'🚁','Smart TV':'📺'};
+  const stockVal = document.getElementById('prodQty').value.trim();
+  const discUntilVal = document.getElementById('prodDiscUntil').value;
   const newProd = {
     id: Date.now(), name, brand, price, discount,
+    stock: stockVal === '' ? null : Math.max(0, parseInt(stockVal) || 0),
+    discountUntil: discUntilVal ? new Date(discUntilVal).getTime() : null,
     emoji: newProdImages.length ? null : (catEmojis[cat]||'📦'),
     image: newProdImages[0] || null,
     images: [...newProdImages],
@@ -6632,6 +7233,12 @@ async function saveProduct() {
   }
 }
 
+function toLocalInputValue(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // ===== EDIT PRODUCT =====
 function openEditModal(id) {
   const p = products.find(x=>x.id===id);
@@ -6641,6 +7248,8 @@ function openEditModal(id) {
   document.getElementById('editBrand').value = p.brand;
   document.getElementById('editPrice').value = p.price;
   document.getElementById('editDiscount').value = p.discount;
+  document.getElementById('editStock').value = (p.stock === null || p.stock === undefined) ? '' : p.stock;
+  document.getElementById('editDiscUntil').value = p.discountUntil ? toLocalInputValue(p.discountUntil) : '';
   document.getElementById('editDesc').value = p.desc||'';
   editProdImages = p.images ? [...p.images] : (p.image ? [p.image] : []);
   renderImgGrid(editProdImages, 'editImgGrid', 'editImgCount', 'removeEditImg');
@@ -6657,6 +7266,8 @@ async function saveEditProduct() {
     brand: document.getElementById('editBrand').value.trim() || p.brand,
     price: parseInt(document.getElementById('editPrice').value) || p.price,
     discount: parseInt(document.getElementById('editDiscount').value) || 0,
+    stock: document.getElementById('editStock').value.trim() === '' ? null : Math.max(0, parseInt(document.getElementById('editStock').value) || 0),
+    discountUntil: document.getElementById('editDiscUntil').value ? new Date(document.getElementById('editDiscUntil').value).getTime() : null,
     desc: document.getElementById('editDesc').value.trim() || p.desc
   };
   if(editProdImages.length) {
@@ -6782,7 +7393,7 @@ async function loadAdminOrders() {
           </div>`;
         
         const when = o.createdAt ? new Date(o.createdAt).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-        row.onclick = () => openChek(uName, prodNames, total, when, o.status, o.userId, o.chekImg, null, null, o.orderNum, { phone: o.phone, addr: o.addr });
+        row.onclick = () => openChek(uName, prodNames, total, when, o.status, o.userId, o.chekImg, null, null, o.orderNum, { phone: o.phone, addr: o.addr, order: o, id: Object.keys(ordersData).find(k => ordersData[k] === o) });
         list.appendChild(row);
       });
     } else {
@@ -6834,7 +7445,8 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
     ${extra?.addr ? `<div class="chek-row"><span>Manzil</span><span>${escHtml(decodeEntities(extra.addr))}</span></div>` : ''}
     <div class="chek-row"><span>Summa</span><span style="color:var(--accent);font-weight:700">${typeof price==='number'?price.toLocaleString('uz'):price} so'm</span></div>
     <div class="chek-row"><span>Vaqt</span><span>${time}</span></div>
-    <div class="chek-row"><span>Holat</span><span>${statusHtml}</span></div>`;
+    <div class="chek-row"><span>Holat</span><span>${statusHtml}</span></div>
+    ${adminOrderTimeline(extra?.order)}`;
     
   if (status==='new' || status==='pending') {
     document.getElementById('chekActionsArea').innerHTML = `
@@ -6847,12 +7459,78 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
       <div style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:14px;padding:10px 14px;text-align:center;margin-bottom:10px;font-size:12px;color:var(--text);font-weight:600">
         Holat: ${statusHtml}
       </div>
+      ${(status==='confirmed' || status==='paid') && extra?.id ? `<div class="ship-form" id="shipForm">
+        <div class="ship-title"><i class="ti ti-truck"></i> Jo'natish (BTS)</div>
+        <label class="rv-photo" for="shipImgInput" id="shipImgPrev"><i class="ti ti-camera-plus"></i><span>BTS cheki rasmi</span></label>
+        <input type="file" accept="image/*" id="shipImgInput" style="display:none" onchange="pickShipImg(this)">
+        <input class="form-input" id="shipNote" maxlength="300" placeholder="Izoh: trek raqami va h.k. (ixtiyoriy)">
+        <button class="btn-approve" id="shipBtn" style="width:100%" onclick="shipFromPanel('${extra.id}')"><i class="ti ti-truck"></i> Jo'natildi — xaridorga xabar berish</button>
+      </div>` : ''}
+      ${extra?.order?.shipProof ? `<button class="ot-btn" style="width:100%;margin-bottom:10px;height:46px" onclick="openZoomFromSrc('${extra.order.shipProof}')"><i class="ti ti-file-invoice"></i> BTS chekini ko'rish</button>` : ''}
       ${uid ? `<button onclick="openTgUserDirect('${uid}','${uname||''}')" style="width:100%;height:50px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.4);margin-bottom:10px">
         <i class="ti ti-brand-telegram" style="font-size:18px"></i> Telegram orqali bog'lanish
       </button>` : ''}
       <button onclick="closeModal('chekModal')" style="width:100%;height:44px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text2);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Yopish</button>`;
   }
   openModal('chekModal');
+}
+
+function adminOrderTimeline(o) {
+  if (!o) return '';
+  const f = o.fulfillment || {};
+  const fmt = ts => ts ? new Date(ts).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  const rows = [
+    ["To'lov tasdiqlandi", o.confirmedAt], ["Adminga xabar", f.adminNotifiedAt], ["Jo'natildi", f.shippedAt], ['Yetib keldi', f.deliveredAt],
+  ].filter(r => r[1]);
+  const review = o.review ? `<div class="chek-row"><span>Baho</span><span style="color:#f5a623">${'★'.repeat(o.review.rating)}${o.review.text ? ` <small style="color:var(--text2)">“${escHtml(decodeEntities(o.review.text)).slice(0, 80)}”</small>` : ''}</span></div>` : '';
+  return rows.map(r => `<div class="chek-row"><span>${r[0]}</span><span>${fmt(r[1])}</span></div>`).join('') +
+    (f.shipNote ? `<div class="chek-row"><span>Izoh</span><span>${escHtml(decodeEntities(f.shipNote))}</span></div>` : '') + review;
+}
+
+function confirmAsync(text) {
+  return new Promise(resolve => {
+    try { if (tg?.showConfirm && tg.isVersionAtLeast && tg.isVersionAtLeast('6.2')) return tg.showConfirm(text, ok => resolve(!!ok)); } catch (e) {}
+    resolve(window.confirm(text));
+  });
+}
+
+let shipImgData = null;
+function pickShipImg(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {
+    const k = Math.min(1, 1400 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    shipImgData = c.toDataURL('image/jpeg', 0.85);
+    URL.revokeObjectURL(url);
+    document.getElementById('shipImgPrev').innerHTML = `<img src="${shipImgData}" alt="">`;
+  };
+  img.src = url;
+}
+async function shipFromPanel(id) {
+  if (!shipImgData && !(await confirmAsync("Chek rasmisiz jo'natildi deb belgilansinmi?"))) return;
+  setBtnLoading('shipBtn', true, 'Yuborilmoqda...');
+  try {
+    const res = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/ship`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' },
+      body: JSON.stringify({ image: shipImgData, note: document.getElementById('shipNote').value.trim() })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Xatolik');
+    shipImgData = null;
+    closeModal('chekModal');
+    showToast(d.via ? "Jo'natildi — xaridorga xabar yuborildi 🚚" : "Jo'natildi, lekin xaridorga xabar yetmadi", d.via ? '✓' : '⚠️', d.via ? 'var(--green)' : 'var(--orange)');
+    loadAdminOrders();
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  } finally {
+    setBtnLoading('shipBtn', false);
+  }
 }
 
 async function approveChek() {
@@ -6913,6 +7591,86 @@ async function rejectChek() {
 }
 
 // ===== CHART STATS =====
+function renderRevenueBars(paidOrders) {
+  const el = document.getElementById('statRevBars');
+  if (!el) return;
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const from = new Date(d).setHours(0, 0, 0, 0), to = new Date(d).setHours(23, 59, 59, 999);
+    const sum = paidOrders.filter(o => o.createdAt >= from && o.createdAt <= to).reduce((s, o) => s + (Number(o.total) || 0), 0);
+    days.push({ d, sum });
+  }
+  const max = Math.max(...days.map(x => x.sum), 1);
+  const total = days.reduce((s, x) => s + x.sum, 0);
+  document.getElementById('statRev14Total').textContent = formatPrice(total);
+  el.innerHTML = days.map((x, i) => `<div class="st-bar-col" title="${x.d.toLocaleDateString('uz-UZ')}: ${formatPrice(x.sum)}">
+      <div class="st-bar-val">${x.sum ? (x.sum >= 1e6 ? (x.sum / 1e6).toFixed(x.sum >= 1e7 ? 0 : 1) + 'M' : Math.round(x.sum / 1e3) + 'k') : ''}</div>
+      <div class="st-bar" style="--h:${Math.max(x.sum ? 6 : 2, x.sum / max * 100)}%;--i:${i}"></div>
+      <div class="st-bar-day">${x.d.getDate()}</div>
+    </div>`).join('');
+}
+
+function renderTopProducts(paidOrders) {
+  const el = document.getElementById('statTopProducts');
+  if (!el) return;
+  const map = new Map();
+  paidOrders.forEach(o => {
+    const items = Array.isArray(o.items) && o.items.length ? o.items : String(o.products || '').split(',').map(n => ({ name: n.trim(), qty: 1 })).filter(x => x.name);
+    items.forEach(it => {
+      const key = decodeEntities(it.name);
+      const cur = map.get(key) || { name: key, qty: 0, sum: 0 };
+      cur.qty += Number(it.qty) || 1;
+      const p = products.find(pp => String(pp.id) === String(it.id) || pp.name === it.name);
+      cur.sum += (p ? p.price : 0) * (Number(it.qty) || 1);
+      cur.img = cur.img || p?.image; cur.emoji = cur.emoji || p?.emoji;
+      map.set(key, cur);
+    });
+  });
+  const top = [...map.values()].sort((a, b) => b.qty - a.qty || b.sum - a.sum).slice(0, 5);
+  if (!top.length) { el.innerHTML = `<div class="st-empty">Hali sotuv yo'q</div>`; return; }
+  const maxQ = top[0].qty;
+  el.innerHTML = top.map((t, i) => `<div class="st-top-row">
+      <div class="st-top-rank">${i + 1}</div>
+      <div class="st-top-img">${t.img ? `<img src="${t.img}" alt="">` : (t.emoji || '📦')}</div>
+      <div class="st-top-info"><div class="st-top-name">${escHtml(t.name)}</div><div class="st-top-bar"><span style="width:${t.qty / maxQ * 100}%"></span></div></div>
+      <div class="st-top-qty">${t.qty} ta</div>
+    </div>`).join('');
+}
+
+async function loadAdminReviews() {
+  const el = document.getElementById('statReviews');
+  if (!el) return;
+  try {
+    const res = await fetch('/api/admin/reviews', { headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    if (!res.ok) throw new Error();
+    const list = (await res.json()).filter(r => !r.dup);
+    document.getElementById('statReviewsCount').textContent = list.length ? `${list.length} ta` : '';
+    if (!list.length) { el.innerHTML = `<div class="st-empty">Hali fikrlar yo'q</div>`; return; }
+    el.innerHTML = list.slice(0, 30).map(r => `<div class="st-rev" id="rev_${r.rid}">
+        <div class="st-rev-top"><b>${escHtml(r.name)}</b><span class="st-rev-stars">${'★'.repeat(r.rating)}</span><button class="admin-del-btn st-rev-del" onclick="deleteAdminReview('${encodeURIComponent(r.pid)}','${encodeURIComponent(r.rid)}')"><i class="ti ti-trash"></i></button></div>
+        <div class="st-rev-prod">${escHtml(decodeEntities(r.product))} · ${new Date(r.createdAt).toLocaleDateString('uz-UZ')}</div>
+        ${r.text ? `<div class="st-rev-text">${escHtml(r.text)}</div>` : ''}
+        ${r.photo ? `<img class="st-rev-photo" src="${r.photo}" alt="" loading="lazy" onerror="this.remove()" onclick="openZoomFromSrc(this.src)">` : ''}
+      </div>`).join('');
+    applyIconFallback(el);
+  } catch (e) {
+    el.innerHTML = `<div class="st-empty">Fikrlarni yuklab bo'lmadi</div>`;
+  }
+}
+
+async function deleteAdminReview(pid, rid) {
+  if (!(await confirmAsync("Bu fikr o'chirilsinmi? U mahsulot sahifasidan ham olib tashlanadi."))) return;
+  try {
+    const res = await fetch(`/api/admin/reviews/${pid}/${rid}`, { method: 'DELETE', headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Xatolik');
+    document.getElementById('rev_' + decodeURIComponent(rid))?.remove();
+    showToast("Fikr o'chirildi", '🗑️', 'var(--text2)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  }
+}
+
 async function loadAdminStats() {
   const totalOrdersEl = document.getElementById('statTotalOrders');
   const totalRevenueEl = document.getElementById('statTotalRevenue');
@@ -6967,6 +7725,10 @@ async function loadAdminStats() {
         todayEl.textContent = '0 bugun';
       }
     }
+
+    renderRevenueBars(confirmedOrders);
+    renderTopProducts(confirmedOrders);
+    loadAdminReviews();
 
     const daysUz = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
     const last7Days = [];
@@ -8531,6 +9293,30 @@ function zoomKeyHandler(e) {
 
 // ===== SVG ICONS FALLBACK =====
 const SVG_ICONS = {
+  'alert-circle': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
+  'camera-plus': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1a2 2 0 0 0 2-2 1 1 0 0 1 1-1h6a1 1 0 0 1 1 1 2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v3.5"/><path d="M16 19h6"/><path d="M19 16v6"/><circle cx="12" cy="13" r="3"/></svg>',
+  'circle-check': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>',
+  'clock': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  'file-invoice': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 7h1"/><path d="M9 13h6"/><path d="M13 17h2"/></svg>',
+  'home-check': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21v-6a2 2 0 0 1 2-2h2c.6 0 1.1.26 1.5.67"/><path d="M19 13.3V12h2l-9-9-9 9h2v7a2 2 0 0 0 2 2h6"/><path d="M15 19l2 2 4-4"/></svg>',
+  'notes': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg>',
+  'phone': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+  'photo-off': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8h.01"/><path d="M7 3h11a3 3 0 0 1 3 3v11m-.88 3.12A3 3 0 0 1 18 21H6a3 3 0 0 1-3-3V6c0-.83.34-1.58.88-2.12"/><path d="M3 16l5-5c.93-.9 2.07-.9 3 0l5 5"/><path d="M3 3l18 18"/></svg>',
+  'star': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.75l-6.17 3.24 1.18-6.87-5-4.86 6.9-1 3.09-6.26 3.09 6.26 6.9 1-5 4.86 1.18 6.87z"/></svg>',
+  'arrows-sort': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l4-4 4 4M7 5v14"/><path d="M21 15l-4 4-4-4m4 4V5"/></svg>',
+  'scale': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M6 6l6-1 6 1"/><path d="M12 3v17"/><path d="M9 12l-3-6-3 6a3 3 0 0 0 6 0"/><path d="M21 12l-3-6-3 6a3 3 0 0 0 6 0"/></svg>',
+  'user-plus': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 11h6m-3-3v6"/></svg>',
+  'flame': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.04-1.77 4.74-3 6-1.22 1.27-2 3.27-2 5a6 6 0 1 0 12 0c0-1.5-1.06-3.86-2-5-1.79 3-2.8 3-4 2z"/></svg>',
+  'eye': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M22 12c-2.67 4.67-6 7-10 7s-7.33-2.33-10-7c2.67-4.67 6-7 10-7s7.33 2.33 10 7"/></svg>',
+  'history': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>',
+  'share': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.7 10.7l6.6-3.4"/><path d="M8.7 13.3l6.6 3.4"/></svg>',
+  'apps': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M14 7h6M17 4v6"/></svg>',
+  'maximize': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2-2v-2"/></svg>',
+  'filter': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v2.17a2 2 0 0 1-.59 1.42L15 12v7l-6 2v-8.5L4.52 7.56A2 2 0 0 1 4 6.21V4z"/></svg>',
+  'trending-up': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>',
+  'messages': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14l-3-3h-7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v10"/><path d="M14 15v2a1 1 0 0 1-1 1H6l-3 3V11a1 1 0 0 1 1-1h2"/></svg>',
+  'box': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12L4 7.5"/></svg>',
+  'upload': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>',
   'home': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12L12 5l7 7"/><path d="M5 12v7a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-7"/></svg>',
   'shopping-cart': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M17 19m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>',
   'coin': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1" /><path d="M12 6v2m0 8v2" /></svg>',
@@ -8990,7 +9776,173 @@ document.addEventListener('pointerdown', (e) => {
 
 async function initFirebaseAndLoad() {
   await loadData();
+  filterProducts();
+  initTelegramExtras();
   openProductFromLink();
+}
+
+// ===== BOSH SAHIFA BO'LIMLARI =====
+function getRecentIds() {
+  try { return JSON.parse(localStorage.getItem('ts_recent') || '[]'); } catch (e) { return []; }
+}
+function pushRecent(id) {
+  try {
+    const ids = getRecentIds().filter(x => x !== id);
+    ids.unshift(id);
+    localStorage.setItem('ts_recent', JSON.stringify(ids.slice(0, 12)));
+  } catch (e) {}
+}
+function miniCard(p, extra = '') {
+  const out = isOutOfStock(p);
+  return `<div class="pd-sim hs-card${out ? ' is-out' : ''}" onclick="openDetail(${p.id})">
+    <div class="pd-sim-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy">` : (p.emoji || '📦')}${p.discount > 0 ? `<span class="hs-disc">-${p.discount}%</span>` : ''}${extra}</div>
+    <div class="pd-sim-info"><div class="pd-sim-name">${escText(p.name)}</div><div class="pd-sim-price">${formatPrice(p.price)}</div></div>
+  </div>`;
+}
+function renderHomeSections() {
+  const el = document.getElementById('homeSections');
+  if (!el) return;
+  const q = document.getElementById('searchInput').value.trim();
+  if (q || currentCat !== 'all') { el.innerHTML = ''; return; }
+  const parts = [];
+  const now = Date.now();
+  const flash = products.filter(p => p.discount > 0 && p.discountUntil && p.discountUntil > now && !isOutOfStock(p))
+    .sort((a, b) => a.discountUntil - b.discountUntil).slice(0, 10);
+  if (flash.length) {
+    parts.push(`<div class="hs"><div class="hs-title">⏰ Chegirma tugayapti <span class="hs-timer" data-until="${flash[0].discountUntil}"></span></div><div class="pd-similar">${flash.map(p => miniCard(p)).join('')}</div></div>`);
+  }
+  const sold = products.filter(p => (p.sold || 0) > 0).sort((a, b) => b.sold - a.sold);
+  const best = (sold.length >= 3 ? sold : products.slice().sort((a, b) => (b.reviews || 0) - (a.reviews || 0))).slice(0, 10);
+  if (best.length) {
+    parts.push(`<div class="hs"><div class="hs-title">🔥 ${sold.length >= 3 ? "Ko'p sotilganlar" : 'Ommabop'}</div><div class="pd-similar">${best.map((p, i) => miniCard(p, i < 3 ? `<span class="hs-rank">${i + 1}</span>` : '')).join('')}</div></div>`);
+  }
+  const recent = getRecentIds().map(id => products.find(p => p.id === id)).filter(Boolean).slice(0, 10);
+  if (recent.length >= 2) {
+    parts.push(`<div class="hs"><div class="hs-title">👀 Yaqinda ko'rganlaringiz</div><div class="pd-similar">${recent.map(p => miniCard(p)).join('')}</div></div>`);
+  }
+  el.innerHTML = parts.join('');
+  tickHomeTimers();
+}
+function tickHomeTimers() {
+  document.querySelectorAll('.hs-timer').forEach(t => {
+    const ms = Number(t.dataset.until) - Date.now();
+    if (ms <= 0) { t.textContent = ''; return; }
+    const h = Math.floor(ms / 36e5), m = Math.floor(ms / 6e4) % 60, s2 = Math.floor(ms / 1e3) % 60;
+    const pad = n => String(n).padStart(2, '0');
+    t.textContent = h >= 48 ? `${Math.floor(h / 24)} kun` : `${pad(h)}:${pad(m)}:${pad(s2)}`;
+  });
+}
+setInterval(tickHomeTimers, 1000);
+
+// ===== SOLISHTIRISH =====
+let compareIds = [];
+try { compareIds = JSON.parse(localStorage.getItem('ts_compare') || '[]'); } catch (e) {}
+function saveCompare() {
+  try { localStorage.setItem('ts_compare', JSON.stringify(compareIds)); } catch (e) {}
+  updateCompareUI();
+}
+function toggleCompare(id) {
+  const i = compareIds.indexOf(id);
+  if (i >= 0) { compareIds.splice(i, 1); showToast("Solishtirishdan olindi", '⚖️', 'var(--text2)'); }
+  else {
+    if (compareIds.length >= 3) { showToast('Ko\'pi bilan 3 ta mahsulotni solishtirish mumkin', '⚖️', 'var(--orange)'); return; }
+    compareIds.push(id);
+    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    showToast(compareIds.length >= 2 ? 'Qo\'shildi — solishtirishni oching' : 'Qo\'shildi. Yana bitta mahsulot tanlang', '⚖️', 'var(--accent)');
+  }
+  saveCompare();
+}
+function updateCompareUI() {
+  compareIds = compareIds.filter(id => products.some(p => p.id === id));
+  const fab = document.getElementById('cmpFab');
+  if (fab) { fab.style.display = compareIds.length ? '' : 'none'; document.getElementById('cmpFabCount').textContent = compareIds.length; }
+  const btn = document.getElementById('pdCmpBtn');
+  if (btn) {
+    const on = compareIds.includes(currentDetailId);
+    btn.classList.toggle('on', on);
+    btn.querySelector('span').textContent = on ? "Solishtirishda ✓ (olib tashlash)" : "Solishtirishga qo'shish";
+  }
+}
+function clearCompare() { compareIds = []; saveCompare(); closeModal('compareModal'); }
+function openCompare() {
+  const list = compareIds.map(id => products.find(p => p.id === id)).filter(Boolean);
+  if (!list.length) return;
+  const keys = [];
+  list.forEach(p => (p.specs || []).forEach(([k]) => { if (k && !keys.includes(k)) keys.push(k); }));
+  const minPrice = Math.min(...list.map(p => p.price));
+  const maxRating = Math.max(...list.map(p => Number(p.rating) || 0));
+  const col = p => `<div class="cmp-col">
+      <button class="cmp-x" onclick="toggleCompare(${p.id});openCompare()">×</button>
+      <div class="cmp-img" onclick="closeModal('compareModal');openDetail(${p.id})">${p.image ? `<img src="${p.image}" alt="">` : (p.emoji || '📦')}</div>
+      <div class="cmp-name">${escText(p.name)}</div>
+    </div>`;
+  const row = (label, cells) => `<div class="cmp-row"><div class="cmp-label">${label}</div><div class="cmp-cells">${cells.map(c => `<div class="cmp-cell">${c}</div>`).join('')}</div></div>`;
+  let html = `<div class="cmp-cells cmp-head">${list.map(col).join('')}${list.length < 3 ? `<div class="cmp-col cmp-add" onclick="closeModal('compareModal');showTab('home')"><i class="ti ti-plus"></i><span>Qo'shish</span></div>` : ''}</div>`;
+  html += row('Narx', list.map(p => `<b class="${p.price === minPrice && list.length > 1 ? 'cmp-best' : ''}">${formatPrice(p.price)}</b>`));
+  html += row('Reyting', list.map(p => `<span class="${Number(p.rating) === maxRating && list.length > 1 ? 'cmp-best' : ''}">★ ${Number(p.rating || 0).toFixed(1)}</span> <small>(${p.reviews || 0})</small>`));
+  html += row('Brend', list.map(p => escText(p.brand)));
+  html += row('Kategoriya', list.map(p => escText(p.cat)));
+  html += row('Omborda', list.map(p => isOutOfStock(p) ? '<span style="color:var(--red)">Tugagan</span>' : (p.stock !== null && p.stock !== undefined && p.stock !== '' ? `${p.stock} ta` : 'Bor')));
+  keys.forEach(k => { html += row(escText(k), list.map(p => escText((p.specs || []).find(([kk]) => kk === k)?.[1] || '—'))); });
+  html += `<div class="cmp-cells cmp-foot">${list.map(p => `<div class="cmp-cell"><button class="ot-btn ot-btn-main" onclick="addToCartById(event, ${p.id}, null)"><i class="ti ti-shopping-cart"></i></button></div>`).join('')}</div>`;
+  document.getElementById('cmpTable').innerHTML = html;
+  document.getElementById('cmpTable').style.setProperty('--cols', list.length < 3 ? list.length + 1 : 3);
+  applyIconFallback(document.getElementById('cmpTable'));
+  openModal('compareModal');
+}
+
+// ===== DO'STLARNI TAKLIF QILISH (bonussiz) =====
+function refLink() {
+  const uid = tg?.initDataUnsafe?.user?.id;
+  const bot = (window.BOT_LINK || 'https://t.me/Tech_uzbot').replace(/\/$/, '');
+  return uid ? `${bot}?start=ref_${uid}` : bot;
+}
+async function openReferral() {
+  document.getElementById('refLink').textContent = refLink().replace('https://', '');
+  openModal('refModal');
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData) return;
+  try {
+    const res = await fetch('/api/me/referrals', { headers: { 'X-Telegram-Init-Data': initData } });
+    if (res.ok) { const d = await res.json(); document.getElementById('refCount').textContent = d.count || 0; }
+  } catch (e) {}
+}
+function copyRefLink() {
+  const link = refLink();
+  (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(
+    () => showToast('Havola nusxalandi', '✓', 'var(--green)'),
+    () => { const t = document.createElement('textarea'); t.value = link; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); showToast('Havola nusxalandi', '✓', 'var(--green)'); } catch (e) {} t.remove(); });
+}
+function shareRefLink() {
+  const text = "📱 TechStore — original texnika onlayn do'koni. Smartfon, noutbuk, quloqchin va boshqalar, O'zbekiston bo'ylab BTS orqali yetkazib berish. Men shu yerdan xarid qilaman, sizga ham tavsiya qilaman 👇";
+  const url = `https://t.me/share/url?url=${encodeURIComponent(refLink())}&text=${encodeURIComponent(text)}`;
+  if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+}
+
+// ===== TELEGRAM: BOSH EKRAN VA TO'LIQ EKRAN =====
+function initTelegramExtras() {
+  if (!tg || !tg.isVersionAtLeast) return;
+  if (tg.isVersionAtLeast('8.0') && tg.addToHomeScreen) {
+    const item = document.getElementById('homeScreenItem');
+    if (tg.checkHomeScreenStatus) {
+      tg.checkHomeScreenStatus(st => { if (st !== 'added' && st !== 'unsupported') item.style.display = ''; });
+    } else item.style.display = '';
+    tg.onEvent && tg.onEvent('homeScreenAdded', () => { item.style.display = 'none'; showToast("Bosh ekranga qo'shildi 🎉", '✓', 'var(--green)'); });
+  }
+  if (tg.isVersionAtLeast('8.0') && tg.requestFullscreen) {
+    document.getElementById('fullscreenItem').style.display = '';
+    const sync = () => {
+      document.documentElement.classList.toggle('tg-fs', !!tg.isFullscreen);
+      document.getElementById('fullscreenLabel').textContent = tg.isFullscreen ? "Oddiy rejimga qaytish" : "To'liq ekran rejimi";
+    };
+    tg.onEvent && tg.onEvent('fullscreenChanged', sync);
+    tg.onEvent && tg.onEvent('fullscreenFailed', () => showToast("To'liq ekran bu qurilmada ishlamaydi", 'ℹ️', 'var(--text2)'));
+    sync();
+  }
+}
+function addToHomeScreen() { try { tg.addToHomeScreen(); } catch (e) {} }
+function toggleFullscreen() {
+  try { tg.isFullscreen ? tg.exitFullscreen() : tg.requestFullscreen(); } catch (e) {}
 }
 
 // ===== MIJOZLAR FIKRI =====

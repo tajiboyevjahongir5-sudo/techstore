@@ -408,6 +408,27 @@ function mutateProducts(fn) {
   return run;
 }
 
+// To'lov tasdiqlanganda: ombordagi soni kamayadi, sotilganlar soni oshadi ("Ko'p sotilganlar" uchun)
+async function deductStockForOrder(order) {
+  let items = Array.isArray(order.items) ? order.items : [];
+  if (!items.length) {
+    const names = String(order.products || '').split(',').map(x => x.trim()).filter(Boolean);
+    const list = await getProducts();
+    items = names.map(n => { const p = list.find(x => x.name === n); return p ? { id: p.id, qty: 1 } : null; }).filter(Boolean);
+  }
+  if (!items.length) return;
+  await mutateProducts(list => {
+    for (const it of items) {
+      const p = list.find(x => String(x.id) === String(it.id));
+      if (!p) continue;
+      const q = Math.max(1, Number(it.qty) || 1);
+      p.sold = (Number(p.sold) || 0) + q;
+      if (p.stock !== null && p.stock !== undefined && p.stock !== '') p.stock = Math.max(0, Number(p.stock) - q);
+    }
+    return { list };
+  });
+}
+
 // ===== BUYURTMA HOLATINI O'ZGARTIRISH (panel va yordamchi uchun umumiy) =====
 async function setOrderStatus(orderId, status) {
   const orderPath = `orders/${orderId}`;
@@ -417,6 +438,11 @@ async function setOrderStatus(orderId, status) {
   const patch = { status };
   if (status === 'confirmed' && !order.confirmedAt) patch.confirmedAt = Date.now();
   await firebasePatch(orderPath, patch);
+
+  if (status === 'confirmed' && !order.stockDeducted) {
+    await deductStockForOrder(order).catch(e => console.warn('Ombor sonini kamaytirib bo\'lmadi:', e.message));
+    await firebasePatch(orderPath, { stockDeducted: true });
+  }
 
   if (status === 'confirmed') {
     // Yordamchi admin: asosiy adminga to'liq ma'lumot + xaridorga xabar
@@ -464,6 +490,7 @@ async function messageCustomer(order, { text, html, photoBuffer, photoFileId }) 
   if (!botInstance) return false;
   try {
     if (photoFileId) await botInstance.sendPhoto(order.userId, photoFileId, { caption: html, parse_mode: 'HTML' });
+    else if (photoBuffer) await botInstance.sendPhoto(order.userId, photoBuffer, { caption: html, parse_mode: 'HTML' }, { filename: 'chek.jpg', contentType: 'image/jpeg' });
     else await botInstance.sendMessage(order.userId, html, { parse_mode: 'HTML' });
     return 'bot';
   } catch (e) {
@@ -581,10 +608,6 @@ async function handleShipProofMessage(bot, msg) {
     return true;
   }
   awaitingShipProof.delete(chatId);
-  const order = await firebaseGet(`orders/${orderId}`);
-  if (!order) { await bot.sendMessage(chatId, 'Buyurtma topilmadi.'); return true; }
-  const o = orderLines(order, orderId);
-
   let buffer = null;
   try {
     const link = await bot.getFileLink(photo.file_id);
@@ -593,36 +616,57 @@ async function handleShipProofMessage(bot, msg) {
   } catch (e) {
     console.warn('Chek rasmini yuklab bo\'lmadi:', e.message);
   }
+  const r = await shipOrder(orderId, { photoFileId: photo.file_id, buffer, note: (msg.caption || '').trim(), shippedBy: String(msg.from?.id || '') });
+  if (r.error) { await bot.sendMessage(chatId, r.error); return true; }
+  await bot.sendMessage(chatId, r.via
+    ? `✅ ${r.num}: xaridorga chek bilan "buyurtma jo'natildi" xabari yuborildi${r.via === 'bot' ? ' (bot orqali)' : ''}.`
+    : `⚠️ ${r.num} "yuborildi" deb belgilandi, lekin xaridorga xabar yetkazib bo'lmadi (u botni bloklagan yoki yozishmani boshlamagan bo'lishi mumkin). Telefon: ${r.phone || '—'}`);
+  return true;
+}
 
-  const note = (msg.caption || '').trim();
+// Buyurtmani "jo'natildi" qilish (bot va admin panel uchun umumiy): xaridorga chek bilan xabar
+async function shipOrder(orderId, { photoFileId = null, buffer = null, imgData = null, note = '', shippedBy = '' }) {
+  const order = await firebaseGet(`orders/${orderId}`);
+  if (!order) return { error: 'Buyurtma topilmadi.' };
+  if (!['confirmed', 'paid', 'shipped'].includes(order.status)) return { error: "Faqat to'lovi tasdiqlangan buyurtmani jo'natish mumkin." };
+  const o = orderLines(order, orderId);
+  if (!buffer && imgData) {
+    const m = String(imgData).match(/^data:image\/[a-z+]+;base64,(.+)$/i);
+    if (m) buffer = Buffer.from(m[1], 'base64');
+  }
+  note = String(note || '').trim().slice(0, 300);
   const text =
     `🚚 Buyurtmangiz yo'lga chiqdi!\n\n` +
     `📦 ${o.num} — ${o.products}\n` +
-    `BTS pochta orqali muvaffaqiyatli jo'natildi, chek rasmda 👆` +
+    `BTS pochta orqali muvaffaqiyatli jo'natildi${buffer || photoFileId ? ', chek rasmda 👆' : '.'}` +
     (o.addr ? `\n📍 ${o.addr}` : '') +
     (note ? `\n📝 ${note}` : '') +
     `\n\nBuyurtmangiz qo'lingizga yetib borgach, iltimos, mahsulot rasmini va qisqa fikringizni shu yerga yozib yuboring — biz uchun juda muhim 🙏\n\nTechStore'ni tanlaganingiz uchun rahmat! 💜`;
   const html =
     `🚚 <b>Buyurtmangiz yo'lga chiqdi!</b>\n\n` +
     `📦 <b>${escStored(o.num)}</b> — ${escStored(o.products)}\n` +
-    `BTS pochta orqali muvaffaqiyatli jo'natildi, chek rasmda 👆` +
+    `BTS pochta orqali muvaffaqiyatli jo'natildi${buffer || photoFileId ? ', chek rasmda 👆' : '.'}` +
     (o.addr ? `\n📍 ${escStored(o.addr)}` : '') +
     (note ? `\n📝 ${escStored(note)}` : '') +
     `\n\nBuyurtmangiz yetib borgach, iltimos, mahsulot rasmini va qisqa fikringizni yozib yuboring 🙏\n\n<i>TechStore'ni tanlaganingiz uchun rahmat!</i> 💜`;
-  const via = await messageCustomer(order, { text, html, photoBuffer: buffer, photoFileId: photo.file_id });
+  const via = await messageCustomer(order, { text, html, photoBuffer: buffer, photoFileId });
 
   await firebasePatch(`orders/${orderId}`, {
     status: 'shipped',
-    fulfillment: { ...(order.fulfillment || {}), shippedAt: Date.now(), shipProofFileId: photo.file_id, shippedBy: String(msg.from?.id || ''), shipNote: note || null, customerShipNotifiedVia: via || null },
+    fulfillment: {
+      ...(order.fulfillment || {}), shippedAt: Date.now(), shipProofFileId: photoFileId || null,
+      shipProofImg: !photoFileId && imgData ? imgData : (order.fulfillment?.shipProofImg || null),
+      shippedBy, shipNote: note || null, customerShipNotifiedVia: via || null,
+    },
   });
   botFeatures.sendArrivedPrompt(order, orderId).catch(() => {});
-  for (const m of order.fulfillment?.adminMessages || []) {
-    bot.editMessageReplyMarkup({ inline_keyboard: [[{ text: '✅ Buyurtma yuborildi', callback_data: 'noop' }]] }, { chat_id: m.chatId, message_id: m.messageId }).catch(() => {});
+  if (botInstance) {
+    for (const m of order.fulfillment?.adminMessages || []) {
+      botInstance.editMessageReplyMarkup({ inline_keyboard: [[{ text: '✅ Buyurtma yuborildi', callback_data: 'noop' }]] }, { chat_id: m.chatId, message_id: m.messageId }).catch(() => {});
+    }
   }
-  await bot.sendMessage(chatId, via
-    ? `✅ ${o.num}: xaridorga chek bilan "buyurtma jo'natildi" xabari yuborildi${via === 'bot' ? ' (bot orqali)' : ''}.`
-    : `⚠️ ${o.num} "yuborildi" deb belgilandi, lekin xaridorga xabar yetkazib bo'lmadi (u botni bloklagan yoki yozishmani boshlamagan bo'lishi mumkin). Telefon: ${o.phone || '—'}`);
-  return true;
+  console.log(`🚚 Buyurtma ${o.num} jo'natildi, xaridorga: ${via || 'yetkazilmadi'}`);
+  return { via, num: o.num, phone: o.phone };
 }
 
 // ===== EXPRESS =====
@@ -899,9 +943,96 @@ app.get('/api/unique-suffix', apiRateLimiter, (req, res) => {
 });
 
 // Mahsulotlarni olish
+// ===== RASMLAR: bazadagi base64 rasmlar o'rniga kichraytirilgan, keshlanadigan havolalar =====
+const imgVersionCache = new Map();
+function imgVersion(pid, i, src) {
+  const key = `${pid}:${i}:${src.length}`;
+  let v = imgVersionCache.get(key);
+  if (!v) {
+    v = crypto.createHash('sha1').update(src.slice(0, 4096)).update(String(src.length)).digest('hex').slice(0, 10);
+    if (imgVersionCache.size > 2000) imgVersionCache.clear();
+    imgVersionCache.set(key, v);
+  }
+  return v;
+}
+function imgUrl(pid, i, src, w) {
+  return `/api/img/${encodeURIComponent(pid)}/${i}?w=${w}&v=${imgVersion(pid, i, src)}`;
+}
+const isDataImg = (src) => typeof src === 'string' && src.startsWith('data:image/');
+
+function publicProduct(p, now = Date.now()) {
+  if (!p) return p;
+  const out = { ...p };
+  // Muddati o'tgan chegirma ko'rsatilmaydi (narx o'zgarmaydi, faqat eski narx/foiz yashiriladi)
+  if (out.discountUntil && out.discountUntil <= now && out.discount > 0) { out.discount = 0; out.discountUntil = null; }
+  const imgs = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+  out.images = imgs.map((src, i) => isDataImg(src) ? imgUrl(p.id, i, src, 1080) : src);
+  const first = imgs[0];
+  out.image = first ? (isDataImg(first) ? imgUrl(p.id, 0, first, 480) : first) : (isDataImg(p.image) ? null : p.image || null);
+  return out;
+}
+
+// Admin panel tahrirlashda qaytgan /api/img/... havolalarini asl rasmga almashtiradi
+function resolveImgRefs(images, raw) {
+  if (!Array.isArray(images)) return images;
+  const rawImgs = raw ? (Array.isArray(raw.images) && raw.images.length ? raw.images : (raw.image ? [raw.image] : [])) : [];
+  return images.map(src => {
+    const m = typeof src === 'string' && src.match(/^\/api\/img\/([^/]+)\/(\d+)/);
+    if (!m) return src;
+    return (raw && String(raw.id) === decodeURIComponent(m[1]) && rawImgs[Number(m[2])]) || null;
+  }).filter(Boolean);
+}
+
+const resizedCache = new Map();
+function resizeImage(buf, w) {
+  return new Promise((resolve, reject) => {
+    const ffPath = (() => { try { return require('ffmpeg-static'); } catch (_) { return null; } })();
+    if (!ffPath) return reject(new Error('ffmpeg yo\'q'));
+    const ff = require('child_process').spawn(ffPath, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0',
+      '-vf', `scale='min(${w},iw)':-2`, '-frames:v', '1', '-c:v', 'libwebp', '-quality', '80', '-f', 'webp', 'pipe:1']);
+    const out = [];
+    ff.stdout.on('data', d => out.push(d));
+    ff.on('error', reject);
+    ff.on('close', code => code === 0 && out.length ? resolve(Buffer.concat(out)) : reject(new Error('ffmpeg ' + code)));
+    ff.stdin.on('error', () => {});
+    ff.stdin.end(buf);
+  });
+}
+
+app.get('/api/img/:pid/:idx', async (req, res) => {
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
+    const imgs = p ? (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])) : [];
+    const src = imgs[Number(req.params.idx)];
+    if (!isDataImg(src)) return res.status(404).end();
+    const m = src.match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
+    if (!m) return res.status(404).end();
+    const w = Math.max(120, Math.min(1600, parseInt(req.query.w) || 0));
+    const key = `${req.params.pid}:${req.params.idx}:${w}:${imgVersion(p.id, Number(req.params.idx), src)}`;
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    let hit = resizedCache.get(key);
+    if (!hit) {
+      const orig = Buffer.from(m[2], 'base64');
+      try {
+        const webp = req.query.w ? await resizeImage(orig, w) : null;
+        hit = webp && webp.length < orig.length ? { type: 'image/webp', buf: webp } : { type: m[1], buf: orig };
+      } catch (e) {
+        hit = { type: m[1], buf: orig };
+      }
+      if (resizedCache.size > 300) resizedCache.delete(resizedCache.keys().next().value);
+      resizedCache.set(key, hit);
+    }
+    res.setHeader('Content-Type', hit.type);
+    res.end(hit.buf);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
 app.get('/api/products', apiRateLimiter, async (req, res) => {
   try {
-    res.json(await getProducts());
+    const now = Date.now();
+    res.json((await getProducts()).map(p => publicProduct(p, now)));
   } catch (e) {
     res.status(500).json({ error: "Mahsulotlarni yuklashda xatolik yuz berdi" });
   }
@@ -1035,6 +1166,11 @@ app.post('/api/orders', apiRateLimiter, async (req, res) => {
     if (!dbProd) {
       return res.status(400).json({ error: `Mahsulot topilmadi: ${item.name}` });
     }
+    if (dbProd.stock !== null && dbProd.stock !== undefined && Number(dbProd.stock) < (Number(item.qty) || 1)) {
+      return res.status(400).json({ error: Number(dbProd.stock) <= 0
+        ? `"${plainText(dbProd.name)}" hozircha tugagan. Savatdan olib tashlang.`
+        : `"${plainText(dbProd.name)}" dan faqat ${dbProd.stock} ta qoldi.` });
+    }
     // `price` — xaridor to'laydigan sotuv narxi (ilovada ham shunday ko'rsatiladi);
     // `discount` faqat eski (chizilgan) narxni ko'rsatish uchun: eski narx = price / (1 - discount/100)
     calculatedBaseTotal += dbProd.price * (item.qty || 1);
@@ -1106,11 +1242,43 @@ app.post('/api/orders', apiRateLimiter, async (req, res) => {
 // Barcha buyurtmalarni olish
 app.get('/api/admin/orders', apiRateLimiter, verifyAdmin, async (req, res) => {
   try {
-    const ordersData = await firebaseGet('orders');
-    res.json(ordersData || {});
+    const ordersData = (await firebaseGet('orders')) || {};
+    // Og'ir rasm o'rniga havola: jo'natish cheki
+    const out = {};
+    for (const [id, o] of Object.entries(ordersData)) {
+      if (!o) continue;
+      const f = o.fulfillment ? { ...o.fulfillment } : null;
+      if (f) { delete f.shipProofImg; delete f.adminMessages; }
+      out[id] = { ...o, fulfillment: f, shipProof: proofUrl(id, o) };
+    }
+    res.json(out);
   } catch (e) {
     res.status(500).json({ error: "Buyurtmalarni yuklashda xatolik: " + e.message });
   }
+});
+
+// Admin panel: buyurtmani jo'natildi qilish (BTS cheki rasmi bilan)
+app.post('/api/admin/orders/:orderId/ship', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const img = typeof req.body?.image === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(req.body.image) && req.body.image.length < 3e6 ? req.body.image : null;
+    const r = await shipOrder(req.params.orderId, { imgData: img, note: req.body?.note || '', shippedBy: String(req.adminUser?.id || 'panel') });
+    if (r.error) return res.status(400).json({ error: r.error });
+    res.json({ success: true, via: r.via || null });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin: mijozlar fikrlari
+app.get('/api/admin/reviews', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try { res.json(await botFeatures.listAllReviews()); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/admin/reviews/:pid/:rid', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const r = await botFeatures.deleteReview(req.params.pid, req.params.rid);
+    if (r.error) return res.status(404).json(r);
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Buyurtmani tasdiqlash / rad etish
@@ -1217,6 +1385,19 @@ function buildProduct(body) {
     return { error: "Noto'g'ri mahsulot kategoriyasi!" };
   }
 
+  // Ombordagi soni: bo'sh — cheklanmagan (hisob yuritilmaydi)
+  let stock = null;
+  if (body.stock !== undefined && body.stock !== null && String(body.stock).trim() !== '') {
+    stock = parseInt(body.stock);
+    if (isNaN(stock) || stock < 0) return { error: "Ombordagi soni 0 yoki musbat son bo'lishi shart!" };
+  }
+  // Chegirma tugash vaqti (ixtiyoriy) — ilovada ortga sanoq ko'rsatiladi
+  let discountUntil = null;
+  if (body.discountUntil) {
+    const t = typeof body.discountUntil === 'number' ? body.discountUntil : Date.parse(body.discountUntil);
+    if (!isNaN(t) && t > 0) discountUntil = t;
+  }
+
   const cleanImages = Array.isArray(images) ? images.filter(img => typeof img === 'string').slice(0, 5) : [];
   const mainImage = body.image && typeof body.image === 'string' ? body.image : (cleanImages[0] || null);
 
@@ -1233,6 +1414,9 @@ function buildProduct(body) {
       reviews: Number(body.reviews) || 0,
       specs: Array.isArray(specs) ? specs.filter(pair => Array.isArray(pair)).map(pair => [sanitizeInput(pair[0]), sanitizeInput(pair[1])]) : [],
       emoji: body.emoji ? sanitizeInput(body.emoji) : null,
+      stock,
+      discountUntil: parsedDiscount > 0 ? discountUntil : null,
+      sold: Number(body.sold) || 0,
       image: mainImage,
       images: cleanImages.length ? cleanImages : (mainImage ? [mainImage] : [])
     }
@@ -1280,7 +1464,7 @@ app.post('/api/admin/products', apiRateLimiter, verifyAdmin, validateAndSanitize
   const newProduct = req.sanitizedProduct;
   try {
     await mutateProducts(list => ({ list: [newProduct, ...list.filter(p => p.id !== newProduct.id)] }));
-    res.json({ success: true, product: newProduct });
+    res.json({ success: true, product: publicProduct(newProduct) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1291,9 +1475,14 @@ app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res)
   try {
     const data = { ...(req.body || {}) };
     delete data.id;
+    if (Array.isArray(data.images) || typeof data.image === 'string') {
+      const raw = (await getProducts()).find(x => String(x.id) === String(req.params.id));
+      if (Array.isArray(data.images)) data.images = resolveImgRefs(data.images, raw);
+      if (typeof data.image === 'string') data.image = resolveImgRefs([data.image], raw)[0] || (data.images && data.images[0]) || null;
+    }
     const result = await updateProduct(req.params.id, data);
     if (result.error) return res.status(result.error === "Mahsulot topilmadi" ? 404 : 400).json(result);
-    res.json({ success: true, product: result.product });
+    res.json({ success: true, product: publicProduct(result.product) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1573,6 +1762,95 @@ app.post('/api/me/sync', apiRateLimiter, async (req, res) => {
   }
 });
 
+// ===== XARIDOR BUYURTMALARI (Mini App) =====
+function proofToken(orderId) {
+  return crypto.createHash('sha256').update(`proof:${orderId}:${BOT_TOKEN || process.env.SESSION_SECRET || 'ts'}`).digest('hex').slice(0, 24);
+}
+function proofUrl(orderId, order) {
+  const f = order?.fulfillment || {};
+  return (f.shipProofFileId || f.shipProofImg) ? `/api/orders/${encodeURIComponent(orderId)}/ship-proof?t=${proofToken(orderId)}` : null;
+}
+const plainText = (v) => String(v ?? '').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+
+app.get('/api/me/orders', apiRateLimiter, async (req, res) => {
+  const user = userFromInitData(req);
+  if (!user) return res.status(401).json({ error: 'auth' });
+  try {
+    const all = (await firebaseGet('orders')) || {};
+    const list = Object.entries(all)
+      .filter(([, o]) => o && String(o.userId) === String(user.id))
+      .map(([id, o]) => ({
+        id, orderNum: plainText(o.orderNum || '#' + id), products: plainText(o.products || ''), items: o.items || null,
+        total: o.total || 0, status: o.status || 'pending', addr: plainText(o.addr || ''), phone: plainText(o.phone || ''),
+        createdAt: o.createdAt || 0, confirmedAt: o.confirmedAt || 0,
+        shippedAt: o.fulfillment?.shippedAt || 0, deliveredAt: o.fulfillment?.deliveredAt || 0,
+        shipNote: plainText(o.fulfillment?.shipNote || ''), shipProof: proofUrl(id, o), review: o.review || null,
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Taklif qilingan do'stlar soni (bonus berilmaydi)
+app.get('/api/me/referrals', apiRateLimiter, async (req, res) => {
+  const user = userFromInitData(req);
+  if (!user) return res.status(401).json({ error: 'auth' });
+  try {
+    const users = (await firebaseGet('users')) || {};
+    const count = Object.values(users).filter(u => u && String(u.referredBy || '') === String(user.id)).length;
+    res.json({ count });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+async function ownOrder(req, res) {
+  const user = userFromInitData(req);
+  if (!user) { res.status(401).json({ error: 'auth' }); return null; }
+  const order = await firebaseGet(`orders/${req.params.id}`);
+  if (!order || String(order.userId) !== String(user.id)) { res.status(404).json({ error: 'Buyurtma topilmadi' }); return null; }
+  return { user, order };
+}
+
+app.post('/api/me/orders/:id/delivered', apiRateLimiter, async (req, res) => {
+  try {
+    const r = await ownOrder(req, res); if (!r) return;
+    if (!['shipped', 'delivered'].includes(r.order.status)) return res.status(400).json({ error: "Buyurtma hali jo'natilmagan" });
+    await botFeatures.markDelivered(r.order, req.params.id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/me/orders/:id/review', apiRateLimiter, async (req, res) => {
+  try {
+    const r = await ownOrder(req, res); if (!r) return;
+    if (r.order.review) return res.status(400).json({ error: 'Siz allaqachon fikr qoldirgansiz' });
+    if (!['shipped', 'delivered'].includes(r.order.status)) return res.status(400).json({ error: "Fikrni buyurtma yetib kelgach qoldirish mumkin" });
+    if (r.order.status === 'shipped') await botFeatures.markDelivered(r.order, req.params.id);
+    const photo = typeof req.body?.photo === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(req.body.photo) && req.body.photo.length < 1.5e6 ? req.body.photo : null;
+    const name = [r.user.first_name, r.user.last_name].filter(Boolean).join(' ').trim() || plainText(r.order.userName) || 'Xaridor';
+    await botFeatures.addReview({ order: r.order, orderId: req.params.id, userId: r.user.id, name, rating: req.body?.rating, text: req.body?.text, photoData: photo });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Jo'natish cheki rasmi (havolada imzo bor — <img> uchun)
+app.get('/api/orders/:id/ship-proof', async (req, res) => {
+  try {
+    if (req.query.t !== proofToken(req.params.id)) return res.status(403).end();
+    const order = await firebaseGet(`orders/${req.params.id}`);
+    const f = order?.fulfillment || {};
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    const m = f.shipProofImg && String(f.shipProofImg).match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
+    if (m) { res.setHeader('Content-Type', m[1]); return res.end(Buffer.from(m[2], 'base64')); }
+    if (!f.shipProofFileId || !botInstance) return res.status(404).end();
+    const r = await fetch(await botInstance.getFileLink(f.shipProofFileId), { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return res.status(502).end();
+    res.setHeader('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+    res.end(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { res.status(500).end(); }
+});
+
 // Mijozlar fikri
 app.get('/api/products/:id/reviews', apiRateLimiter, async (req, res) => {
   try {
@@ -1585,12 +1863,13 @@ app.get('/api/products/:id/reviews', apiRateLimiter, async (req, res) => {
 
 app.get('/api/reviews/:pid/:rid/photo', apiRateLimiter, async (req, res) => {
   try {
-    const link = await botFeatures.reviewPhotoUrl(req.params.pid, req.params.rid);
-    if (!link) return res.status(404).end();
-    const r = await fetch(link, { signal: AbortSignal.timeout(20000) });
+    const ph = await botFeatures.reviewPhoto(req.params.pid, req.params.rid);
+    if (!ph) return res.status(404).end();
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    if (ph.data) { res.setHeader('Content-Type', ph.type); return res.end(ph.data); }
+    const r = await fetch(ph.url, { signal: AbortSignal.timeout(20000) });
     if (!r.ok) return res.status(502).end();
     res.setHeader('Content-Type', r.headers.get('content-type') || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
     res.end(Buffer.from(await r.arrayBuffer()));
   } catch (e) {
     res.status(500).end();
@@ -1681,6 +1960,19 @@ function initializeTelegramBot() {
 
       // Ulashilgan havola orqali kelgan: /start p_<mahsulotID> — shu mahsulotni darhol ochamiz
       const payload = (msg.text || '').split(' ')[1] || '';
+      // Do'st taklifi: /start ref_<taklif qilgan ID> — faqat yangi foydalanuvchi uchun yoziladi (bonussiz)
+      const rm = payload.match(/^ref_(\d+)$/);
+      if (rm && rm[1] !== String(msg.from?.id)) {
+        (async () => {
+          const uid = String(msg.from.id);
+          const existing = await firebaseGet(`users/${uid}`);
+          const isNew = !existing || !existing.joinedAt || Date.now() - existing.joinedAt < 10 * 60 * 1000;
+          if (!isNew || existing?.referredBy) return;
+          await firebasePatch(`users/${uid}`, { referredBy: rm[1], referredAt: Date.now() });
+          const who = escHtml([msg.from.first_name, msg.from.last_name].filter(Boolean).join(' ') || 'Do\'stingiz');
+          bot.sendMessage(rm[1], `🎉 <b>${who}</b> sizning taklifingiz bilan TechStore'ga qo'shildi! Do'konimizni tavsiya qilganingiz uchun rahmat 💜`, { parse_mode: 'HTML' }).catch(() => {});
+        })().catch(e => console.warn('Taklifni yozib bo\'lmadi:', e.message));
+      }
       const pm = payload.match(/^p_(\d+)$/);
       if (pm) {
         getProducts().then(list => {

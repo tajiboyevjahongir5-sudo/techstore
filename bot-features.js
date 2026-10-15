@@ -145,6 +145,18 @@ function createBotFeatures(deps) {
   }
 
   // ---------- Yetib keldi → baho → fikr ----------
+  async function markDelivered(order, orderId) {
+    if (order.status === 'delivered') return false;
+    await firebasePatch(`orders/${orderId}`, { status: 'delivered', fulfillment: { ...(order.fulfillment || {}), deliveredAt: Date.now() } });
+    const b = bot();
+    if (b) {
+      for (const id of getAdminIds()) {
+        b.sendMessage(id, `📬 <b>${esc(order.orderNum || '#' + orderId)}</b> xaridorga yetib keldi (${esc(order.userName || '')}).`, { parse_mode: 'HTML' }).catch(() => {});
+      }
+    }
+    return true;
+  }
+
   async function onArrived(query, orderId) {
     const b = bot();
     const order = await firebaseGet(`orders/${orderId}`);
@@ -154,12 +166,7 @@ function createBotFeatures(deps) {
     if (order.status === 'delivered' && order.review) {
       return b.answerCallbackQuery(query.id, { text: 'Rahmat! Siz allaqachon fikr qoldirgansiz 💜', show_alert: true });
     }
-    if (order.status !== 'delivered') {
-      await firebasePatch(`orders/${orderId}`, { status: 'delivered', fulfillment: { ...(order.fulfillment || {}), deliveredAt: Date.now() } });
-      for (const id of getAdminIds()) {
-        b.sendMessage(id, `📬 <b>${esc(order.orderNum || '#' + orderId)}</b> xaridorga yetib keldi (${esc(order.userName || '')}).`, { parse_mode: 'HTML' }).catch(() => {});
-      }
-    }
+    await markDelivered(order, orderId);
     await b.answerCallbackQuery(query.id, { text: 'Ajoyib! 🎉' });
     b.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: query.message.chat.id, message_id: query.message.message_id }).catch(() => {});
     await b.sendMessage(query.message.chat.id,
@@ -188,18 +195,14 @@ function createBotFeatures(deps) {
     return list.filter(p => names.includes(String(p.name).trim().toLowerCase())).map(p => String(p.id));
   }
 
-  async function saveReview(msg, st) {
+  // Fikrni saqlash (bot va Mini App uchun umumiy). photoFileId — Telegram fayli, photoData — data:image/... (Mini App)
+  async function addReview({ order, orderId, userId, name, rating, text, photoFileId = null, photoData = null }) {
     const b = bot();
-    const chatId = String(msg.chat.id);
-    states.delete(chatId);
-    const order = await firebaseGet(`orders/${st.orderId}`);
-    if (!order) return b.sendMessage(chatId, 'Buyurtma topilmadi.');
-    const photo = msg.photo?.length ? msg.photo[msg.photo.length - 1] : null;
-    const text = String((msg.text && !msg.text.startsWith('/')) ? msg.text : (msg.caption || '')).trim().slice(0, 1000);
-    const name = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(' ').trim() || order.userName || 'Xaridor';
+    rating = Math.max(1, Math.min(5, Math.round(Number(rating) || 5)));
+    text = String(text || '').trim().slice(0, 1000);
     const review = {
-      userId: String(msg.from?.id || ''), name: name.slice(0, 60), rating: st.rating, text,
-      photoFileId: photo?.file_id || null, orderId: st.orderId, createdAt: Date.now(),
+      userId: String(userId || ''), name: String(name || 'Xaridor').slice(0, 60), rating, text,
+      photoFileId, photoData, orderId, createdAt: Date.now(),
     };
     const pids = await productIdsOfOrder(order);
     const rid = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -212,21 +215,39 @@ function createBotFeatures(deps) {
           const cnt = Number(p.reviews) || 0;
           const avg = Number(p.rating) || 0;
           const nextCnt = cnt + 1;
-          const nextAvg = Math.round(((avg * cnt + st.rating) / nextCnt) * 10) / 10;
+          const nextAvg = Math.round(((avg * cnt + rating) / nextCnt) * 10) / 10;
           await updateProduct(pid, { rating: nextAvg, reviews: nextCnt });
         }
       } catch (e) { console.warn('Reytingni yangilab bo\'lmadi:', e.message); }
     }
-    await firebasePatch(`orders/${st.orderId}`, { review: { rating: st.rating, text, hasPhoto: !!photo, at: Date.now() } });
+    await firebasePatch(`orders/${orderId}`, { review: { rating, text, hasPhoto: !!(photoFileId || photoData), at: Date.now() } });
     bump('reviews');
-    await b.sendMessage(chatId,
-      `💜 Rahmat, ${esc(name.split(' ')[0])}! Fikringiz biz uchun juda qadrli${pids.length ? " va u mahsulot sahifasida boshqa xaridorlarga ko'rinadi" : ''}.\n\nYana xarid qilishni istasangiz — doim xizmatingizdamiz 👇`,
-      { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[shopButton()]] } });
-    const adminText = `⭐ <b>Yangi fikr</b> — ${esc(order.orderNum || '#' + st.orderId)}\n👤 ${esc(name)}\n${'⭐'.repeat(st.rating)}\n🛍 ${esc(order.products || '')}${text ? `\n\n💬 ${esc(text)}` : ''}`;
-    for (const id of getAdminIds()) {
-      if (photo) b.sendPhoto(id, photo.file_id, { caption: adminText.slice(0, 1000), parse_mode: 'HTML' }).catch(() => {});
-      else b.sendMessage(id, adminText, { parse_mode: 'HTML' }).catch(() => {});
+    if (b) {
+      const adminText = `⭐ <b>Yangi fikr</b> — ${esc(order.orderNum || '#' + orderId)}\n👤 ${esc(review.name)}\n${'⭐'.repeat(rating)}\n🛍 ${esc(order.products || '')}${text ? `\n\n💬 ${esc(text)}` : ''}`;
+      const m = photoData && String(photoData).match(/^data:image\/[a-z+]+;base64,(.+)$/i);
+      for (const id of getAdminIds()) {
+        if (photoFileId) b.sendPhoto(id, photoFileId, { caption: adminText.slice(0, 1000), parse_mode: 'HTML' }).catch(() => {});
+        else if (m) b.sendPhoto(id, Buffer.from(m[1], 'base64'), { caption: adminText.slice(0, 1000), parse_mode: 'HTML' }, { filename: 'fikr.jpg', contentType: 'image/jpeg' }).catch(() => {});
+        else b.sendMessage(id, adminText, { parse_mode: 'HTML' }).catch(() => {});
+      }
     }
+    return { saved: true, products: pids.length };
+  }
+
+  async function saveReview(msg, st) {
+    const b = bot();
+    const chatId = String(msg.chat.id);
+    states.delete(chatId);
+    const order = await firebaseGet(`orders/${st.orderId}`);
+    if (!order) return b.sendMessage(chatId, 'Buyurtma topilmadi.');
+    if (order.review) return b.sendMessage(chatId, 'Rahmat! Siz bu buyurtma uchun allaqachon fikr qoldirgansiz 💜');
+    const photo = msg.photo?.length ? msg.photo[msg.photo.length - 1] : null;
+    const text = String((msg.text && !msg.text.startsWith('/')) ? msg.text : (msg.caption || '')).trim().slice(0, 1000);
+    const name = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(' ').trim() || order.userName || 'Xaridor';
+    const { products: pidsCount } = await addReview({ order, orderId: st.orderId, userId: msg.from?.id, name, rating: st.rating, text, photoFileId: photo?.file_id || null });
+    await b.sendMessage(chatId,
+      `💜 Rahmat, ${esc(name.split(' ')[0])}! Fikringiz biz uchun juda qadrli${pidsCount ? " va u mahsulot sahifasida boshqa xaridorlarga ko'rinadi" : ''}.\n\nYana xarid qilishni istasangiz — doim xizmatingizdamiz 👇`,
+      { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[shopButton()]] } });
   }
 
   // ---------- /reklama ----------
@@ -412,16 +433,53 @@ function createBotFeatures(deps) {
     const raw = (await firebaseGet(`reviews/${String(productId)}`)) || {};
     const items = Object.entries(raw).map(([rid, r]) => ({
       id: rid, name: r.name || 'Xaridor', rating: r.rating || 5, text: r.text || '', createdAt: r.createdAt || 0,
-      photo: r.photoFileId ? `/api/reviews/${encodeURIComponent(productId)}/${encodeURIComponent(rid)}/photo` : null,
+      photo: (r.photoFileId || r.photoData) ? `/api/reviews/${encodeURIComponent(productId)}/${encodeURIComponent(rid)}/photo` : null,
     })).sort((a, b) => b.createdAt - a.createdAt);
     const avg = items.length ? Math.round(items.reduce((s, r) => s + r.rating, 0) / items.length * 10) / 10 : 0;
     return { count: items.length, avg, items: items.slice(0, 30) };
   }
 
-  async function reviewPhotoUrl(productId, reviewId) {
+  // { url } — Telegram fayli, { data, type } — Mini App orqali yuklangan rasm
+  async function reviewPhoto(productId, reviewId) {
     const r = await firebaseGet(`reviews/${String(productId)}/${String(reviewId)}`);
+    const m = r?.photoData && String(r.photoData).match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
+    if (m) return { data: Buffer.from(m[2], 'base64'), type: m[1] };
     if (!r?.photoFileId || !bot()) return null;
-    return bot().getFileLink(r.photoFileId);
+    return { url: await bot().getFileLink(r.photoFileId) };
+  }
+
+  // Admin: barcha fikrlar va o'chirish
+  async function listAllReviews() {
+    const all = (await firebaseGet('reviews')) || {};
+    const products = await getProducts();
+    const seen = new Set();
+    const out = [];
+    for (const [pid, revs] of Object.entries(all)) {
+      for (const [rid, r] of Object.entries(revs || {})) {
+        if (!r) continue;
+        const key = rid; // bitta fikr bir nechta mahsulotga yozilgan bo'lishi mumkin
+        const prod = products.find(p => String(p.id) === pid);
+        out.push({ pid, rid, name: r.name, rating: r.rating, text: r.text || '', createdAt: r.createdAt || 0, product: prod ? prod.name : '—', orderId: r.orderId,
+          photo: (r.photoFileId || r.photoData) ? `/api/reviews/${encodeURIComponent(pid)}/${encodeURIComponent(rid)}/photo` : null, dup: seen.has(key) });
+        seen.add(key);
+      }
+    }
+    return out.sort((a, b) => b.createdAt - a.createdAt).slice(0, 200);
+  }
+
+  async function deleteReview(pid, rid) {
+    const r = await firebaseGet(`reviews/${pid}/${rid}`);
+    if (!r) return { error: 'Fikr topilmadi' };
+    await firebaseDelete(`reviews/${pid}/${rid}`);
+    try {
+      const p = (await getProducts()).find(x => String(x.id) === String(pid));
+      if (p && Number(p.reviews) > 1) {
+        const cnt = Number(p.reviews), avg = Number(p.rating) || 0;
+        const nextAvg = Math.max(1, Math.min(5, Math.round(((avg * cnt - (r.rating || 5)) / (cnt - 1)) * 10) / 10));
+        await updateProduct(pid, { rating: nextAvg, reviews: cnt - 1 });
+      }
+    } catch (_) {}
+    return { deleted: true };
   }
 
   // ---------- Bot menyusi ----------
@@ -511,7 +569,8 @@ function createBotFeatures(deps) {
 
   return {
     sendWelcome, sendMyOrders, sendArrivedPrompt, handleMessage, handleCallback, setCommands,
-    syncUserData, onProductUpdated, listReviews, reviewPhotoUrl, startSchedulers,
+    syncUserData, onProductUpdated, listReviews, reviewPhoto, startSchedulers,
+    addReview, markDelivered, listAllReviews, deleteReview, STATUS_LABELS,
     _internals: { buildReport, sweepCarts, sweepUnshipped, maybeDailyReport, states },
   };
 }
