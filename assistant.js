@@ -10,7 +10,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
-const { NewMessage } = require('telegram/events');
+const { NewMessage, Raw } = require('telegram/events');
+const bigInt = require('big-integer');
 const { computeCheck } = require('telegram/Password');
 const { CustomFile } = require('telegram/client/uploads');
 const Anthropic = require('@anthropic-ai/sdk');
@@ -507,6 +508,7 @@ function createAssistant(deps) {
   async function startListening(c) {
     client = c;
     client.addEventHandler(onNewMessage, new NewMessage({ incoming: true }));
+    client.addEventHandler(onPhoneCall, new Raw({ types: [Api.UpdatePhoneCall] }));
     const me = await client.getMe();
     config.account = {
       id: String(me.id),
@@ -719,6 +721,47 @@ function createAssistant(deps) {
     chat.name = [sender.firstName, sender.lastName].filter(Boolean).join(' ') || 'Foydalanuvchi';
     chat.username = sender.username || '';
     return chat;
+  }
+
+  // ===== KIRUVCHI QO'NG'IROQLAR =====
+  // Yordamchi jonli ovozli qo'ng'iroqda gaplasha olmaydi — qo'ng'iroqni muloyimlik bilan rad etib,
+  // darhol ovozli yoki yozma xabar yuborishni so'raydi (ovozli xabarlarga to'liq javob beradi).
+  const handledCalls = new Set();
+  async function onPhoneCall(update) {
+    try {
+      const call = update.phoneCall;
+      if (!config.enabled || !(call instanceof Api.PhoneCallRequested)) return;
+      const callId = String(call.id);
+      if (handledCalls.has(callId)) return;
+      handledCalls.add(callId);
+      if (handledCalls.size > 500) handledCalls.clear();
+      const callerId = String(call.adminId);
+      const isAdmin = adminIdSet().has(callerId);
+      if (!isAdmin && !config.replyToCustomers) return;
+
+      await sleep(1500); // bir-ikki "jiringlash"dan keyin
+      await client.invoke(new Api.phone.DiscardCall({
+        peer: new Api.InputPhoneCall({ id: call.id, accessHash: call.accessHash }),
+        duration: 0,
+        reason: new Api.PhoneCallDiscardReasonBusy(),
+        connectionId: bigInt(0),
+        video: !!call.video,
+      })).catch(e => console.warn('🤖 Assistant: qo\'ng\'iroqni rad etishda xato:', e.message));
+
+      const text = isAdmin
+        ? "📞 Qo'ng'iroqqa chiqa olmayman — buyruqni ovozli yoki yozma xabar qilib yuboring 🎤"
+        : "Assalomu alaykum! 📞 Hozir qo'ng'iroqqa chiqa olmayman 🙏 Savolingizni ovozli xabar qilib yuboring yoki yozing — darhol javob beraman 🎤";
+      let peer = chats.get(callerId)?.peer;
+      if (!peer) peer = await client.getEntity(bigInt(callerId)).catch(() => null);
+      if (peer) await client.sendMessage(peer, { message: text, parseMode: false });
+      stats.calls = (stats.calls || 0) + 1;
+      log(`Qo'ng'iroq rad etildi va xabar yuborildi: ${peer ? [peer.firstName, peer.lastName].filter(Boolean).join(' ') || callerId : callerId}`);
+      if (!isAdmin && deps.store.trackUser && peer) {
+        deps.store.trackUser({ id: callerId, first_name: peer.firstName, last_name: peer.lastName, username: peer.username }, 'assistant');
+      }
+    } catch (e) {
+      console.warn('🤖 Assistant: qo\'ng\'iroqni qayta ishlashda xato:', e.message);
+    }
   }
 
   async function onNewMessage(event) {
@@ -1557,7 +1600,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   return {
     init, status, publicContact, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
     // Testlar uchun ichki funksiyalar
-    _internals: { getChat, processChat, executeTool, setClient: (c) => { client = c; } },
+    _internals: { getChat, processChat, executeTool, onPhoneCall, setClient: (c) => { client = c; } },
   };
 }
 
