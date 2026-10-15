@@ -355,8 +355,27 @@ const TOOL_DEFS = {
   },
   list_customer_chats: {
     name: 'list_customer_chats',
-    description: "Yordamchi admin bilan yozishgan xaridorlar ro'yxati (oxirgi xabarlari bilan).",
-    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+    description: "Yordamchi akkaunt bilan yozishgan xaridorlar ro'yxati — Telegram'dagi haqiqiy suhbatlardan olinadi (server qayta ishga tushsa ham yo'qolmaydi). period bilan filtrlash mumkin.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        period: { type: 'string', enum: ['today', 'last_24h', 'last_7d', 'all'], description: "today — bugun (Toshkent vaqti bilan), standart: all" },
+      },
+      additionalProperties: false,
+    },
+  },
+  message_customers: {
+    name: 'message_customers',
+    description: "Admin topshirig'i bilan bir nechta xaridorga bir xil xabar yuboradi (masalan: 'bugun yozishganlarning hammasiga ayt...'). Tanlangan davrda yozishgan barcha xaridorlarga yuboriladi.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Xaridorlarga yuboriladigan xabar matni (tabiiy, xushmuomala)' },
+        period: { type: 'string', enum: ['today', 'last_24h', 'last_7d', 'all'], description: 'Standart: today' },
+      },
+      required: ['text'],
+      additionalProperties: false,
+    },
   },
   send_message_to_customer: {
     name: 'send_message_to_customer',
@@ -387,7 +406,7 @@ const TOOL_DEFS = {
 };
 
 const ADMIN_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'add_product', 'update_product', 'delete_product',
-  'list_orders', 'update_order_status', 'get_stats', 'list_users', 'list_customer_chats', 'send_message_to_customer'];
+  'list_orders', 'update_order_status', 'get_stats', 'list_users', 'list_customer_chats', 'send_message_to_customer', 'message_customers'];
 const CUSTOMER_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'notify_admin'];
 
 function buildTools(names) {
@@ -978,7 +997,8 @@ Admin bilan ishlash qoidalari:
 - O'chirish (delete_product) va buyurtmani rad etish kabi qaytarib bo'lmaydigan amallarni admin aniq so'ramagan bo'lsa, avval tasdiqlashni so'ra.
 - Amal bajarilgach natijani bitta qatorda xabar qil, masalan: "✅ Qo'shildi: AirPods 4 — 5 000 000 so'm (ID 1234)".
 - Admin savoliga javob berganda ham qisqa bo'l: faqat so'ralgan raqam yoki fakt. Statistika so'ralsa — ixcham ro'yxat (3-6 qator), izohsiz.
-- Xaridorlarga xabar yuborishni faqat admin so'raganda bajar.
+- Xaridorlarga xabar yuborishni faqat admin so'raganda bajar. Bittasiga — send_message_to_customer, ko'pchilikka ("bugun yozishganlarning hammasiga ayt...") — message_customers (period: "bugun" → today, "kecha/24 soat" → last_24h, "hafta" → last_7d, "hammasiga" → all). Xabar matnini xaridorga murojaat qilib, tabiiy va xushmuomala o'zing tuz. So'ng nechta odamga yuborilganini ayt.
+- Admin topshiriq bersa, tushunganingcha darhol bajar — "hozir yo'q" deb rad etma. Avval tegishli asbob bilan haqiqiy ma'lumotni tekshir (xaridorlar ro'yxati uchun list_customer_chats). Topshiriq noaniq bo'lsa, bitta qisqa aniqlashtiruvchi savol ber.
 - Raqamlar va statistika (foydalanuvchilar, buyurtmalar, daromad) haqida so'ralsa, HAR DOIM avval get_stats (yoki list_users, list_orders) ni chaqir va faqat natijadagi aniq raqamlarni ayt. Raqamlarni batafsil ko'rsat (masalan: jami, bugun qo'shilgan, bot/Mini App orqali, buyurtma berganlar).
 - Bilmagan narsangni to'qib chiqarma va taxminiy tushuntirish berma. Ma'lumotda biror narsa bo'lmasa, aniq ayt: nima hisoblanadi va nima hisoblanmaydi (get_stats natijasidagi note'ga tayan).`;
     }
@@ -1164,22 +1184,36 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         return { ...(await store.getStats()), today: new Date().toISOString().slice(0, 10) };
       case 'list_users':
         return store.listUsers ? store.listUsers(input) : { error: "Mavjud emas" };
-      case 'list_customer_chats':
+      case 'list_customer_chats': {
+        const list = await customerDialogs(input.period || 'all');
         return {
-          chats: [...chats.values()]
-            .filter(c => c.role === 'customer')
-            .sort((a, b) => b.lastActivity - a.lastActivity)
-            .slice(0, 30)
-            .map(c => ({ user_id: c.id, name: c.name, username: c.username ? '@' + c.username : '', last_message: c.lastText, last_activity: new Date(c.lastActivity).toISOString() })),
+          period: input.period || 'all',
+          count: list.length,
+          chats: list.slice(0, 40).map(c => ({ user_id: c.id, name: c.name, username: c.username ? '@' + c.username : '', last_message: c.lastText, last_activity: new Date(c.lastActivity).toISOString() })),
         };
+      }
       case 'send_message_to_customer': {
-        const target = chats.get(String(input.user_id));
-        if (!target || target.role !== 'customer') return { error: "Bu xaridor bilan suhbat topilmadi (u avval yozgan bo'lishi kerak)" };
-        await client.sendMessage(target.peer, { message: String(input.text).slice(0, 4000), parseMode: false });
-        target.history.push({ role: 'assistant', content: `[Admin topshirig'i bilan yuborildi] ${input.text}` });
+        const id = String(input.user_id);
+        const target = (await customerDialogs('all')).find(c => c.id === id);
+        if (!target) return { error: "Bu xaridor bilan suhbat topilmadi (u avval yozgan bo'lishi kerak)" };
+        await sendToCustomer(target, input.text);
         stats.actions++;
         log(`Xaridorga xabar yuborildi: ${target.name}`);
         return { sent: true };
+      }
+      case 'message_customers': {
+        const period = input.period || 'today';
+        const list = (await customerDialogs(period)).slice(0, 50);
+        if (!list.length) return { sent: 0, note: `Bu davrda (${period}) yozishgan xaridor yo'q` };
+        const sentTo = [], failed = [];
+        for (const t of list) {
+          try { await sendToCustomer(t, input.text); sentTo.push(t.name); }
+          catch (e) { failed.push(t.name); }
+          await sleep(1200); // Telegram flood cheklovidan saqlanish
+        }
+        stats.actions++;
+        log(`${sentTo.length} ta xaridorga xabar yuborildi`);
+        return { sent: sentTo.length, recipients: sentTo, failed };
       }
       case 'notify_admin': {
         const text = `🔔 Xaridor so'rovi\n👤 ${chat.name}${chat.username ? ' (@' + chat.username + ')' : ''} — ID: ${chat.id}\n${input.customer_phone ? '📞 ' + input.customer_phone + '\n' : ''}\n${input.summary}`;
@@ -1190,6 +1224,48 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       default:
         return { error: "Noma'lum amal" };
     }
+  }
+
+  // Telegram'dagi haqiqiy shaxsiy suhbatlar (xotira o'chsa ham ishlaydi)
+  function periodStart(period) {
+    const now = Date.now();
+    if (period === 'today') {
+      const TZ = 5 * 3600e3; // Toshkent (UTC+5)
+      return Math.floor((now + TZ) / 86400e3) * 86400e3 - TZ;
+    }
+    if (period === 'last_24h') return now - 86400e3;
+    if (period === 'last_7d') return now - 7 * 86400e3;
+    return 0;
+  }
+
+  async function customerDialogs(period) {
+    if (!client) return [];
+    const from = periodStart(period);
+    const admins = adminIdSet();
+    const dialogs = await client.getDialogs({ limit: 200 });
+    const out = [];
+    for (const d of dialogs) {
+      const u = d.entity;
+      if (!d.isUser || !u || u.bot || u.self || u.deleted) continue;
+      const id = String(u.id);
+      if (admins.has(id) || id === '777000') continue;   // adminlar va Telegram xizmat xabarlari
+      const ts = (d.date || d.message?.date || 0) * 1000;
+      if (ts < from) continue;
+      out.push({
+        id, entity: u, lastActivity: ts,
+        name: [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Foydalanuvchi',
+        username: u.username || '',
+        lastText: String(d.message?.message || '').slice(0, 120),
+      });
+    }
+    return out.sort((a, b) => b.lastActivity - a.lastActivity);
+  }
+
+  async function sendToCustomer(target, text) {
+    const msg = String(text).slice(0, 4000);
+    await client.sendMessage(target.entity, { message: msg, parseMode: false });
+    const c = chats.get(target.id);
+    if (c) c.history.push({ role: 'assistant', content: `[Admin topshirig'i bilan yuborildi] ${msg}` });
   }
 
   async function notifyAdmins(text) {
