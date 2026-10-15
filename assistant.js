@@ -56,6 +56,8 @@ const MAX_HISTORY = 40;            // har bir chat uchun saqlanadigan xabarlar (
 const MAX_TOOL_ROUNDS = 10;        // bir javob ichida asboblardan foydalanish chegarasi
 const MAX_PHOTOS_PER_CHAT = 12;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 15 * 1024 * 1024;   // ovozli xabar hajmi chegarasi
+const MAX_AUDIO_SECONDS = 600;              // 10 daqiqagacha ovozli xabar
 const CUSTOMER_HOURLY_LIMIT = 40;
 const PHOTO_DEBOUNCE_MS = 2500;    // izohsiz rasmdan keyin matn kelishini kutamiz (rasm + "shuni qo'sh")
 const TEXT_DEBOUNCE_MS = 700;     // ketma-ket yozilgan qisqa xabarlarni birlashtirish uchun
@@ -756,6 +758,62 @@ function createAssistant(deps) {
   }
 
   // Kiruvchi xabarlarni Claude uchun content bloklariga aylantiradi
+  // ===== OVOZLI XABARNI MATNGA AYLANTIRISH (Gemini) =====
+  // Telegram ovozli xabari (OGG/Opus) yoki audio fayl Gemini'ga yuboriladi va so'zma-so'z matn olinadi.
+  // Gemini kaliti bo'lsa ishlaydi (asosiy provayder Claude bo'lsa ham).
+  async function transcribeAudio(buffer, mime) {
+    const key = aiKeyFor('gemini');
+    if (!key) return { error: 'no_key' };
+    const models = config.provider === 'gemini' ? modelOrder() : GEMINI_FALLBACK_MODELS;
+    const body = {
+      contents: [{
+        role: 'user',
+        parts: [
+          { inline_data: { mime_type: mime, data: buffer.toString('base64') } },
+          { text: "Bu Telegram ovozli xabari. Uni so'zma-so'z, aynan aytilgan tilda (o'zbek, rus, ingliz yoki aralash) matnga aylantir. Faqat aytilgan matnni qaytar — izoh, tarjima yoki qo'shimcha so'z yozma. Agar tushunarli nutq bo'lmasa, faqat [nutq yo'q] deb yoz." },
+        ],
+      }],
+      generationConfig: { temperature: 0 },
+    };
+    for (const model of models) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(45000),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          console.warn(`🤖 Assistant: ovoz → ${model} ${res.status} ${(data?.error?.message || '').slice(0, 120)}`);
+          if (res.status === 401 || res.status === 403 || res.status === 400) return { error: 'api' };
+          continue; // band yoki limit — keyingi model
+        }
+        const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
+        if (!text || /^\[nutq yo'q\]$/i.test(text)) return { error: 'empty' };
+        return { text };
+      } catch (e) {
+        console.warn(`🤖 Assistant: ovoz → ${model} ${e.name === 'TimeoutError' ? 'timeout' : e.message}`);
+      }
+    }
+    return { error: 'busy' };
+  }
+
+  async function voiceToText(msg) {
+    const doc = msg.voice || msg.audio || msg.document;
+    const mime = (doc && doc.mimeType) || 'audio/ogg';
+    const durAttr = (doc?.attributes || []).find(a => a.className === 'DocumentAttributeAudio');
+    if (Number(doc?.size) > MAX_AUDIO_BYTES || (durAttr && durAttr.duration > MAX_AUDIO_SECONDS)) return { error: 'too_long' };
+    let buf;
+    try {
+      buf = await client.downloadMedia(msg, {});
+    } catch (e) {
+      return { error: 'download' };
+    }
+    if (!Buffer.isBuffer(buf) || !buf.length) return { error: 'download' };
+    return transcribeAudio(buf, mime.split(';')[0]);
+  }
+
   async function buildUserContent(chat, msgs) {
     const blocks = [];
     const plain = [];
@@ -768,8 +826,23 @@ function createAssistant(deps) {
         blocks.push({ type: 'image', source: { type: 'base64', media_type: img.mime, data: img.buffer.toString('base64') } });
         blocks.push({ type: 'text', text: `[Rasm ID: ${photoId}]` });
         plain.push(`[rasm yubordi: ${photoId}]`);
+      } else if (msg.voice || msg.audio) {
+        const r = await voiceToText(msg);
+        if (r.text) {
+          const text = chat.role === 'customer' ? r.text.slice(0, 2000) : r.text;
+          blocks.push({ type: 'text', text: `[Ovozli xabar — matni]: ${text}` });
+          plain.push(`🎤 ${text}`);
+          if (chat.role === 'admin') stats.voiceMessages = (stats.voiceMessages || 0) + 1;
+        } else {
+          const why = r.error === 'too_long' ? "juda uzun (10 daqiqadan oshgan)"
+            : r.error === 'empty' ? "tushunarli nutq eshitilmadi"
+            : r.error === 'no_key' ? "ovozni tinglash sozlanmagan"
+            : "hozir eshitib bo'lmadi";
+          blocks.push({ type: 'text', text: `[Foydalanuvchi ovozli xabar yubordi, lekin u ${why}. Qisqa uzr so'rab, savolini yozib yoki qayta aytib yuborishini so'ra]` });
+          plain.push('[ovozli xabar]');
+        }
       } else if (msg.media && !msg.message) {
-        const kind = msg.voice ? 'ovozli xabar' : msg.sticker ? 'stiker' : msg.video ? 'video' : 'fayl';
+        const kind = msg.videoNote ? 'video-xabar (doira)' : msg.sticker ? 'stiker' : msg.video ? 'video' : 'fayl';
         blocks.push({ type: 'text', text: `[Foydalanuvchi ${kind} yubordi — uni o'qiy olmaysan, matn bilan yozishni so'ra]` });
         plain.push(`[${kind}]`);
       }
@@ -811,6 +884,7 @@ Savol: "Kredit qilib olsam bo'ladimi" → "Hozircha kredit yo'q, faqat to'liq to
 Savol: "Kamerasi qanaqa?" → "200MP asosiy kamera, kechasi ham juda tiniq oladi 📸"
 Savol: "Rahmat" → "Arzimaydi! 😊"
 Suhbatdosh qaysi tilda yozsa (o'zbek, rus, ingliz) o'sha tilda javob ber. Narxlarni "18 500 000 so'm" ko'rinishida yoz.
+Foydalanuvchi ovozli xabar yuborsa, sen uning matnini "[Ovozli xabar — matni]: ..." ko'rinishida olasan — xuddi yozma xabardek tushunib, odatdagidek javob ber (matnni qayta takrorlama).
 Mahsulotning "price" maydoni — xaridor to'laydigan haqiqiy narx. Chegirma bo'lsa, "old_price_before_discount" — chizilgan eski narx (masalan: "21 764 706 so'm emas, atigi 18 500 000 so'm — 15% chegirma").
 
 ${shopLines}`;
