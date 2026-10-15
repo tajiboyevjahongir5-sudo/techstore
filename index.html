@@ -2674,6 +2674,58 @@ input[type="datetime-local"].form-input { min-width: 0; width: 100%; font-size: 
 .sk-prod { pointer-events: none; animation: none !important; }
 .sk-prod .prod-img { border-radius: 18px 18px 0 0; }
 .sk-block { height: 90px; border-radius: 12px; }
+.oc { background: linear-gradient(180deg, #161a58 0%, #0f1240 100%); border: 1px solid rgba(167,139,250,0.16); border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.28); animation: ocIn .45s cubic-bezier(0.22,1,0.36,1) both; }
+.oc + .oc { animation-delay: .06s; }
+@keyframes ocIn { from { opacity: 0; transform: translateY(14px); } }
+.oc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.oc-num { font-size: 16px; font-weight: 800; letter-spacing: -.2px; }
+.oc-date { font-size: 12px; color: var(--text3); margin-top: 3px; font-weight: 600; }
+.oc-status { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 14px; font-size: 12px; font-weight: 800; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.oc-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent); }
+.oc-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.oc-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; }
+.oc-thumb { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #1c2163; font-size: 24px; }
+.oc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.oc-item-info { flex: 1; min-width: 0; }
+.oc-item-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-item-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
+.oc-item-arrow { color: var(--text3); font-size: 16px; }
+.oc-track { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); padding: 6px 0 2px; margin-bottom: 12px; }
+.oc-track-line { position: absolute; left: 12.5%; right: 12.5%; top: 21px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.08); }
+.oc-track-line span { display: block; height: 100%; width: var(--pct); border-radius: 2px; background: linear-gradient(90deg, var(--green), #4ade80); box-shadow: 0 0 10px rgba(34,216,126,0.5); transition: width .8s cubic-bezier(0.22,1,0.36,1); }
+.oc-step { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; z-index: 1; }
+.oc-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; background: #1a1f5c; border: 2px solid rgba(255,255,255,0.1); color: var(--text3); }
+.oc-step.done .oc-dot { background: var(--green); border-color: var(--green); color: #062b19; }
+.oc-step.cur .oc-dot { box-shadow: 0 0 0 5px rgba(34,216,126,0.18); animation: otPulse 2s ease-in-out infinite; }
+.oc-step-lbl { font-size: 11px; font-weight: 700; margin-top: 7px; color: var(--text3); }
+.oc-step.done .oc-step-lbl { color: var(--text); }
+.oc-step-time { font-size: 10px; color: var(--text3); margin-top: 2px; min-height: 12px; }
+.oc-alert { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: 14px; margin-bottom: 12px; font-size: 12px; }
+.oc-alert > i { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.oc-alert b { display: block; font-size: 13px; margin-bottom: 2px; }
+.oc-alert small { font-size: 12px; color: var(--text2); line-height: 1.45; }
+.oc-alert small b { display: inline; font-size: inherit; color: var(--text); }
+.oc-alert-orange { background: rgba(255,170,60,0.1); color: var(--orange); border: 1px solid rgba(255,170,60,0.2); }
+.oc-alert-green { background: rgba(34,216,126,0.08); color: var(--green); border: 1px solid rgba(34,216,126,0.18); }
+.oc-alert-blue { background: rgba(107,127,255,0.1); color: #a5b4fc; border: 1px solid rgba(107,127,255,0.22); }
+.oc-alert-red { background: rgba(245,91,91,0.1); color: var(--red); border: 1px solid rgba(245,91,91,0.22); }
+.oc-info { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px dashed rgba(255,255,255,0.1); }
+.oc-info-row { display: flex; gap: 8px; font-size: 12.5px; color: var(--text2); line-height: 1.45; }
+.oc-info-row i { color: var(--accent); font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+.oc-review { padding: 11px 12px; border-radius: 14px; background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.18); margin-bottom: 12px; }
+.oc-review-top { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text2); }
+.oc-review-top b { color: #f5a623; letter-spacing: 2px; font-size: 14px; }
+.oc-review-top b i { font-style: normal; color: rgba(255,255,255,0.15); }
+.oc-review-text { font-size: 13px; color: var(--text); margin-top: 6px; font-style: italic; line-height: 1.45; }
+.oc-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; }
+.oc-total small { display: block; font-size: 11px; color: var(--text3); font-weight: 600; }
+.oc-total b { font-size: 18px; font-weight: 800; color: #a5b4fc; }
+.oc-total b span { font-size: 12px; font-weight: 700; color: var(--text2); }
+.oc-actions { display: flex; gap: 8px; flex: 1; justify-content: flex-end; }
+.oc-btn { height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: var(--text); font: 700 13px 'Plus Jakarta Sans', sans-serif; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+.oc-btn i { font-size: 16px; }
+.oc-btn-main { background: var(--grad); border: none; color: #fff; box-shadow: 0 4px 14px rgba(107,127,255,0.35); }
+.oc-rejected { opacity: .85; }
 .orders-hist-wrap {
   padding: 20px;
   display: flex;
@@ -6892,40 +6944,68 @@ function renderServerOrders() {
     return;
   }
   el.className = 'orders-hist-wrap';
+  const MONTHS = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
+  const fmtDate = ts => { if (!ts) return ''; const d = new Date(ts); return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  const fmtShort = ts => { if (!ts) return ''; const d = new Date(ts); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  const STEP_LABELS = ['Berildi', 'Tasdiqlandi', "Yo'lda", 'Yetdi'];
   el.innerHTML = myOrdersCache.map(o => {
     const ui = ORDER_STATUS_UI[o.status] || ORDER_STATUS_UI.pending;
-    const fmt = ts => ts ? new Date(ts).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-    const items = Array.isArray(o.items) && o.items.length
-      ? o.items.map(it => `<div class="hist-item-row"><span>${escText(it.name)} × ${it.qty || 1}</span></div>`).join('')
-      : `<div class="hist-item-row"><span>${escText(o.products)}</span></div>`;
-    const steps = o.status === 'rejected'
-      ? `<div class="ot-rejected"><i class="ti ti-alert-circle"></i> To'lov tasdiqlanmadi. Savol bo'lsa, yordamchiga yozing.</div>`
-      : `<div class="ot-steps">${ORDER_STEPS.map((st, i) => {
-          const done = i <= ui.step && (i === 0 || o[st.key] || i <= ui.step);
-          const cur = i === ui.step;
-          return `<div class="ot-step ${done ? 'done' : ''} ${cur ? 'cur' : ''}">
-            <div class="ot-dot"><i class="ti ${st.icon}"></i></div>
-            <div class="ot-lbl">${st.label}<small>${done ? fmt(o[st.key]) : ''}</small></div>
-          </div>`;
-        }).join('')}</div>`;
+    const items = Array.isArray(o.items) && o.items.length ? o.items : [{ name: o.products, qty: 1 }];
+    const itemsHtml = items.map(it => {
+      const p = products.find(x => String(x.id) === String(it.id)) || products.find(x => x.name === it.name);
+      const thumb = p && p.image ? `<img src="${p.image}" alt="" loading="lazy">` : `<span>${(p && p.emoji) || '📦'}</span>`;
+      return `<div class="oc-item" ${p ? `onclick="openDetail(${p.id})"` : ''}>
+        <div class="oc-thumb">${thumb}</div>
+        <div class="oc-item-info"><div class="oc-item-name">${escText(it.name)}</div><div class="oc-item-sub">${it.qty || 1} dona${p ? ' · ' + formatPrice(p.price) : ''}</div></div>
+        ${p ? '<i class="ti ti-chevron-right oc-item-arrow"></i>' : ''}
+      </div>`;
+    }).join('');
+    let track = '';
+    if (o.status === 'rejected') {
+      track = `<div class="oc-alert oc-alert-red"><i class="ti ti-alert-circle"></i><div><b>To'lov tasdiqlanmadi</b><small>Savolingiz bo'lsa, yordamchiga yozing — tezda yordam beramiz.</small></div></div>`;
+    } else {
+      const keys = ['createdAt', 'confirmedAt', 'shippedAt', 'deliveredAt'];
+      const pct = ui.step / 3 * 100;
+      track = `<div class="oc-track" style="--pct:${pct}%">
+        <div class="oc-track-line"><span></span></div>
+        ${ORDER_STEPS.map((st, i) => `<div class="oc-step ${i <= ui.step ? 'done' : ''} ${i === ui.step ? 'cur' : ''}">
+            <div class="oc-dot"><i class="ti ${st.icon}"></i></div>
+            <div class="oc-step-lbl">${STEP_LABELS[i]}</div>
+            <div class="oc-step-time">${i <= ui.step ? fmtShort(o[keys[i]]) : ''}</div>
+          </div>`).join('')}
+      </div>`;
+      if (o.status === 'pending') {
+        track += `<div class="oc-alert oc-alert-orange"><i class="ti ti-clock"></i><div><b>To'lov tekshirilmoqda</b><small>Aynan <b>${String(Math.round(Number(o.total) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0')} so'm</b> o'tkazgan bo'lsangiz, tez orada avtomatik tasdiqlanadi.</small></div></div>`;
+      } else if (o.status === 'confirmed' || o.status === 'paid') {
+        track += `<div class="oc-alert oc-alert-green"><i class="ti ti-package"></i><div><b>Jo'natishga tayyorlanmoqda</b><small>BTS orqali jo'natilgach, chek shu yerda ko'rinadi.</small></div></div>`;
+      } else if (o.status === 'shipped') {
+        track += `<div class="oc-alert oc-alert-blue"><i class="ti ti-truck"></i><div><b>Buyurtmangiz yo'lda</b><small>Qo'lingizga tekkach, "Yetib keldi" tugmasini bosing.</small></div></div>`;
+      }
+    }
+    const info = [];
+    if (o.addr) info.push(`<div class="oc-info-row"><i class="ti ti-map-pin"></i><span>${escText(o.addr)}</span></div>`);
+    if (o.shipNote) info.push(`<div class="oc-info-row"><i class="ti ti-notes"></i><span>${escText(o.shipNote)}</span></div>`);
+    const review = o.review ? `<div class="oc-review"><div class="oc-review-top"><span>Sizning bahoingiz</span><b>${'★'.repeat(o.review.rating)}<i>${'★'.repeat(5 - o.review.rating)}</i></b></div>${o.review.text ? `<div class="oc-review-text">“${escText(o.review.text)}”</div>` : ''}</div>` : '';
     const actions = [];
-    if (o.shipProof) actions.push(`<button class="ot-btn" onclick="openZoomFromSrc('${o.shipProof}')"><i class="ti ti-file-invoice"></i> BTS cheki</button>`);
-    if (o.status === 'shipped') actions.push(`<button class="ot-btn ot-btn-main" onclick="markOrderDelivered('${o.id}')"><i class="ti ti-package"></i> Yetib keldi</button>`);
-    if (o.status === 'delivered' && !o.review) actions.push(`<button class="ot-btn ot-btn-main" onclick="openReviewModal('${o.id}')"><i class="ti ti-star"></i> Baholash</button>`);
-    const review = o.review ? `<div class="ot-review">Sizning bahoingiz: <b>${'★'.repeat(o.review.rating)}${'☆'.repeat(5 - o.review.rating)}</b>${o.review.text ? `<div>“${escText(o.review.text)}”</div>` : ''}</div>` : '';
-    return `<div class="hist-card">
-      <div class="hist-header">
-        <div><div class="hist-order-num">${escText(o.orderNum)}</div><div class="hist-date">${fmt(o.createdAt)}${o.addr ? ' · ' + escText(o.addr) : ''}</div></div>
-        <span class="status-badge" style="background:color-mix(in srgb, ${ui.color} 14%, transparent);color:${ui.color}">${ui.text}</span>
+    if (o.shipProof) actions.push(`<button class="oc-btn" onclick="openZoomFromSrc('${o.shipProof}')"><i class="ti ti-file-invoice"></i> BTS cheki</button>`);
+    if (o.status === 'shipped') actions.push(`<button class="oc-btn oc-btn-main" onclick="markOrderDelivered('${o.id}')"><i class="ti ti-package"></i> Yetib keldi</button>`);
+    if (o.status === 'delivered' && !o.review) actions.push(`<button class="oc-btn oc-btn-main" onclick="openReviewModal('${o.id}')"><i class="ti ti-star"></i> Baholash</button>`);
+    return `<div class="oc oc-${o.status || 'pending'}">
+      <div class="oc-head">
+        <div><div class="oc-num">Buyurtma ${escText(o.orderNum)}</div><div class="oc-date">${fmtDate(o.createdAt)}</div></div>
+        <span class="oc-status" style="--c:${ui.color}"><i></i>${ui.text}</span>
       </div>
-      <div class="hist-items">${items}</div>
-      ${steps}
-      ${o.shipNote ? `<div class="ot-note"><i class="ti ti-notes"></i> ${escText(o.shipNote)}</div>` : ''}
+      <div class="oc-items">${itemsHtml}</div>
+      ${track}
+      ${info.length ? `<div class="oc-info">${info.join('')}</div>` : ''}
       ${review}
-      <div class="hist-total"><span>Jami</span><span>${Number(o.total).toLocaleString('uz')} so'm</span></div>
-      ${actions.length ? `<div class="ot-actions">${actions.join('')}</div>` : ''}
+      <div class="oc-foot">
+        <div class="oc-total"><small>Jami to'lov</small><b>${String(Math.round(Number(o.total) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0')} <span>so'm</span></b></div>
+        ${actions.length ? `<div class="oc-actions">${actions.join('')}</div>` : ''}
+      </div>
     </div>`;
   }).join('');
+  applyIconFallback(el);
 }
 
 async function markOrderDelivered(id) {
