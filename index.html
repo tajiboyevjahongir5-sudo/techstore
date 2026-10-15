@@ -3609,6 +3609,18 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
 .pd-spec b { display: block; font-size: 13.5px; font-weight: 750; word-break: break-word; }
 .pd-spec.wide { grid-column: span 2; }
 
+.pd-rev-summary { font-size: 12px; font-weight: 700; color: var(--orange, #f5a623); margin-left: 6px; }
+.pd-revs { display: flex; flex-direction: column; gap: 10px; }
+.pd-rev { background: var(--card); border: 1px solid var(--glass-border); border-radius: 16px; padding: 12px 14px; }
+.pd-rev-head { display: flex; align-items: center; gap: 10px; }
+.pd-rev-ava { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #a78bfa); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pd-rev-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.pd-rev-who b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-rev-who span { font-size: 11px; color: #f5a623; letter-spacing: 1px; }
+.pd-rev-who span i { font-style: normal; color: var(--text3); }
+.pd-rev-badge { font-size: 10px; font-weight: 700; color: var(--green); background: rgba(52,199,89,0.12); padding: 4px 8px; border-radius: 10px; white-space: nowrap; display: flex; align-items: center; gap: 3px; }
+.pd-rev-text { font-size: 13px; line-height: 1.5; color: var(--text2); margin-top: 8px; white-space: pre-wrap; word-break: break-word; }
+.pd-rev-photo { width: 100%; max-height: 260px; object-fit: cover; border-radius: 12px; margin-top: 10px; cursor: zoom-in; }
 .pd-similar { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 2px 20px 6px; scroll-snap-type: x mandatory; }
 .pd-similar::-webkit-scrollbar { display: none; }
 .pd-sim { width: 138px; flex-shrink: 0; scroll-snap-align: start; border-radius: 20px; overflow: hidden; cursor: pointer; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); transition: transform .2s ease; }
@@ -3889,6 +3901,11 @@ body.modal-open {
       <div class="pd-section pd-anim" style="--d:7" id="pdSpecsSection">
         <div class="pd-section-title">Xususiyatlar</div>
         <div class="pd-specs" id="detailSpecs"></div>
+      </div>
+
+      <div class="pd-section pd-anim" style="--d:8;display:none" id="pdReviewsSection">
+        <div class="pd-section-title">Mijozlar fikri <span class="pd-rev-summary" id="pdRevSummary"></span></div>
+        <div class="pd-revs" id="pdReviews"></div>
       </div>
 
       <div class="pd-section pd-anim" style="--d:8" id="pdSimilarSection">
@@ -4363,6 +4380,12 @@ body.modal-open {
           <div class="form-group"><label class="form-label">Karta raqami</label><input class="form-input" id="settCardNumber" placeholder="9860 3501 4074 7741" maxlength="19"></div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">Karta egasi</label><input class="form-input" id="settCardOwner" placeholder="Tojiboyev Jahongir"></div>
           <button class="settings-save-btn btn-cyan" onclick="saveCardSettings()"><i class="ti ti-device-floppy"></i> Ma'lumotlarni saqlash</button>
+        </div>
+        <div class="settings-section card-purple" style="margin-top:14px;margin-bottom:0">
+          <div class="settings-section-title">📢 TELEGRAM KANAL</div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">Kanal username (ixtiyoriy)</label><input class="form-input" id="settChannel" placeholder="@techstore_uz" maxlength="70"></div>
+          <div class="as-hint">Bot /start xabarida "Kanalimizga obuna bo'ling" tugmasi chiqadi. Bo'sh qoldirsangiz tugma ko'rinmaydi.</div>
+          <button class="settings-save-btn btn-purple" onclick="saveChannelSettings()"><i class="ti ti-device-floppy"></i> Saqlash</button>
         </div>
       </div>
     </div>
@@ -4892,6 +4915,28 @@ function saveData() {
     localStorage.setItem('ts_orderCounter', String(orderCounter));
     localStorage.setItem('ts_favorites', JSON.stringify([...favorites]));
   } catch(e) {}
+  scheduleServerSync();
+}
+
+// Savat va sevimlilar serverga ham yuboriladi: bot "savatda qoldi" va "narx tushdi" eslatmalarini yuboradi
+let serverSyncTimer = null, lastServerSync = '';
+function scheduleServerSync() {
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData) return;
+  clearTimeout(serverSyncTimer);
+  serverSyncTimer = setTimeout(() => {
+    const body = JSON.stringify({
+      cart: cart.map(i => ({ id: i.id, qty: i.qty || 1 })),
+      favorites: [...favorites]
+    });
+    if (body === lastServerSync) return;
+    lastServerSync = body;
+    fetch('/api/me/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData },
+      body, keepalive: true
+    }).catch(() => { lastServerSync = ''; });
+  }, 1500);
 }
 
 async function uploadProductImages(prod) {
@@ -4949,6 +4994,9 @@ async function loadPublicSettingsFromServer() {
       const data = await res.json();
       applyAssistantContact(data.assistant);
       if (data.botUsername) window.BOT_LINK = `https://t.me/${data.botUsername}`;
+      SHOP_CHANNEL = data.channel || '';
+      const chEl = document.getElementById('settChannel');
+      if (chEl && document.activeElement !== chEl) chEl.value = SHOP_CHANNEL ? '@' + SHOP_CHANNEL : '';
       if (data.card) {
         CARD_NUMBER = data.card.number || CARD_NUMBER;
         CARD_OWNER = data.card.owner || CARD_OWNER;
@@ -5015,6 +5063,23 @@ async function getUniqueSuffix(basePrice) {
 async function registerPendingPayment(amount, suffix, orderNum, tgUser) {}
 async function removePendingPayment(suffix) {}
 function loadSettings() {}
+
+let SHOP_CHANNEL = '';
+async function saveChannelSettings() {
+  const val = document.getElementById('settChannel').value.trim();
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' },
+      body: JSON.stringify({ shop: { channel: val } })
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Saqlashda xatolik');
+    SHOP_CHANNEL = val.replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '');
+    showToast(val ? 'Kanal saqlandi' : 'Kanal olib tashlandi', '✓', 'var(--green)');
+  } catch (e) {
+    showToast(e.message || 'Tarmoq xatosi', '✗', 'var(--red)');
+  }
+}
 
 async function saveCardSettings() {
   const num   = document.getElementById('settCardNumber').value.trim();
@@ -5554,6 +5619,7 @@ function fillDetailInfo(p, allImgs) {
       <div class="pd-sim-info"><div class="pd-sim-name">${escText(x.name)}</div><div class="pd-sim-price">${formatPrice(x.price)}</div></div>
     </div>`).join('');
   document.getElementById('pdSimilarSection').style.display = similar.length ? '' : 'none';
+  loadProductReviews(p.id);
 
   updateDetailFavBtn();
   updateDetailCartBtn();
@@ -6359,7 +6425,7 @@ function listenOrderStatus(orderId, tgUser) {
       const res = await fetch(`/api/orders/${orderId}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'confirmed' || data.status === 'paid' || data.status === 'shipped') {
+        if (['confirmed', 'paid', 'shipped', 'delivered'].includes(data.status)) {
           clearInterval(intervalId);
 
           // Buyurtma holati yangilanadi
@@ -6688,7 +6754,10 @@ async function loadAdminOrders() {
         
         let statusClass = 'status-chek';
         let statusText = 'Kutilmoqda';
-        if (o.status === 'shipped') {
+        if (o.status === 'delivered') {
+          statusClass = 'status-done';
+          statusText = 'Yetib bordi';
+        } else if (o.status === 'shipped') {
           statusClass = 'status-done';
           statusText = 'Yuborildi';
         } else if (o.status === 'confirmed' || o.status === 'paid') {
@@ -6754,6 +6823,7 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
   }
 
   const statusHtml = (status==='new' || status==='pending') ? '<span class="status-badge status-chek">Tekshirilmoqda</span>':
+    status==='delivered' ? '<span class="status-badge status-done">Yetib bordi 📬</span>':
     status==='shipped' ? '<span class="status-badge status-done">Yuborildi 🚚</span>':
     (status==='done' || status==='confirmed' || status==='paid') ? '<span class="status-badge status-done">Tasdiqlandi</span>':
     '<span class="status-badge status-proc">Rad etildi</span>';
@@ -6870,7 +6940,7 @@ async function loadAdminStats() {
     const usersList = await resUsers.json();
 
     const totalOrders = orderList.length;
-    const confirmedOrders = orderList.filter(o => o.status === 'confirmed' || o.status === 'paid' || o.status === 'shipped');
+    const confirmedOrders = orderList.filter(o => ['confirmed', 'paid', 'shipped', 'delivered'].includes(o.status));
     const confirmedCount = confirmedOrders.length;
     const totalRevenue = confirmedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const totalUsers = usersList.length;
@@ -8923,6 +8993,37 @@ async function initFirebaseAndLoad() {
   openProductFromLink();
 }
 
+// ===== MIJOZLAR FIKRI =====
+async function loadProductReviews(pid) {
+  const sec = document.getElementById('pdReviewsSection');
+  sec.style.display = 'none';
+  try {
+    const res = await fetch(`/api/products/${encodeURIComponent(pid)}/reviews`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const cur = products.find(x => x.id === pid);
+    if (!data.count || !document.getElementById('detail').classList.contains('active') || !cur) return;
+    document.getElementById('pdRevSummary').textContent = `★ ${data.avg.toFixed(1)} · ${data.count} ta`;
+    document.getElementById('pdReviews').innerHTML = data.items.slice(0, 10).map(r => `
+      <div class="pd-rev">
+        <div class="pd-rev-head">
+          <div class="pd-rev-ava">${escText((r.name || 'X').charAt(0).toUpperCase())}</div>
+          <div class="pd-rev-who"><b>${escText(r.name)}</b><span>${'★'.repeat(r.rating)}<i>${'★'.repeat(5 - r.rating)}</i> · ${new Date(r.createdAt).toLocaleDateString('uz-UZ')}</span></div>
+          <div class="pd-rev-badge"><i class="ti ti-circle-check"></i> Xarid qilgan</div>
+        </div>
+        ${r.text ? `<div class="pd-rev-text">${escText(r.text)}</div>` : ''}
+        ${r.photo ? `<img class="pd-rev-photo" src="${r.photo}" alt="" loading="lazy" onerror="this.remove()" onclick="openZoomFromSrc(this.src)">` : ''}
+      </div>`).join('');
+    sec.style.display = '';
+  } catch (e) {}
+}
+
+function openZoomFromSrc(src) {
+  const prev = window._zoomImages;
+  window._zoomImages = [src];
+  try { openImgZoom(); } finally { window._zoomImages = prev; }
+}
+
 // Ulashilgan havola orqali kelganda (?product=ID yoki startapp=p_ID) shu mahsulot ochiladi
 function openProductFromLink() {
   const fromUrl = new URLSearchParams(location.search).get('product');
@@ -8930,6 +9031,7 @@ function openProductFromLink() {
   const m = startParam.match(/^p_(\d+)$/);
   const id = Number(fromUrl || (m && m[1]));
   if (id && products.some(x => x.id === id)) openDetail(id);
+  else if (new URLSearchParams(location.search).get('tab') === 'cart' || startParam === 'cart') showTab('cart');
 }
 
 // Har doim SVG ishlatamiz (CDN yo'q)

@@ -44,3 +44,12 @@ Shundan so'ng:
 1. To'lov tasdiqlansa (panelda, yordamchi orqali yoki avtomatik), bot asosiy admin(lar)ga to'liq ma'lumot va **📦 Buyurtma yuborildi** tugmasini yuboradi; xaridorga (yordamchi akkaunt, bo'lmasa bot orqali) "ma'lumot adminga jo'natildi, BTS orqali yetib boradi" xabari boradi.
 2. Admin tugmani bosib BTS chekini (rasm) botga yuboradi → xaridorga chek bilan "buyurtma jo'natildi" xabari boradi va yetib borgach rasm/fikr yuborish so'raladi. Buyurtma holati "Yuborildi" bo'ladi.
 3. Server har daqiqada tasdiqlangan, lekin hali adminga yuborilmagan buyurtmalarni tekshiradi.
+
+## Bot imkoniyatlari
+
+- **/start** — rasmli kutib olish: do'kon, "Buyurtmalarim", yordamchi bilan suhbat va (sozlansa) kanal tugmalari.
+- **/buyurtmalarim** — xaridor buyurtmalari va holati; yo'ldagi buyurtma uchun **"Yetib keldi"** tugmasi → 1–5 ⭐ baho → rasm va fikr. Fikrlar mahsulot sahifasida "Mijozlar fikri" bo'limida chiqadi, reyting yangilanadi.
+- **Savat eslatmasi** — savatda 24 soatdan beri qolgan mahsulotlar haqida bitta eslatma (buyurtma bermagan bo'lsa).
+- **Narx tushdi** — sevimlilarga qo'shilgan mahsulot arzonlashsa xabar.
+- **Admin:** har kuni 21:00 da kunlik hisobot (`/hisobot` — istalgan payt), `/reklama` — hammaga xabar (oldindan ko'rish va tasdiqlash bilan), to'lovdan 24 soat o'tib ham jo'natilmagan buyurtma eslatmasi.
+- Admin panel → Sozlamalar → **Telegram kanal** — /start dagi obuna tugmasi uchun.

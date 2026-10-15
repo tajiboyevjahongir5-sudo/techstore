@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
+const { createBotFeatures } = require('./bot-features');
 const crypto = require('crypto');
 const fs = require('fs');
 const compression = require('compression');
@@ -45,6 +46,7 @@ let BOT_TOKEN = process.env.BOT_TOKEN || "";
 let ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
 let CARD_NUMBER = process.env.CARD_NUMBER || "9860 3501 4074 7741";
 let CARD_OWNER = process.env.CARD_OWNER || "Tojiboyev Jahongir";
+let SHOP_CHANNEL = (process.env.SHOP_CHANNEL || '').replace(/^@/, '');
 const APP_URL   = process.env.APP_URL
   || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `https://your-app.railway.app`);
 
@@ -434,6 +436,9 @@ async function setOrderStatus(orderId, status) {
 // ===== BUYURTMANI YETKAZISH JARAYONI (yordamchi admin kuzatadi) =====
 // 1) To'lov tasdiqlanadi → asosiy adminga to'liq ma'lumot + "Buyurtma yuborildi" tugmasi, xaridorga xabar
 // 2) Admin tugmani bosib BTS chekini yuboradi → xaridorga chek bilan "jo'natildi" xabari, fikr so'raladi
+// Bazadagi matnlar "<" ">" ni &lt; &gt; qilib saqlaydi: oddiy matnga qaytaramiz, HTML uchun qayta kodlaymiz
+const plain = (v) => String(v ?? '').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+const escStored = (v) => escHtml(plain(v));
 const awaitingShipProof = new Map();   // adminChatId -> orderId
 const fulfillmentLocks = new Set();
 
@@ -443,7 +448,7 @@ function fmtOrderTime(ts) {
 }
 
 function orderLines(order, orderId) {
-  return { num: order.orderNum || ('#' + orderId), products: order.products || 'Mahsulot', addr: order.addr || '', phone: order.phone || '' };
+  return { num: plain(order.orderNum || ('#' + orderId)), products: plain(order.products || 'Mahsulot'), addr: plain(order.addr || ''), phone: plain(order.phone || '') };
 }
 
 // Xaridorga xabar: avval yordamchi akkaunt orqali, bo'lmasa bot orqali
@@ -478,12 +483,12 @@ async function handleConfirmedOrder(orderId) {
     const user = order.userId ? await firebaseGet(`users/${order.userId}`).catch(() => null) : null;
     const adminText =
       `🛒 <b>YANGI BUYURTMA — TO'LOV TASDIQLANDI</b>\n\n` +
-      `📦 Buyurtma: <b>${escHtml(o.num)}</b>\n` +
-      `👤 Xaridor: <b>${escHtml(order.userName || 'Foydalanuvchi')}</b>${user?.username ? ' (@' + escHtml(user.username) + ')' : ''}\n` +
-      `🆔 ID: <code>${escHtml(order.userId || '—')}</code>\n` +
-      `📞 Telefon: ${escHtml(o.phone || '—')}\n` +
-      `📍 Manzil: ${escHtml(o.addr || '—')}\n` +
-      `🛍 Mahsulot: <b>${escHtml(o.products)}</b>\n` +
+      `📦 Buyurtma: <b>${escStored(o.num)}</b>\n` +
+      `👤 Xaridor: <b>${escStored(order.userName || 'Foydalanuvchi')}</b>${user?.username ? ' (@' + escStored(user.username) + ')' : ''}\n` +
+      `🆔 ID: <code>${escStored(order.userId || '—')}</code>\n` +
+      `📞 Telefon: ${escStored(o.phone || '—')}\n` +
+      `📍 Manzil: ${escStored(o.addr || '—')}\n` +
+      `🛍 Mahsulot: <b>${escStored(o.products)}</b>\n` +
       `💰 Summa: <b>${fmtSom(order.total)}</b>\n` +
       `🕐 Vaqt: ${fmtOrderTime(order.createdAt)}\n` +
       `🚚 Yetkazish: BTS pochta\n\n` +
@@ -505,7 +510,7 @@ async function handleConfirmedOrder(orderId) {
       return;
     }
 
-    const name = String(order.userName || '').trim();
+    const name = plain(order.userName || '').trim();
     const text =
       `Assalomu alaykum${name && name !== 'Foydalanuvchi' ? ', ' + name : ''}! ✅ To'lovingiz tasdiqlandi.\n\n` +
       `📦 ${o.num} buyurtmangiz haqidagi ma'lumot adminga jo'natildi. Tez orada buyurtmangiz BTS pochta orqali siz tanlagan manzilga yetib boradi` +
@@ -513,8 +518,8 @@ async function handleConfirmedOrder(orderId) {
       `\n\nSavollaringiz bo'lsa, shu yerga yozing 😊`;
     const html =
       `✅ <b>To'lovingiz tasdiqlandi!</b>\n\n` +
-      `📦 <b>${escHtml(o.num)}</b> buyurtmangiz haqidagi ma'lumot adminga jo'natildi. Tez orada buyurtmangiz <b>BTS pochta</b> orqali siz tanlagan manzilga yetib boradi.` +
-      (o.addr ? `\n📍 ${escHtml(o.addr)}` : '') +
+      `📦 <b>${escStored(o.num)}</b> buyurtmangiz haqidagi ma'lumot adminga jo'natildi. Tez orada buyurtmangiz <b>BTS pochta</b> orqali siz tanlagan manzilga yetib boradi.` +
+      (o.addr ? `\n📍 ${escStored(o.addr)}` : '') +
       `\n\n<i>TechStore — ishonchli xarid</i> 💜`;
     const via = await messageCustomer(order, { text, html });
 
@@ -555,7 +560,7 @@ async function startShipFlow(bot, query) {
   awaitingShipProof.set(String(query.message.chat.id), orderId);
   await bot.answerCallbackQuery(query.id);
   await bot.sendMessage(query.message.chat.id,
-    `📸 <b>${escHtml(order.orderNum || '#' + orderId)}</b> buyurtmasi uchun BTS pochta chekini (rasm) yuboring.\n\nBekor qilish uchun: /cancel`,
+    `📸 <b>${escStored(order.orderNum || '#' + orderId)}</b> buyurtmasi uchun BTS pochta chekini (rasm) yuboring.\n\nBekor qilish uchun: /cancel`,
     { parse_mode: 'HTML', reply_markup: { force_reply: true, input_field_placeholder: 'Chek rasmini yuboring' } });
 }
 
@@ -599,10 +604,10 @@ async function handleShipProofMessage(bot, msg) {
     `\n\nBuyurtmangiz qo'lingizga yetib borgach, iltimos, mahsulot rasmini va qisqa fikringizni shu yerga yozib yuboring — biz uchun juda muhim 🙏\n\nTechStore'ni tanlaganingiz uchun rahmat! 💜`;
   const html =
     `🚚 <b>Buyurtmangiz yo'lga chiqdi!</b>\n\n` +
-    `📦 <b>${escHtml(o.num)}</b> — ${escHtml(o.products)}\n` +
+    `📦 <b>${escStored(o.num)}</b> — ${escStored(o.products)}\n` +
     `BTS pochta orqali muvaffaqiyatli jo'natildi, chek rasmda 👆` +
-    (o.addr ? `\n📍 ${escHtml(o.addr)}` : '') +
-    (note ? `\n📝 ${escHtml(note)}` : '') +
+    (o.addr ? `\n📍 ${escStored(o.addr)}` : '') +
+    (note ? `\n📝 ${escStored(note)}` : '') +
     `\n\nBuyurtmangiz yetib borgach, iltimos, mahsulot rasmini va qisqa fikringizni yozib yuboring 🙏\n\n<i>TechStore'ni tanlaganingiz uchun rahmat!</i> 💜`;
   const via = await messageCustomer(order, { text, html, photoBuffer: buffer, photoFileId: photo.file_id });
 
@@ -610,6 +615,7 @@ async function handleShipProofMessage(bot, msg) {
     status: 'shipped',
     fulfillment: { ...(order.fulfillment || {}), shippedAt: Date.now(), shipProofFileId: photo.file_id, shippedBy: String(msg.from?.id || ''), shipNote: note || null, customerShipNotifiedVia: via || null },
   });
+  botFeatures.sendArrivedPrompt(order, orderId).catch(() => {});
   for (const m of order.fulfillment?.adminMessages || []) {
     bot.editMessageReplyMarkup({ inline_keyboard: [[{ text: '✅ Buyurtma yuborildi', callback_data: 'noop' }]] }, { chat_id: m.chatId, message_id: m.messageId }).catch(() => {});
   }
@@ -625,7 +631,7 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 
 // Server fayllari va maxfiy ma'lumotlar statik tarzda berilmasin
-const PRIVATE_FILES = new Set(['/server.js', '/assistant.js', '/db.json', '/package.json', '/package-lock.json']);
+const PRIVATE_FILES = new Set(['/server.js', '/assistant.js', '/bot-features.js', '/db.json', '/package.json', '/package-lock.json']);
 app.use((req, res, next) => {
   if (PRIVATE_FILES.has(req.path) || req.path.startsWith('/.') || req.path.startsWith('/node_modules')) {
     return res.status(404).end();
@@ -768,6 +774,7 @@ async function loadSettingsFromDb() {
       }
       if (settings.card?.number) CARD_NUMBER = settings.card.number;
       if (settings.card?.owner) CARD_OWNER = settings.card.owner;
+      if (typeof settings.shop?.channel === 'string') SHOP_CHANNEL = settings.shop.channel;
       console.log("⚙️ Settings loaded from Firebase");
     }
   } catch (e) {
@@ -866,7 +873,8 @@ app.get('/api/public-settings', apiRateLimiter, (req, res) => {
       owner: CARD_OWNER
     },
     assistant: assistant.publicContact(),
-    botUsername
+    botUsername,
+    channel: SHOP_CHANNEL
   });
 });
 
@@ -1078,8 +1086,10 @@ app.post('/api/orders', apiRateLimiter, async (req, res) => {
       userId: String(userId),
       userName: cleanUserName,
       chekImg: chekImg && typeof chekImg === 'string' ? chekImg : null,
+      items: items.map(i => ({ id: String(i.id), name: sanitizeInput(i.name), qty: Math.max(1, Number(i.qty) || 1) })),
       createdAt: Date.now()
     });
+    firebaseDelete(`carts/${String(userId)}`).catch(() => {});
 
     // 2) Kutilayotgan to'lovni Firebase va local xotirada saqlash
     await registerPendingPaymentInDb(newPayment);
@@ -1126,7 +1136,7 @@ app.get('/api/admin/settings', apiRateLimiter, verifyAdmin, (req, res) => {
 
 // Admin sozlamalarini yangilash
 app.post('/api/admin/settings', apiRateLimiter, verifyAdmin, async (req, res) => {
-  const { card, bot, admin } = req.body;
+  const { card, bot, admin, shop } = req.body;
   
   try {
     const updates = {};
@@ -1142,6 +1152,11 @@ app.post('/api/admin/settings', apiRateLimiter, verifyAdmin, async (req, res) =>
     if (admin) {
       ADMIN_IDS = admin.telegramIds.split(',').map(id => id.trim()).filter(Boolean);
       updates['settings/admin'] = { telegramIds: admin.telegramIds };
+    }
+    if (shop && typeof shop.channel === 'string') {
+      // https://t.me/kanal, @kanal yoki kanal — hammasi "kanal" ko'rinishiga keltiriladi
+      SHOP_CHANNEL = shop.channel.trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 64);
+      updates['settings/shop'] = { channel: SHOP_CHANNEL };
     }
     
     await firebasePatch('', updates);
@@ -1239,14 +1254,21 @@ async function addProduct(data) {
 }
 
 async function updateProduct(id, data) {
-  return mutateProducts(list => {
+  let before = null;
+  const result = await mutateProducts(list => {
     const idx = list.findIndex(p => String(p.id) === String(id));
     if (idx === -1) return { list, result: { error: "Mahsulot topilmadi" } };
     const { product, error } = buildProduct({ ...list[idx], ...data, id: list[idx].id });
     if (error) return { list, result: { error } };
+    before = { ...list[idx] };
     list[idx] = { ...list[idx], ...product };
     return { list, result: { product: list[idx] } };
   });
+  if (result?.product && before) {
+    // Narx tushsa — sevimlilariga qo'shganlarga xabar
+    botFeatures.onProductUpdated(before, result.product).catch(e => console.warn('Narx xabari xatosi:', e.message));
+  }
+  return result;
 }
 
 async function deleteProduct(id) {
@@ -1436,7 +1458,7 @@ async function getStoreStats() {
   ]);
   const list = Object.values(orders);
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-  const confirmed = list.filter(o => o.status === 'confirmed' || o.status === 'shipped' || o.status === 'paid');
+  const confirmed = list.filter(o => ['confirmed', 'shipped', 'delivered', 'paid'].includes(o.status));
   const today = list.filter(o => (o.createdAt || 0) >= startOfDay.getTime());
   return {
     products: prods.length,
@@ -1446,7 +1468,7 @@ async function getStoreStats() {
     orders_rejected: list.filter(o => o.status === 'rejected').length,
     revenue_confirmed: confirmed.reduce((s, o) => s + (Number(o.total) || 0), 0),
     orders_today: today.length,
-    revenue_today: today.filter(o => o.status === 'confirmed' || o.status === 'shipped' || o.status === 'paid').reduce((s, o) => s + (Number(o.total) || 0), 0),
+    revenue_today: today.filter(o => ['confirmed', 'shipped', 'delivered', 'paid'].includes(o.status)).reduce((s, o) => s + (Number(o.total) || 0), 0),
     ...userStats(users, orders),
     note: "users_total — botga /start bosgan, Mini App'ni ochgan yoki yordamchiga yozgan barcha noyob Telegram foydalanuvchilar (hisob yuritish boshlangandan beri). Telegram bot obunachilarining to'liq sonini API orqali bermaydi, shuning uchun hisob shu tizim ishga tushgan paytdan boshlanadi. users_with_orders — kamida bitta buyurtma berganlar."
   };
@@ -1513,6 +1535,65 @@ const assistant = createAssistant({
     getStats: getStoreStats,
     listUsers,
     trackUser
+  }
+});
+
+const botFeatures = createBotFeatures({
+  firebaseGet, firebasePatch, firebaseDelete, getProducts, updateProduct,
+  escHtml, fmtSom,
+  getBot: () => botInstance,
+  getAdminIds: () => ADMIN_IDS,
+  getAppUrl: () => APP_URL,
+  getChannel: () => SHOP_CHANNEL,
+  getAssistantContact: () => assistant.publicContact(),
+  welcomeImagePath: path.join(__dirname, 'welcome.jpg'),
+});
+
+// Mini App foydalanuvchisini initData orqali aniqlash (imzo tekshiriladi)
+function userFromInitData(req) {
+  const initData = req.headers['x-telegram-init-data'];
+  if (!initData) return null;
+  const isLocal = req.hostname === 'localhost' || req.hostname === '127.0.0.1';
+  if (!verifyTelegramAuth(initData) && !(isLocal && !BOT_TOKEN)) return null;
+  try {
+    const u = JSON.parse(new URLSearchParams(initData).get('user') || '{}');
+    return u && u.id ? u : null;
+  } catch (_) { return null; }
+}
+
+// Savat va sevimlilar (eslatmalar uchun)
+app.post('/api/me/sync', apiRateLimiter, async (req, res) => {
+  const user = userFromInitData(req);
+  if (!user) return res.status(401).json({ error: 'auth' });
+  try {
+    await botFeatures.syncUserData(user.id, { cart: req.body?.cart, favorites: req.body?.favorites });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mijozlar fikri
+app.get('/api/products/:id/reviews', apiRateLimiter, async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json(await botFeatures.listReviews(req.params.id));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/reviews/:pid/:rid/photo', apiRateLimiter, async (req, res) => {
+  try {
+    const link = await botFeatures.reviewPhotoUrl(req.params.pid, req.params.rid);
+    if (!link) return res.status(404).end();
+    const r = await fetch(link, { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return res.status(502).end();
+    res.setHeader('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.end(Buffer.from(await r.arrayBuffer()));
+  } catch (e) {
+    res.status(500).end();
   }
 });
 
@@ -1584,6 +1665,7 @@ function initializeTelegramBot() {
     botInstance = bot;
     global.telegramBotInstance = bot;
     bot.getMe().then(me => { botUsername = me.username || ''; }).catch(() => {});
+    botFeatures.setCommands().catch(() => {});
     setShopMenuButton(bot).then(() => console.log(`🔘 Menu tugmasi o'rnatildi: ${APP_URL}`));
     
     bot.on('polling_error', (err) => {
@@ -1617,17 +1699,7 @@ function initializeTelegramBot() {
         return;
       }
 
-      bot.sendMessage(chatId,
-        `👋 Salom, <b>${firstName}</b>!\n\n🛒 <b>TechStore</b>ga xush kelibsiz!\n\nQuyidagi tugma orqali do'konni oching:`,
-        {
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: [[
-              { text: "🛍️ Do'konni ochish", web_app: { url: APP_URL } }
-            ]]
-          }
-        }
-      );
+      botFeatures.sendWelcome(chatId, firstName).catch(e => console.warn('/start xatosi:', e.message));
     });
 
     bot.onText(/\/admin/, (msg) => {
@@ -1659,7 +1731,9 @@ function initializeTelegramBot() {
     bot.onText(/\/help/, (msg) => {
       const chatId = msg.chat.id;
       bot.sendMessage(chatId,
-        `📋 <b>Buyruqlar:</b>\n\n/start — Do'konni ochish\n/admin — Admin panel\n/help — Yordam`,
+        `📋 <b>Buyruqlar:</b>\n\n/start — Do'konni ochish\n/buyurtmalarim — Buyurtmalarim va ularning holati\n/help — Yordam` +
+        (ADMIN_IDS.includes(String(msg.from?.id)) ? `\n\n👑 <b>Admin:</b>\n/admin — Admin panel\n/hisobot — Bugungi hisobot\n/reklama — Hammaga xabar yuborish` : '') +
+        `\n\nSavollar bo'lsa, do'kon yordamchisiga yozing — u 24/7 javob beradi 💬`,
         { parse_mode: 'HTML' }
       );
     });
@@ -1676,7 +1750,12 @@ function initializeTelegramBot() {
           bot.answerCallbackQuery(query.id, { text: 'Xatolik, qayta urinib ko\'ring' }).catch(() => {});
         });
       } else {
-        bot.answerCallbackQuery(query.id).catch(() => {});
+        botFeatures.handleCallback(query).then(handled => {
+          if (!handled) bot.answerCallbackQuery(query.id).catch(() => {});
+        }).catch(e => {
+          console.error('Tugma xatosi:', e.message);
+          bot.answerCallbackQuery(query.id, { text: 'Xatolik, qayta urinib ko\'ring' }).catch(() => {});
+        });
       }
     });
 
@@ -1690,6 +1769,11 @@ function initializeTelegramBot() {
           bot.sendMessage(msg.chat.id, '⚠️ Xatolik yuz berdi: ' + e.message).catch(() => {});
           return;
         }
+      }
+      try {
+        if (await botFeatures.handleMessage(msg)) return;
+      } catch (e) {
+        console.error('Bot xabarini qayta ishlashda xato:', e.message);
       }
       if (msg.text && msg.text.startsWith('/')) return;
       handlePaymentMessage(msg);
@@ -1740,6 +1824,7 @@ app.listen(PORT, async () => {
   await assistant.init();
   setTimeout(sweepConfirmedOrders, 20000);
   setInterval(sweepConfirmedOrders, 60000);
+  botFeatures.startSchedulers();
   
   console.log(`👑 Admin IDs: ${ADMIN_IDS.join(', ') || 'belgilanmagan'}`);
 });
