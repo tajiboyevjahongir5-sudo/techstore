@@ -15,6 +15,17 @@ const bigInt = require('big-integer');
 const { computeCheck } = require('telegram/Password');
 const { CustomFile } = require('telegram/client/uploads');
 const Anthropic = require('@anthropic-ai/sdk');
+const { spawn } = require('child_process');
+let MsEdgeTTS = null, TTS_FORMAT = null, FFMPEG_PATH = null;
+try { ({ MsEdgeTTS, OUTPUT_FORMAT: TTS_FORMAT } = require('msedge-tts')); } catch (e) { console.warn('msedge-tts topilmadi — ovozli javob o\'chiq'); }
+try { FFMPEG_PATH = require('ffmpeg-static'); } catch (e) { FFMPEG_PATH = null; }
+
+// Tabiiy (neyron) ovozlar — til va jinsga qarab
+const TTS_VOICES = {
+  uz: { female: 'uz-UZ-MadinaNeural', male: 'uz-UZ-SardorNeural' },
+  ru: { female: 'ru-RU-SvetlanaNeural', male: 'ru-RU-DmitryNeural' },
+  en: { female: 'en-US-AvaMultilingualNeural', male: 'en-US-AndrewMultilingualNeural' },
+};
 
 // Railway Volume ulangan bo'lsa, maxfiy fayl ham o'sha yerda saqlanadi
 const DATA_DIR = (process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR)
@@ -392,6 +403,8 @@ function createAssistant(deps) {
   let config = {
     enabled: true,
     replyToCustomers: true,
+    voiceReplies: true,      // ovozli xabarga ovozli xabar bilan javob
+    voiceGender: 'female',   // 'female' (Madina) yoki 'male' (Sardor)
     provider: DEFAULT_PROVIDER,
     model: PROVIDERS[DEFAULT_PROVIDER].defaultModel,
     customBaseUrl: '',
@@ -639,6 +652,8 @@ function createAssistant(deps) {
   async function updateSettings(body) {
     if (typeof body.enabled === 'boolean') config.enabled = body.enabled;
     if (typeof body.replyToCustomers === 'boolean') config.replyToCustomers = body.replyToCustomers;
+    if (typeof body.voiceReplies === 'boolean') config.voiceReplies = body.voiceReplies;
+    if (body.voiceGender === 'female' || body.voiceGender === 'male') config.voiceGender = body.voiceGender;
     if (body.provider && PROVIDERS[body.provider] && body.provider !== config.provider) {
       config.provider = body.provider;
       config.model = PROVIDERS[body.provider].defaultModel;
@@ -685,6 +700,9 @@ function createAssistant(deps) {
       pendingPhone: pendingLogin ? pendingLogin.phone : null,
       enabled: config.enabled,
       replyToCustomers: config.replyToCustomers,
+      voiceReplies: config.voiceReplies !== false,
+      voiceGender: config.voiceGender || 'female',
+      voiceAvailable: !!MsEdgeTTS,
       model: config.model,
       provider: config.provider,
       providers: Object.fromEntries(Object.entries(PROVIDERS).map(([k, v]) => [k, { label: v.label, defaultModel: v.defaultModel, envKey: v.envKey, hasKey: !!aiKeyFor(k) }])),
@@ -884,6 +902,10 @@ function createAssistant(deps) {
         if (r.text) {
           const text = chat.role === 'customer' ? r.text.slice(0, 2000) : r.text;
           blocks.push({ type: 'text', text: `[Ovozli xabar — matni]: ${text}` });
+          if (chat.role === 'customer' && config.voiceReplies !== false && MsEdgeTTS) {
+            chat.replyByVoice = true;
+            blocks.push({ type: 'text', text: "[Javobing ovozli xabar qilib o'qib beriladi: og'zaki, jonli gapdek yoz — 1-2 qisqa jumla, emoji, ro'yxat, qavs va belgilar ishlatma. Username yoki havola kerak bo'lsa ham ayt — u alohida matn bilan yuboriladi.]" });
+          }
           plain.push(`🎤 ${text}`);
           if (chat.role === 'admin') stats.voiceMessages = (stats.voiceMessages || 0) + 1;
         } else {
@@ -1495,6 +1517,99 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     }
   }
 
+  // ===== OVOZLI JAVOB (matn → tabiiy ovoz → Telegram ovozli xabari) =====
+  function detectLang(text) {
+    if (/[ўқғҳЎҚҒҲ]/.test(text)) return 'uz';                 // o'zbek kirill
+    if (/[а-яё]/i.test(text)) return 'ru';
+    if (/\b(the|you|is|are|and|what|how|price|have|this|for)\b/i.test(text) && !/[oO]['ʻ‘`’]|[gG]['ʻ‘`’]|\b(va|bilan|siz|bor|yo'q|narxi|qancha)\b/.test(text)) return 'en';
+    return 'uz';
+  }
+
+  function textForSpeech(text) {
+    return String(text)
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '')   // emoji
+      .replace(/[*_#`~>|\[\]{}]/g, '')
+      .replace(/(\d)[ \u00A0](?=\d{3}\b)/g, '$1')                                   // 18 500 000 → 18500000
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function escXml(t) {
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function mp3ToOgg(mp3) {
+    return new Promise((resolve, reject) => {
+      if (!FFMPEG_PATH) return reject(new Error('ffmpeg yo\'q'));
+      const ff = spawn(FFMPEG_PATH, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '40k', '-application', 'voip', '-f', 'ogg', 'pipe:1']);
+      const out = [];
+      ff.stdout.on('data', d => out.push(d));
+      ff.on('error', reject);
+      ff.on('close', code => code === 0 && out.length ? resolve(Buffer.concat(out)) : reject(new Error('ffmpeg ' + code)));
+      ff.stdin.on('error', () => {});
+      ff.stdin.end(mp3);
+    });
+  }
+
+  async function synthesizeVoice(text) {
+    const speech = textForSpeech(text);
+    if (!MsEdgeTTS || speech.length < 2) return null;
+    const lang = detectLang(speech);
+    const voice = (TTS_VOICES[lang] || TTS_VOICES.uz)[config.voiceGender === 'male' ? 'male' : 'female'];
+    const tts = new MsEdgeTTS();
+    try {
+      await tts.setMetadata(voice, TTS_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+      const { audioStream } = tts.toStream(escXml(speech.slice(0, 1500)), { rate: '+3%' });
+      const chunks = [];
+      let timer;
+      try {
+        await Promise.race([
+          (async () => { for await (const c of audioStream) chunks.push(c); })(),
+          new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('TTS timeout')), 30000); }),
+        ]);
+      } finally { clearTimeout(timer); }
+      const mp3 = Buffer.concat(chunks);
+      if (mp3.length < 1000) throw new Error('bo\'sh audio');
+      const duration = Math.max(1, Math.round(mp3.length / 12000)); // 96 kbit/s
+      try {
+        return { buffer: await mp3ToOgg(mp3), name: 'voice.ogg', duration };
+      } catch (e) {
+        console.warn('🤖 Assistant: OGG ga aylantirib bo\'lmadi, MP3 yuboriladi:', e.message);
+        return { buffer: mp3, name: 'voice.mp3', duration };
+      }
+    } finally {
+      try { tts.close(); } catch (_) {}
+    }
+  }
+
+  // Ovozli javob yuborish; muvaffaqiyatsiz bo'lsa false (unda matn yuboriladi)
+  async function sendVoiceReply(chat, reply) {
+    const setRec = () => client.invoke(new Api.messages.SetTyping({ peer: chat.peer, action: new Api.SendMessageRecordAudioAction() })).catch(() => {});
+    setRec();
+    const recTimer = setInterval(setRec, 4500);
+    try {
+      const v = await synthesizeVoice(reply);
+      if (!v) return false;
+      await client.sendFile(chat.peer, {
+        file: new CustomFile(v.name, v.buffer.length, '', v.buffer),
+        voiceNote: true,
+        attributes: [new Api.DocumentAttributeAudio({ voice: true, duration: v.duration })],
+      });
+      // Username / havola bo'lsa — alohida qisqa matn (ovozda o'qilmaydi)
+      const links = (String(reply).match(/@\w{4,}|https?:\/\/\S+/g) || []);
+      if (links.length) await client.sendMessage(chat.peer, { message: [...new Set(links)].join('\n'), parseMode: false });
+      stats.voiceReplies = (stats.voiceReplies || 0) + 1;
+      return true;
+    } catch (e) {
+      console.warn('🤖 Assistant: ovozli javobda xato, matn yuboriladi:', e.message);
+      return false;
+    } finally {
+      clearInterval(recTimer);
+    }
+  }
+
   async function processChat(chat) {
     if (chat.processing || !client) return;
     if (!chat.pending.length) return;
@@ -1548,7 +1663,9 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         // AI bo'sh javob qaytardi — jim qolmaymiz
         reply = chat.role === 'admin' ? "⚠️ AI bo'sh javob qaytardi. Iltimos, savolni boshqacharoq yozing yoki panelda boshqa model tanlang." : 'Kechirasiz, savolingizni biroz aniqroq yozib bera olasizmi? 🙂';
       }
-      await sendHumanlike(chat, reply);
+      const byVoice = chat.replyByVoice && !actions.length;
+      chat.replyByVoice = false;
+      if (!(byVoice && await sendVoiceReply(chat, reply))) await sendHumanlike(chat, reply);
 
       chat.aiRetries = 0;
       chat.history.push({ role: 'user', content: plain || '[media]' });

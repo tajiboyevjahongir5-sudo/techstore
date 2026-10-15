@@ -4249,6 +4249,17 @@ body.modal-open {
             <span><b>Xaridorlarga javob berish</b><small>Mahsulotlar haqida maslahat berib, sotishga harakat qiladi</small></span>
             <input type="checkbox" class="as-switch" id="asReplyCustomers" onchange="saveAssistantToggles()">
           </label>
+          <label class="as-toggle-row">
+            <span><b>Ovozliga ovoz bilan javob</b><small>Xaridor ovozli xabar yuborsa, tabiiy inson ovozida javob qaytaradi</small></span>
+            <input type="checkbox" class="as-switch" id="asVoiceReplies" onchange="saveAssistantToggles()">
+          </label>
+          <div class="form-group" id="asVoiceGenderRow">
+            <label class="form-label">Ovoz</label>
+            <select class="form-input" id="asVoiceGender" onchange="saveAssistantToggles()">
+              <option value="female">Madina (ayol ovozi)</option>
+              <option value="male">Sardor (erkak ovozi)</option>
+            </select>
+          </div>
           <button class="settings-save-btn as-btn-danger" onclick="disconnectAssistant()"><i class="ti ti-logout"></i> Akkauntni uzish</button>
         </div>
 
@@ -8582,6 +8593,10 @@ function renderAssistantStatus(st) {
     document.getElementById('asStatActions').textContent = st.stats?.actions || 0;
     document.getElementById('asEnabled').checked = !!st.enabled;
     document.getElementById('asReplyCustomers').checked = !!st.replyToCustomers;
+    document.getElementById('asVoiceReplies').checked = st.voiceReplies !== false && st.voiceAvailable !== false;
+    document.getElementById('asVoiceReplies').disabled = st.voiceAvailable === false;
+    document.getElementById('asVoiceGender').value = st.voiceGender || 'female';
+    document.getElementById('asVoiceGenderRow').style.display = document.getElementById('asVoiceReplies').checked ? '' : 'none';
   } else {
     if (st.state === 'awaiting_password') assistantStep(3);
     else if (st.state === 'awaiting_code') assistantStep(2);
@@ -8713,7 +8728,9 @@ async function saveAssistantToggles() {
   try {
     const data = await assistantApi('/settings', {
       enabled: document.getElementById('asEnabled').checked,
-      replyToCustomers: document.getElementById('asReplyCustomers').checked
+      replyToCustomers: document.getElementById('asReplyCustomers').checked,
+      voiceReplies: document.getElementById('asVoiceReplies').checked,
+      voiceGender: document.getElementById('asVoiceGender').value
     });
     renderAssistantStatus(data.status);
     showToast('Saqlandi', '✓', 'var(--green)');
