@@ -960,9 +960,29 @@ function imgUrl(pid, i, src, w) {
 }
 const isDataImg = (src) => typeof src === 'string' && src.startsWith('data:image/');
 
-function publicProduct(p, now = Date.now()) {
+// Reyting va sharhlar soni FAQAT haqiqiy xaridorlar fikrlaridan hisoblanadi (o'ylab topilgan raqamlar ko'rsatilmaydi)
+let ratingsCache = null, ratingsCacheAt = 0;
+async function getRealRatings(force = false) {
+  if (!force && ratingsCache && Date.now() - ratingsCacheAt < 60000) return ratingsCache;
+  const all = (await firebaseGet('reviews')) || {};
+  const map = {};
+  for (const [pid, revs] of Object.entries(all)) {
+    const list = Object.values(revs || {}).filter(r => r && r.rating);
+    if (list.length) map[pid] = { count: list.length, avg: Math.round(list.reduce((s, r) => s + Number(r.rating), 0) / list.length * 10) / 10 };
+  }
+  ratingsCache = map; ratingsCacheAt = Date.now();
+  return map;
+}
+function invalidateRatings() { ratingsCacheAt = 0; }
+function withRealRating(p, ratings) {
   if (!p) return p;
-  const out = { ...p };
+  const r = ratings && ratings[String(p.id)];
+  return { ...p, rating: r ? r.avg : null, reviews: r ? r.count : 0 };
+}
+
+function publicProduct(p, now = Date.now(), ratings = null) {
+  if (!p) return p;
+  const out = ratings ? withRealRating(p, ratings) : { ...p };
   // Muddati o'tgan chegirma ko'rsatilmaydi (narx o'zgarmaydi, faqat eski narx/foiz yashiriladi)
   if (out.discountUntil && out.discountUntil <= now && out.discount > 0) { out.discount = 0; out.discountUntil = null; }
   const imgs = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
@@ -1032,7 +1052,8 @@ app.get('/api/img/:pid/:idx', async (req, res) => {
 app.get('/api/products', apiRateLimiter, async (req, res) => {
   try {
     const now = Date.now();
-    res.json((await getProducts()).map(p => publicProduct(p, now)));
+    const ratings = await getRealRatings();
+    res.json((await getProducts()).map(p => publicProduct(p, now, ratings)));
   } catch (e) {
     res.status(500).json({ error: "Mahsulotlarni yuklashda xatolik yuz berdi" });
   }
@@ -1488,7 +1509,7 @@ app.post('/api/admin/products', apiRateLimiter, verifyAdmin, validateAndSanitize
   const newProduct = req.sanitizedProduct;
   try {
     await mutateProducts(list => ({ list: [newProduct, ...list.filter(p => p.id !== newProduct.id)] }));
-    res.json({ success: true, product: publicProduct(newProduct) });
+    res.json({ success: true, product: publicProduct(newProduct, Date.now(), await getRealRatings()) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1506,7 +1527,7 @@ app.put('/api/admin/products/:id', apiRateLimiter, verifyAdmin, async (req, res)
     }
     const result = await updateProduct(req.params.id, data);
     if (result.error) return res.status(result.error === "Mahsulot topilmadi" ? 404 : 400).json(result);
-    res.json({ success: true, product: publicProduct(result.product) });
+    res.json({ success: true, product: publicProduct(result.product, Date.now(), await getRealRatings()) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1739,8 +1760,8 @@ const assistant = createAssistant({
     await Promise.all(ADMIN_IDS.map(id => botInstance.sendMessage(id, text).catch(() => {})));
   },
   store: {
-    listProducts: () => getProducts(),
-    getProduct: async (id) => (await getProducts()).find(p => String(p.id) === String(id)) || null,
+    listProducts: async () => { const r = await getRealRatings(); return (await getProducts()).map(p => withRealRating(p, r)); },
+    getProduct: async (id) => { const p = (await getProducts()).find(x => String(x.id) === String(id)); return p ? withRealRating(p, await getRealRatings()) : null; },
     addProduct,
     updateProduct,
     deleteProduct,
@@ -1790,6 +1811,11 @@ const botFeatures = createBotFeatures({
   getAssistantContact: () => assistant.publicContact(),
   welcomeImagePath: path.join(__dirname, 'welcome.jpg'),
 });
+
+for (const fn of ['addReview', 'deleteReview']) {
+  const orig = botFeatures[fn];
+  botFeatures[fn] = async (...args) => { try { return await orig(...args); } finally { invalidateRatings(); } };
+}
 
 // Mini App foydalanuvchisini initData orqali aniqlash (imzo tekshiriladi)
 function userFromInitData(req) {

@@ -208,17 +208,6 @@ function createBotFeatures(deps) {
     const rid = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     for (const pid of pids) {
       await firebasePatch(`reviews/${pid}`, { [rid]: review });
-      // Mahsulot reytingi va sharhlar soni yangilanadi
-      try {
-        const p = (await getProducts()).find(x => String(x.id) === pid);
-        if (p) {
-          const cnt = Number(p.reviews) || 0;
-          const avg = Number(p.rating) || 0;
-          const nextCnt = cnt + 1;
-          const nextAvg = Math.round(((avg * cnt + rating) / nextCnt) * 10) / 10;
-          await updateProduct(pid, { rating: nextAvg, reviews: nextCnt });
-        }
-      } catch (e) { console.warn('Reytingni yangilab bo\'lmadi:', e.message); }
     }
     await firebasePatch(`orders/${orderId}`, { review: { rating, text, hasPhoto: !!(photoFileId || photoData), at: Date.now() } });
     bump('reviews');
@@ -496,14 +485,6 @@ function createBotFeatures(deps) {
     const r = await firebaseGet(`reviews/${pid}/${rid}`);
     if (!r) return { error: 'Fikr topilmadi' };
     await firebaseDelete(`reviews/${pid}/${rid}`);
-    try {
-      const p = (await getProducts()).find(x => String(x.id) === String(pid));
-      if (p && Number(p.reviews) > 1) {
-        const cnt = Number(p.reviews), avg = Number(p.rating) || 0;
-        const nextAvg = Math.max(1, Math.min(5, Math.round(((avg * cnt - (r.rating || 5)) / (cnt - 1)) * 10) / 10));
-        await updateProduct(pid, { rating: nextAvg, reviews: cnt - 1 });
-      }
-    } catch (_) {}
     return { deleted: true };
   }
 

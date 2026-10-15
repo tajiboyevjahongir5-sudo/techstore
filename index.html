@@ -4238,7 +4238,7 @@ body.modal-open {
           </div>
           <div id="uniqueAmountVal" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;font-weight:900;color:#ef4444;text-shadow:0 0 10px rgba(239,68,68,0.3)">—</div>
           <div style="font-size:12px;color:#ffffff;font-weight:700;margin-top:8px;line-height:1.45">
-            To'lovingiz avtomatik tarzda 1 soniyada tasdiqlanishi uchun kartaga aynan yuqoridagi summani o'tkazishingiz kerak.
+            To'lovingiz avtomatik tasdiqlanishi uchun kartaga aynan yuqoridagi summani o'tkazishingiz kerak.
           </div>
           <div style="font-size:11px;color:#fecaca;margin-top:6px;line-height:1.45;font-weight:500">
             ⚠️ <span style="color:#ff8787;font-weight:700">1 so'm ham farq qilsa</span> yoki summani yaxlitlab yuborsangiz, bot to'lovingizni avtomat tekshira olmaydi va buyurtma bekor qilinadi.
@@ -5260,7 +5260,7 @@ async function loadData() {
   // API dan real mahsulotlarni va settingsni yuklash
   const ok = await loadProductsFromServer();
   if (!ok && !(Array.isArray(cached) && cached.length)) {
-    products = [...DEFAULT_PRODUCTS];
+    products = DEFAULT_PRODUCTS.map(p => ({ ...p, rating: null, reviews: 0 }));
     filterProducts();
     buildSlides();
   }
@@ -5721,7 +5721,7 @@ function renderProducts(list, opts = {}) {
       <div class="prod-info">
         <div class="prod-brand">${p.brand}</div>
         <div class="prod-name">${p.name}</div>
-        <div class="prod-rating"><span class="stars">★</span><span class="rating-num">${p.rating}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(${p.reviews || 0})</span></div>
+        <div class="prod-rating">${p.reviews > 0 && p.rating ? `<span class="stars">★</span><span class="rating-num">${Number(p.rating).toFixed(1)}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">(${p.reviews})</span>` : `<span style="font-size:10px;color:var(--text3)">Hali baholanmagan</span>`}</div>
         <div class="prod-footer">
           <div>
             <div class="prod-price">${priceStr}</div>
@@ -5756,7 +5756,7 @@ const SORTS = {
   rec: { label: 'Tavsiya', fn: null },
   cheap: { label: 'Arzonroq', fn: (a, b) => a.price - b.price },
   exp: { label: 'Qimmatroq', fn: (a, b) => b.price - a.price },
-  rating: { label: 'Reyting', fn: (a, b) => (b.rating || 0) - (a.rating || 0) || (b.reviews || 0) - (a.reviews || 0) },
+  rating: { label: 'Reyting', fn: (a, b) => ((b.reviews > 0 ? b.rating : 0) || 0) - ((a.reviews > 0 ? a.rating : 0) || 0) || (b.reviews || 0) - (a.reviews || 0) },
   new: { label: 'Yangilar', fn: (a, b) => b.id - a.id },
   disc: { label: 'Chegirma', fn: (a, b) => (b.discount || 0) - (a.discount || 0) },
 };
@@ -6005,10 +6005,13 @@ function fillDetailInfo(p, allImgs) {
   document.getElementById('detailName').textContent = p.name;
 
   // Reyting: 5 ta yulduz
-  const r = Math.max(0, Math.min(5, Number(p.rating) || 0));
+  const hasReviews = p.reviews > 0 && p.rating;
+  const r = hasReviews ? Math.max(0, Math.min(5, Number(p.rating) || 0)) : 0;
   document.getElementById('detailStars').innerHTML = [1,2,3,4,5].map(i => `<span class="${i <= Math.round(r) ? '' : 'off'}">★</span>`).join('');
   document.getElementById('detailRatingVal').textContent = r.toFixed(1);
-  document.getElementById('detailReviews').textContent = `${p.reviews || 0} ta sharh`;
+  document.getElementById('detailReviews').textContent = hasReviews ? `${p.reviews} ta sharh` : "Hali baholanmagan — xarid qilib birinchi bo'lib baho bering";
+  document.getElementById('detailRatingVal').style.display = hasReviews ? '' : 'none';
+  document.getElementById('detailStars').style.display = hasReviews ? '' : 'none';
 
   // Narx
   const priceNum = String(Math.round(p.price)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
@@ -7288,7 +7291,7 @@ async function saveProduct() {
     emoji: newProdImages.length ? null : (catEmojis[cat]||'📦'),
     image: newProdImages[0] || null,
     images: [...newProdImages],
-    cat, rating:5.0, reviews:0, desc: desc||'Yangi mahsulot.',
+    cat, rating:null, reviews:0, desc: desc||'Yangi mahsulot.',
     specs
   };
 
@@ -9031,10 +9034,10 @@ const SLIDE_THEMES = [
 ];
 
 function getTopProducts() {
-  // eng ko'p sotilgan = rating * reviews asosida top 5
-  return [...products]
-    .sort((a,b) => (b.rating * Math.log(b.reviews+1)) - (a.rating * Math.log(a.reviews+1)))
-    .slice(0,5);
+  // Haqiqiy ma'lumot: avval chegirmadagilar, keyin haqiqatan ko'p sotilganlar, keyin yangi qo'shilganlar
+  return [...products].filter(p => !isOutOfStock(p))
+    .sort((a, b) => ((b.discount > 0) - (a.discount > 0)) || ((b.sold || 0) - (a.sold || 0)) || (b.id - a.id))
+    .slice(0, 5);
 }
 
 function buildSlides() {
@@ -9080,7 +9083,7 @@ function buildSlides() {
       <div class="slide-text">
         <div class="slide-badge" style="background:${theme.badge};border:1px solid ${theme.badgeBorder};color:${theme.badgeColor}">
           <span class="pulse-dot"></span>
-          ${p.discount>0?`🔥 -${p.discount}% chegirma`:'⭐ Top mahsulot'}
+          ${p.discount>0?`🔥 -${p.discount}% chegirma`:(p.sold||0)>=3?'🔥 Ko\'p sotilgan':'✨ Do\'kon tavsiyasi'}
         </div>
         <div class="slide-title">${p.name.length>36?p.name.substring(0,36)+'…':p.name}</div>
         <div class="slide-price" style="color:${theme.priceColor}">
@@ -9917,9 +9920,11 @@ function renderHomeSections() {
     parts.push(`<div class="hs"><div class="hs-title">⏰ Chegirma tugayapti <span class="hs-timer" data-until="${flash[0].discountUntil}"></span></div><div class="pd-similar">${flash.map(p => miniCard(p)).join('')}</div></div>`);
   }
   const sold = products.filter(p => (p.sold || 0) > 0).sort((a, b) => b.sold - a.sold);
-  const best = (sold.length >= 3 ? sold : products.slice().sort((a, b) => (b.reviews || 0) - (a.reviews || 0))).slice(0, 10);
-  if (best.length) {
-    parts.push(`<div class="hs"><div class="hs-title">🔥 ${sold.length >= 3 ? "Ko'p sotilganlar" : 'Ommabop'}</div><div class="pd-similar">${best.map((p, i) => miniCard(p, i < 3 ? `<span class="hs-rank">${i + 1}</span>` : '')).join('')}</div></div>`);
+  if (sold.length >= 3) {
+    parts.push(`<div class="hs"><div class="hs-title">🔥 Ko'p sotilganlar</div><div class="pd-similar">${sold.slice(0, 10).map((p, i) => miniCard(p, i < 3 ? `<span class="hs-rank">${i + 1}</span>` : '')).join('')}</div></div>`);
+  } else {
+    const fresh = products.slice().sort((a, b) => b.id - a.id).slice(0, 10);
+    if (fresh.length) parts.push(`<div class="hs"><div class="hs-title">🆕 Yangi qo'shilganlar</div><div class="pd-similar">${fresh.map(p => miniCard(p)).join('')}</div></div>`);
   }
   const recent = getRecentIds().map(id => products.find(p => p.id === id)).filter(Boolean).slice(0, 10);
   if (recent.length >= 2) {
@@ -9975,7 +9980,7 @@ function openCompare() {
   const keys = [];
   list.forEach(p => (p.specs || []).forEach(([k]) => { if (k && !keys.includes(k)) keys.push(k); }));
   const minPrice = Math.min(...list.map(p => p.price));
-  const maxRating = Math.max(...list.map(p => Number(p.rating) || 0));
+  const maxRating = Math.max(...list.map(p => p.reviews > 0 ? Number(p.rating) || 0 : 0));
   const col = p => `<div class="cmp-col">
       <button class="cmp-x" onclick="toggleCompare(${p.id});openCompare()">×</button>
       <div class="cmp-img" onclick="closeModal('compareModal');openDetail(${p.id})">${p.image ? `<img src="${p.image}" alt="">` : (p.emoji || '📦')}</div>
@@ -9984,7 +9989,7 @@ function openCompare() {
   const row = (label, cells) => `<div class="cmp-row"><div class="cmp-label">${label}</div><div class="cmp-cells">${cells.map(c => `<div class="cmp-cell">${c}</div>`).join('')}</div></div>`;
   let html = `<div class="cmp-cells cmp-head">${list.map(col).join('')}${list.length < 3 ? `<div class="cmp-col cmp-add" onclick="closeModal('compareModal');showTab('home')"><i class="ti ti-plus"></i><span>Qo'shish</span></div>` : ''}</div>`;
   html += row('Narx', list.map(p => `<b class="${p.price === minPrice && list.length > 1 ? 'cmp-best' : ''}">${formatPrice(p.price)}</b>`));
-  html += row('Reyting', list.map(p => `<span class="${Number(p.rating) === maxRating && list.length > 1 ? 'cmp-best' : ''}">★ ${Number(p.rating || 0).toFixed(1)}</span> <small>(${p.reviews || 0})</small>`));
+  html += row('Reyting', list.map(p => p.reviews > 0 && p.rating ? `<span class="${Number(p.rating) === maxRating && maxRating > 0 && list.length > 1 ? 'cmp-best' : ''}">★ ${Number(p.rating).toFixed(1)}</span> <small>(${p.reviews})</small>` : '<small>Hali baho yo\'q</small>'));
   html += row('Brend', list.map(p => escText(p.brand)));
   html += row('Kategoriya', list.map(p => escText(p.cat)));
   html += row('Omborda', list.map(p => isOutOfStock(p) ? '<span style="color:var(--red)">Tugagan</span>' : (p.stock !== null && p.stock !== undefined && p.stock !== '' ? `${p.stock} ta` : 'Bor')));
