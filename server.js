@@ -987,6 +987,13 @@ function publicProduct(p, now = Date.now(), ratings = null) {
   const ck = cutoutKey(p);
   out.cutout = ck ? `/api/cutout/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
   out.depth = ck ? `/api/depth/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
+  const v3 = view3dSource(p);
+  if (v3) {
+    const vk = v3.key.split('_').pop();
+    out.view3d = { img: v3.kind === 'b' ? `/api/banner-img/${encodeURIComponent(p.id)}?v=${bannerKey(p).key.split('_b').pop()}` : out.cutout,
+      depth: `/api/depth/${encodeURIComponent(p.id)}?v=${vk}2${v3.kind}` };
+    out.depth = out.view3d.depth;
+  }
   out.model3d = model3d.publicInfo(p);
   const bk = bannerKey(p);
   out.banner = bk ? `/api/banner-img/${encodeURIComponent(p.id)}?v=${bk.key.split('_b').pop()}` : null;
@@ -1118,8 +1125,9 @@ function runCutoutWorker(buf, mode = 'cutout') {
 async function getCutout(p) {
   const k = cutoutKey(p);
   if (!k) return null;
-  const file = path.join(CUTOUT_DIR, k.key + '.webp');
-  const failFile = path.join(CUTOUT_DIR, k.key + '.fail');
+  // .v2 — kattaroq manbadan, aniqroq chetlar bilan (eski xira kesh qayta tayyorlanadi)
+  const file = path.join(CUTOUT_DIR, k.key + '.v2.webp');
+  const failFile = path.join(CUTOUT_DIR, k.key + '.v2.fail');
   if (fs.existsSync(file)) return fs.readFileSync(file);
   if (fs.existsSync(failFile) && Date.now() - fs.statSync(failFile).mtimeMs < 6 * 3600e3) return null;
   if (!cutoutJobs.has(k.key)) {
@@ -1127,7 +1135,7 @@ async function getCutout(p) {
     const prev = [...cutoutJobs.values()].pop() || Promise.resolve();
     const job = prev.catch(() => {}).then(async () => {
       try {
-        const r = await runCutoutWorker(await loadImageSource(k.src));
+        const r = await runCutoutWorker(await loadHiRes(k.src));
         // Mahsulot deyarli butun rasmni egallasa yoki juda kichik bo'lsa — fonsiz ko'rinish chiqmaydi
         if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) throw new Error('mahsulot aniq ajralmadi');
         fs.mkdirSync(CUTOUT_DIR, { recursive: true });
@@ -1147,16 +1155,22 @@ async function getCutout(p) {
 }
 
 // "3D" model uchun hajm xaritasi (AI chuqurlik + silhuet). Fonsiz rasm tayyor bo'lgach hisoblanadi.
+// 3D ko'rinish uchun rasm: banner uchun tayyorlangan (toza, tekshirilgan, katta) bo'lsa o'sha, aks holda fonsiz surat
+function view3dSource(p) {
+  if (bannerReady(p)) { const bk = bannerKey(p); return { kind: 'b', key: bk.key, file: path.join(CUTOUT_DIR, bk.key + '.webp') }; }
+  const ck = cutoutKey(p);
+  return ck ? { kind: 'c', key: ck.key, file: null } : null;
+}
 async function getDepthMap(p) {
-  const k = cutoutKey(p);
+  const k = view3dSource(p);
   if (!k) return null;
-  const file = path.join(CUTOUT_DIR, k.key + '.depth.png');
-  const failFile = path.join(CUTOUT_DIR, k.key + '.depth.fail');
+  const file = path.join(CUTOUT_DIR, k.key + '.v2.depth.png');
+  const failFile = path.join(CUTOUT_DIR, k.key + '.v2.depth.fail');
   if (fs.existsSync(file)) return fs.readFileSync(file);
   if (fs.existsSync(failFile) && Date.now() - fs.statSync(failFile).mtimeMs < 6 * 3600e3) return null;
   const jk = k.key + ':depth';
   if (!cutoutJobs.has(jk)) {
-    const cut = getCutout(p);
+    const cut = k.file ? Promise.resolve(fs.readFileSync(k.file)) : getCutout(p);
     const prev = [...cutoutJobs.values()].pop() || Promise.resolve();
     const job = Promise.all([cut, prev.catch(() => {})]).then(async ([cutBuf]) => {
       try {

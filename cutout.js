@@ -213,8 +213,10 @@ async function heightMap(cutoutWebp, { useModel = true } = {}) {
         process.stderr.write(JSON.stringify({ warn: 'depth: ' + e.message }) + '\n');
       }
     }
+    // Chuqurlikdagi mayda shovqinni yo'qotamiz — faqat katta shakl qoladi (ekran/korpus tekis, "to'lqin"siz)
+    if (depth) for (let pass = 0; pass < 4; pass++) blur(depth, HM, mask);
     const h = new Float32Array(HM * HM);
-    for (let i = 0; i < HM * HM; i++) h[i] = mask[i] ? inf[i] * (depth ? 0.3 + 0.7 * depth[i] : 1) : 0;
+    for (let i = 0; i < HM * HM; i++) h[i] = mask[i] ? inf[i] * (depth ? 0.4 + 0.6 * depth[i] : 1) : 0;
     blur(h, HM, mask);
     let mx = 0; for (let i = 0; i < h.length; i++) if (h[i] > mx) mx = h[i];
     const g = Buffer.alloc(HM * HM);

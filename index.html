@@ -10634,16 +10634,27 @@ const v3dGL = {
     const [img, dimg] = await Promise.all([this.loadImg(colorSrc), this.loadImg(depthSrc)]);
     if (token !== this.token) return false;
     // Hajm xaritasi va rasm shaffofligini piksel sifatida o'qiymiz
-    const G = 150;                                         // to'r zichligi (uzun tomon bo'yicha)
+    const G = 220;                                         // to'r zichligi (uzun tomon bo'yicha)
     const ar = img.naturalWidth / img.naturalHeight;
     const cols = ar >= 1 ? G : Math.max(24, Math.round(G * ar)), rows = ar >= 1 ? Math.max(24, Math.round(G / ar)) : G;
     const rd = (im, w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0, w, h); return x.getImageData(0, 0, w, h).data; };
     const dpx = rd(dimg, cols + 1, rows + 1), apx = rd(img, cols + 1, rows + 1);
     const W = ar >= 1 ? 2 : 2 * ar, H = ar >= 1 ? 2 / ar : 2;
-    const depthAmt = 0.2 * Math.max(W, H);
+    const depthAmt = 0.16 * Math.max(W, H);
     const nV = (cols + 1) * (rows + 1);
     const hgt = new Float32Array(nV), alp = new Uint8Array(nV);
     for (let i = 0; i < nV; i++) { hgt[i] = dpx[i * 4] / 255; alp[i] = apx[i * 4 + 3]; }
+    // Sirtni silliqlaymiz: mayda shovqin ekran/korpusni "to'lqinlantirmasin" (faqat mahsulot ichida)
+    for (let pass = 0; pass < 3; pass++) {
+      const t = hgt.slice();
+      for (let y = 1; y < rows; y++) for (let x = 1; x < cols; x++) {
+        const i = y * (cols + 1) + x;
+        if (alp[i] < 8) continue;
+        let sum = 0, n = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const j = i + dy * (cols + 1) + dx; if (alp[j] >= 8) { sum += t[j]; n++; } }
+        hgt[i] = sum / n;
+      }
+    }
     // 2 qatlam: old yuz (+z) va orqa qobiq (−z, xiraroq) — yon tomondan qaraganda ichi bo'sh ko'rinmasin
     const STR = 9; // pos3, normal3, uv2, side1
     const data = new Float32Array(nV * 2 * STR);
@@ -10682,13 +10693,14 @@ const v3dGL = {
     const fs = `precision mediump float; uniform sampler2D uTex; varying vec2 vUv; varying vec3 vN; varying float vSide; varying vec3 vP;
       void main() {
         vec4 c = texture2D(uTex, vUv);
-        if (c.a < 0.45) discard;
+        if (c.a < 0.5) discard;
+        c.rgb /= max(c.a, 0.001);
         vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n;
         vec3 L = normalize(vec3(-0.45, 0.65, 0.75)); vec3 V = vec3(0.0, 0.0, 1.0);
         float diff = max(dot(n, L), 0.0);
         float spec = pow(max(dot(reflect(-L, n), V), 0.0), 28.0);
         float rim = pow(1.0 - max(dot(n, V), 0.0), 3.0);
-        vec3 col = c.rgb * (0.70 + 0.42 * diff) + vec3(spec * 0.22) + vec3(0.55, 0.45, 1.0) * rim * 0.22;
+        vec3 col = c.rgb * (0.86 + 0.22 * diff) + vec3(spec * 0.10) + vec3(0.55, 0.45, 1.0) * rim * 0.10;
         if (vSide < 0.0) col = c.rgb * 0.5 + vec3(0.5, 0.42, 1.0) * rim * 0.18;
         gl_FragColor = vec4(col, 1.0);
       }`;
@@ -10704,8 +10716,18 @@ const v3dGL = {
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, big ? new Uint32Array(idx) : new Uint16Array(idx), gl.STATIC_DRAW);
     const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    // Tiniq tekstura: 2 ning darajasi o'lchamiga keltirib mipmap qilamiz (kichraytirilganda xira/"qumli" bo'lmasin),
+    // shaffof chetlarda qora hoshiya chiqmasligi uchun premultiplied alpha
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    const maxT = Math.min(2048, gl.getParameter(gl.MAX_TEXTURE_SIZE) || 2048);
+    const pot = v => Math.min(maxT, Math.pow(2, Math.ceil(Math.log2(Math.max(2, v)))));
+    const tc = document.createElement('canvas'); tc.width = pot(img.naturalWidth); tc.height = pot(img.naturalHeight);
+    const tx = tc.getContext('2d'); tx.imageSmoothingQuality = 'high'; tx.drawImage(img, 0, 0, tc.width, tc.height);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tc);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    const aniso = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
+    if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1));
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.enable(gl.DEPTH_TEST);
     Object.assign(this, { gl, canvas, prog, buf, ibuf, tex, count: idx.length, idxType: big ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, size: [W, H], depthAmt,
@@ -10717,7 +10739,7 @@ const v3dGL = {
   },
   resize() {
     if (!this.canvas) return;
-    const r = this.canvas.parentElement.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    const r = this.canvas.parentElement.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
     this.canvas.width = Math.max(1, Math.round(r.width * dpr)); this.canvas.height = Math.max(1, Math.round(r.height * dpr));
   },
   render(rxDeg, ryDeg, zoom) {
@@ -10753,8 +10775,10 @@ const v3dGL = {
 // ===== "3D" KO'RINISH: fonsiz (AI bilan qirqilgan) mahsulot rasmi, barmoq / giroskop bilan aylantiriladi =====
 const v3d = { rx: 0, ry: 0, tx: 0, ty: 0, drag: null, raf: 0, idle: 0, gyro: null, zoom: 1, tzoom: 1, pinch: null, session: 0, mv: false };
 function open3dView(opts = {}) {
-  const p = opts.preview ? { id: '__preview', name: opts.preview.name, model3d: opts.preview.model3d } : products.find(x => x.id === currentDetailId);
-  if (!p) return;
+  const p0 = opts.preview ? { id: '__preview', name: opts.preview.name, model3d: opts.preview.model3d } : products.find(x => x.id === currentDetailId);
+  if (!p0) return;
+  // Server tayyorlagan eng toza rasm (banner uchun tekshirilgan) va aynan shu rasmdan hisoblangan chuqurlik
+  const p = p0.view3d ? { ...p0, cutout: p0.view3d.img, depth: p0.view3d.depth } : p0;
   const session = ++v3d.session;
   v3dStopMV();
   const el = document.getElementById('v3d'), obj = document.getElementById('v3dObj'), load = document.getElementById('v3dLoad');
