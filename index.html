@@ -4077,6 +4077,149 @@ body.modal-open {
   position: fixed !important;
   width: 100% !important;
 }
+
+/* ===================== KOMPYUTER UCHUN KO'RINISH =====================
+   Telefonda hech narsa o'zgarmaydi. Keng oynada (Telegram Desktop, brauzer):
+   yuqorida menyu paneli, keng to'r, mahsulot va savat sahifalari ikki ustunli. */
+.dk-brand, .dk-search { display: none; }
+@media (min-width: 760px) and (max-width: 1023px) {
+  .phone-shell { max-width: 760px; }
+  .tab-nav { max-width: 760px; }
+  .products-grid { grid-template-columns: repeat(3, 1fr); }
+  .detail-actions-fixed { max-width: 728px; }
+  .slider-banner { height: 260px; }
+  .pd-hero .detail-gallery { aspect-ratio: auto; height: min(520px, 60vh); }
+}
+@media (min-width: 1024px) {
+  :root { --dk-max: 1240px; --dk-side: max(32px, calc((100vw - 1240px) / 2)); --dk-nav: 72px; }
+  html, body { overflow: hidden; }
+  .phone-shell { max-width: none; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb { background: rgba(167, 139, 250, 0.28); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(167, 139, 250, 0.45); background-clip: padding-box; }
+  *::-webkit-scrollbar-track { background: transparent; }
+
+  /* --- Yuqori menyu paneli --- */
+  .tab-nav {
+    display: flex !important;
+    top: 0; bottom: auto; left: 0; right: 0; transform: none; width: auto; max-width: none;
+    height: var(--dk-nav); padding: 0 var(--dk-side); box-sizing: border-box;
+    border-radius: 0; border-top: none; border-bottom: 1px solid rgba(167, 139, 250, 0.16);
+    align-items: center; justify-content: flex-end; gap: 6px;
+    background: rgba(8, 8, 28, 0.78); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  }
+  .dk-brand { display: block; margin-right: 28px; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; flex-shrink: 0; }
+  .dk-search { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 520px; margin-right: auto; height: 44px; padding: 0 16px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--text2); transition: border-color .2s, background .2s; }
+  .dk-search:focus-within { border-color: rgba(167, 139, 250, 0.6); background: rgba(255,255,255,0.09); }
+  .dk-search input { flex: 1; background: none; border: none; outline: none; color: #fff; font: 500 14px 'Plus Jakarta Sans', sans-serif; }
+  .dk-search .ti { font-size: 18px; }
+  .tab-btn { flex: 0 0 auto; flex-direction: row; gap: 8px; font-size: 14px; padding: 10px 16px; border-radius: 14px; color: rgba(255,255,255,0.7); }
+  .tab-btn i { font-size: 19px; }
+  .tab-btn:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+  .tab-btn.active { background: rgba(124, 58, 237, 0.2); }
+  .tab-btn.active i { transform: none; }
+  .tab-btn::after { display: none; }
+  #cartTabBadge { top: 8px !important; right: 8px !important; }
+  button:active, .tab-btn:active { transform: none; }
+
+  /* --- Har bir sahifa: markazda, keng --- */
+  .screen.active {
+    padding-top: calc(var(--dk-nav) + 24px);
+    padding-bottom: 56px;
+    padding-left: var(--dk-side);
+    padding-right: var(--dk-side);
+  }
+  .screen-header { top: 0; padding: 8px 0 18px; }
+  .screen-title { font-size: 26px; }
+  .pd-topbar { top: 0; padding: 0 0 14px; }
+
+  /* --- Bosh sahifa --- */
+  .home-header { display: none; }
+  #home .search-wrap { display: none; }
+  .banner-wrap { padding: 0 0 24px; }
+  .slider-banner { height: 380px; border-radius: 32px; }
+  .slide-text { padding-left: 32px; padding-right: 46%; }
+  .slide-title { font-size: 40px; line-height: 1.12; margin-bottom: 14px; letter-spacing: -0.8px; }
+  .slide-price { font-size: 24px; margin-bottom: 26px; }
+  .slide-cta { font-size: 15px; padding: 14px 26px; }
+  .slide-badge { font-size: 12px; }
+  .slide-img { width: 40%; height: 82%; right: 5%; }
+  .slide-shadow { width: 60%; height: 18px; }
+  .cats-wrap { padding: 0 0 26px; flex-wrap: wrap; overflow: visible; }
+  .cat-chip:hover { border-color: rgba(167, 139, 250, 0.5); color: #fff; }
+  .section-head { padding: 0 0 16px; }
+  .section-title { font-size: 22px; }
+  .products-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 22px; padding: 0 0 24px; }
+  .prod-card { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; cursor: pointer; }
+  .prod-card:hover { transform: translateY(-6px); border-color: rgba(167, 139, 250, 0.4); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(167,139,250,0.15); }
+  .hs { margin: 0 0 26px; }
+  .hs-title { padding: 0; font-size: 20px; margin-bottom: 14px; }
+  .hs .pd-similar { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; padding: 0; overflow: visible; }
+  .hs .pd-sim { width: auto; }
+  .hs .pd-sim-img { height: 150px; }
+  .pd-sim:hover { transform: translateY(-4px); border-color: rgba(167, 139, 250, 0.4); }
+  .cmp-fab { right: var(--dk-side); bottom: 28px; }
+
+  /* --- Mahsulot sahifasi: chapda rasm, o'ngda ma'lumot --- */
+  #detail.screen.active { padding-top: calc(var(--dk-nav) + 16px); display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 40px; align-content: start; padding-bottom: 140px; }
+  #detail .pd-topbar, body.in-tg #detail .pd-topbar { grid-column: 1 / -1; margin: 0; transform: none; opacity: 1; pointer-events: auto; background: transparent; border: none; backdrop-filter: none; }
+  #detail .pd-topbar-title { opacity: 1; transform: none; font-size: 15px; color: var(--text2); }
+  #detail .pd-hero, body.in-tg #detail .pd-hero { grid-column: 1; grid-row: 2; margin: 0; align-self: start; }
+  #detail .pd-thumbs { grid-column: 1; grid-row: 3; padding: 14px 0 0; align-self: start; }
+  #detail .pd-body { grid-column: 2; grid-row: 2 / 4; align-self: start; margin-top: 0; border-radius: 30px; border: 1px solid rgba(167, 139, 250, 0.22); min-height: 0; padding: 30px; }
+  .pd-hero .detail-gallery { height: min(560px, calc(100vh - 220px)); }
+  .pd-thumb { width: 72px; height: 72px; }
+  .detail-actions-fixed { left: auto; right: var(--dk-side); transform: none; bottom: 24px; width: calc((min(100vw - 64px, var(--dk-max)) - 40px) * 0.488); max-width: none; }
+  .pd-similar { scroll-snap-type: none; }
+
+  /* --- Savat: chapda mahsulotlar, o'ngda jami --- */
+  #cartContent:has(.cart-summary) { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: start; }
+  #cartContent .cart-items { padding: 0; }
+  #cartContent .cart-items { grid-column: 1; grid-row: 1 / span 2; }
+  #cartContent .cart-summary { grid-column: 2; grid-row: 1; margin: 0; }
+  #cartContent:has(.cart-summary) > div:last-child { grid-column: 2; grid-row: 2; padding: 0 !important; align-self: start; }
+  .cart-item { padding: 18px; }
+  .cart-item-img { width: 96px; height: 96px; }
+
+  /* --- Manzil, to'lov, natija: o'rtada --- */
+  #address.screen.active > *, #payment.screen.active > *, #success.screen.active > * { max-width: 760px; margin-left: auto; margin-right: auto; }
+  .addr-wrap, .pay-wrap { padding: 0 0 40px; }
+
+  /* --- Profil, buyurtmalar, sevimlilar --- */
+  #profile.screen.active > *, #ordersHistory.screen.active > * { max-width: 920px; margin-left: auto; margin-right: auto; }
+  #profile .screen-header + div { padding: 0 0 40px !important; }
+  #profile .screen-header + div > div[style*="flex-direction:column"] { display: grid !important; grid-template-columns: 1fr 1fr; gap: 12px !important; }
+  #detailFavBtnHeader { display: none; }
+  .pd-hero .detail-gallery { width: 100%; aspect-ratio: auto; }
+  .profile-menu-item:hover { border-color: rgba(167, 139, 250, 0.4); transform: translateY(-2px); }
+  #favoritesContent { padding: 0 0 40px !important; }
+
+  /* --- Oynalar: pastdan chiqadigan emas, markazda --- */
+  .modal-overlay, .chek-modal-overlay, .edit-modal-overlay { align-items: center; justify-content: center; }
+  .modal-sheet { border-radius: 28px; max-width: 580px; max-height: 86vh; border: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 24px; }
+  .cmp-sheet { max-width: 920px; }
+  .modal-overlay.open .modal-sheet, .chek-modal-overlay.open .chek-sheet, .edit-modal-overlay.open .modal-sheet { animation: boxPopIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.12) forwards; }
+
+  /* --- Admin panel --- */
+  #admin.screen.active > * { width: 100%; max-width: 1240px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+  .admin-wrap, #admin.screen.active .admin-wrap { padding: 20px 0 60px; }
+  .admin-tabs { top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; background: transparent !important; }
+  .admin-prod-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+  #adminStats[style*="block"] { display: grid !important; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  #adminStats > * { margin-bottom: 0 !important; }
+  #adminStats > .admin-cards { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  #statChartContainer { height: auto !important; aspect-ratio: 300 / 80; }
+  .m3-list { max-height: 360px; }
+  .users-list { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; }
+  #adminSettings { column-count: 2; column-gap: 16px; }
+  #adminSettings > * { break-inside: avoid; display: inline-block; width: 100%; }
+
+  /* --- Bildirishnoma va 3D oyna --- */
+  .toast { top: calc(var(--dk-nav) + 16px); }
+}
+@media (min-width: 1024px) and (hover: hover) {
+  .cat-chip, .profile-menu-item, .pd-sim, .prod-card, .tab-btn { cursor: pointer; }
+}
 </style>
 
 <!-- TechStore -->
@@ -4099,6 +4242,8 @@ body.modal-open {
   </div>
 
   <nav class="tab-nav">
+    <div class="dk-brand" onclick="showTab('home')">TechStore</div>
+    <label class="dk-search"><i class="ti ti-search"></i><input type="text" id="dkSearchInput" placeholder="Mahsulot qidirish..." oninput="dkSearch(this.value)"><button class="filter-btn" onclick="event.preventDefault();openFilterSheet()" title="Saralash va filtr"><i class="ti ti-adjustments-horizontal"></i></button></label>
     <button class="tab-btn active" onclick="showTab('home')"><i class="ti ti-home"></i>Asosiy</button>
     <button class="tab-btn" onclick="showTab('cart')" style="position:relative"><i class="ti ti-shopping-cart"></i>Savat<span id="cartTabBadge" style="display:none;position:absolute;top:6px;right:18px;width:7px;height:7px;background:var(--red);border-radius:50%"></span></button>
     <button id="adminTabBtn" class="tab-btn" onclick="showAdminTab()" style="position:relative;display:none"><i class="ti ti-layout-dashboard"></i>Admin<span class="chek-notify" id="chekNotify"></span></button>
@@ -5922,6 +6067,13 @@ document.addEventListener('error', (e) => {
 
 // Qidiruv har bir harfda emas, yozish to'xtaganda ishlaydi
 let searchDebounceTimer = null;
+// Kompyuterda: yuqori paneldagi qidiruv asosiy qidiruv maydoni bilan bir xil ishlaydi
+function dkSearch(v) {
+  const inp = document.getElementById('searchInput');
+  if (inp) inp.value = v;
+  if (!document.getElementById('home').classList.contains('active')) showTab('home');
+  onSearchInput();
+}
 function onSearchInput() {
   clearTimeout(searchDebounceTimer);
   searchDebounceTimer = setTimeout(() => filterProducts(true), 180);
@@ -10832,12 +10984,22 @@ function initTelegramExtras() {
       document.getElementById('fullscreenLabel').textContent = tg.isFullscreen ? "Oddiy rejimga qaytish" : "To'liq ekran rejimi";
     };
     tg.onEvent && tg.onEvent('fullscreenChanged', sync);
-    tg.onEvent && tg.onEvent('fullscreenFailed', () => showToast("To'liq ekran bu qurilmada ishlamaydi", 'ℹ️', 'var(--text2)'));
+    let autoFs = false;
+    tg.onEvent && tg.onEvent('fullscreenFailed', () => { if (autoFs) { autoFs = false; return; } showToast("To'liq ekran bu qurilmada ishlamaydi", 'ℹ️', 'var(--text2)'); });
     sync();
+    // Kompyuterda (Telegram Desktop / Web) kichik oynada ochilsa — katta oynaga o'tamiz,
+    // shunda kompyuterga moslashgan keng ko'rinish chiqadi. Foydalanuvchi o'chirib qo'ysa, eslab qolamiz.
+    const desktop = ['tdesktop', 'macos', 'weba', 'webk', 'web', 'unigram'].includes(String(tg.platform || '').toLowerCase());
+    let optOut = false; try { optOut = localStorage.getItem('ts_nofs') === '1'; } catch (e) {}
+    if (desktop && !optOut && !tg.isFullscreen && window.innerWidth < 1024) {
+      autoFs = true;
+      setTimeout(() => { try { tg.requestFullscreen(); } catch (e) {} setTimeout(() => { autoFs = false; }, 3000); }, 400);
+    }
   }
 }
 function addToHomeScreen() { try { tg.addToHomeScreen(); } catch (e) {} }
 function toggleFullscreen() {
+  try { localStorage.setItem('ts_nofs', tg.isFullscreen ? '1' : '0'); } catch (e) {}
   try { tg.isFullscreen ? tg.exitFullscreen() : tg.requestFullscreen(); } catch (e) {}
 }
 
