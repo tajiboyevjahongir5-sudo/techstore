@@ -978,6 +978,7 @@ function publicProduct(p, now = Date.now(), ratings = null) {
   out.images = imgs.map((src, i) => isDataImg(src) ? imgUrl(p.id, i, src, 1080) : src);
   const ck = cutoutKey(p);
   out.cutout = ck ? `/api/cutout/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
+  out.depth = ck ? `/api/depth/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
   const first = imgs[0];
   out.image = first ? (isDataImg(first) ? imgUrl(p.id, 0, first, 480) : first) : (isDataImg(p.image) ? null : p.image || null);
   return out;
@@ -1070,9 +1071,9 @@ async function loadImageSource(src) {
   if (buf.length > 12e6) throw new Error('rasm juda katta');
   return buf;
 }
-function runCutoutWorker(buf) {
+function runCutoutWorker(buf, mode = 'cutout') {
   return new Promise((resolve, reject) => {
-    const child = require('child_process').spawn(process.execPath, [path.join(__dirname, 'cutout-worker.js')], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = require('child_process').spawn(process.execPath, [path.join(__dirname, 'cutout-worker.js'), mode], { stdio: ['pipe', 'pipe', 'pipe'] });
     const out = [], err = [];
     const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('vaqt tugadi')); }, 90000);
     child.stdout.on('data', d => out.push(d));
@@ -1082,7 +1083,7 @@ function runCutoutWorker(buf) {
       clearTimeout(timer);
       let info = {};
       try { info = JSON.parse(Buffer.concat(err).toString().trim().split('\n').pop() || '{}'); } catch (_) {}
-      if (code === 0 && out.length) resolve({ buffer: Buffer.concat(out), coverage: info.coverage });
+      if (code === 0 && out.length) resolve({ buffer: Buffer.concat(out), coverage: info.coverage, model: info.model });
       else reject(new Error(info.error || 'ishlov berib bo\'lmadi'));
     });
     child.stdin.on('error', () => {});
@@ -1120,6 +1121,53 @@ async function getCutout(p) {
   return cutoutJobs.get(k.key);
 }
 
+// "3D" model uchun hajm xaritasi (AI chuqurlik + silhuet). Fonsiz rasm tayyor bo'lgach hisoblanadi.
+async function getDepthMap(p) {
+  const k = cutoutKey(p);
+  if (!k) return null;
+  const file = path.join(CUTOUT_DIR, k.key + '.depth.png');
+  const failFile = path.join(CUTOUT_DIR, k.key + '.depth.fail');
+  if (fs.existsSync(file)) return fs.readFileSync(file);
+  if (fs.existsSync(failFile) && Date.now() - fs.statSync(failFile).mtimeMs < 6 * 3600e3) return null;
+  const jk = k.key + ':depth';
+  if (!cutoutJobs.has(jk)) {
+    const cut = getCutout(p);
+    const prev = [...cutoutJobs.values()].pop() || Promise.resolve();
+    const job = Promise.all([cut, prev.catch(() => {})]).then(async ([cutBuf]) => {
+      try {
+        if (!cutBuf) throw new Error("fonsiz rasm yo'q");
+        const r = await runCutoutWorker(cutBuf, 'depth');
+        fs.mkdirSync(CUTOUT_DIR, { recursive: true });
+        fs.writeFileSync(file, r.buffer);
+        if (!r.model) console.warn(`🧊 Hajm xaritasi (${p.id}) AI modelisiz (faqat silhuet) tayyorlandi`);
+        return r.buffer;
+      } catch (e) {
+        console.warn(`🧊 Hajm xaritasi (${p.id}) tayyorlanmadi:`, e.message);
+        try { fs.mkdirSync(CUTOUT_DIR, { recursive: true }); fs.writeFileSync(failFile, e.message); } catch (_) {}
+        return null;
+      } finally {
+        cutoutJobs.delete(jk);
+      }
+    });
+    cutoutJobs.set(jk, job);
+  }
+  return cutoutJobs.get(jk);
+}
+
+app.get('/api/depth/:pid', async (req, res) => {
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
+    if (!p) return res.status(404).end();
+    const buf = await getDepthMap(p);
+    if (!buf) return res.status(404).end();
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    res.end(buf);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
 app.get('/api/cutout/:pid', async (req, res) => {
   try {
     const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
@@ -1139,6 +1187,8 @@ async function prewarmCutouts() {
   try {
     const list = (await getProducts()).filter(Boolean);
     for (const p of list) { await getCutout(p).catch(() => {}); }
+    // Keyin "3D" hajm xaritalari (mijoz kutib qolmasin)
+    for (const p of list) { await getDepthMap(p).catch(() => {}); }
   } catch (_) {}
 }
 

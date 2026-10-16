@@ -3960,6 +3960,13 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
 .v3d-shadow { position: absolute; bottom: 8%; width: min(54vw, 300px); height: 26px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,0.7), transparent); filter: blur(6px); pointer-events: none; }
 .v3d-load { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 12px; color: rgba(255,255,255,0.75); font-size: 13px; }
 .v3d-spin { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: #a78bfa; animation: spin 0.9s linear infinite; }
+.v3d-glhost { position: absolute; inset: 0; opacity: 0; transition: opacity .5s ease; pointer-events: none; }
+.v3d-glhost.on { opacity: 1; }
+.v3d-glhost canvas { width: 100%; height: 100%; display: block; }
+.v3d-obj { transition: opacity .5s ease; }
+.v3d-hspin { display: none; width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); border-top-color: #a78bfa; animation: spin .9s linear infinite; }
+.v3d-hint.loading .v3d-hspin { display: inline-block; }
+.v3d-hint.loading .ti { display: none; }
 .v3d-hint { display: flex; align-items: center; justify-content: center; gap: 6px; color: rgba(255,255,255,0.6); font-size: 12.5px; padding: 10px 16px calc(22px + var(--tg-safe-bottom, 0px)); }
 .pd-hero-fav.fav-on { color: var(--red); background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); }
 .pd-hero-fav.fav-pop { animation: favPop .45s cubic-bezier(0.34,1.56,0.64,1); }
@@ -4069,9 +4076,10 @@ body.modal-open {
       <div class="v3d-glow"></div>
       <div class="v3d-shadow" id="v3dShadow"></div>
       <div class="v3d-float"><div class="v3d-obj" id="v3dObj"></div></div>
+      <div class="v3d-glhost" id="v3dGLHost"></div>
       <div class="v3d-load" id="v3dLoad"></div>
     </div>
-    <div class="v3d-hint"><i class="ti ti-hand-finger"></i><span>Barmoq bilan aylantiring</span></div>
+    <div class="v3d-hint" id="v3dHint"><i class="ti ti-hand-finger"></i><span class="v3d-hspin"></span><span id="v3dHintTxt">Barmoq bilan aylantiring</span></div>
   </div>
 
   <nav class="tab-nav">
@@ -10289,14 +10297,149 @@ function toggleLang() {
   if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
 }
 
+// ===== HAQIQIY 3D: hajm xaritasi bo'yicha egilgan to'r (WebGL), yorug'lik va soya bilan =====
+const v3dGL = {
+  gl: null, canvas: null, prog: null, buf: null, ibuf: null, count: 0, tex: null, ready: false, size: [2, 2], token: 0,
+  supported() {
+    try { const c = document.createElement('canvas'); return !!(c.getContext('webgl') || c.getContext('experimental-webgl')); } catch (e) { return false; }
+  },
+  loadImg(src) {
+    return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('img')); i.src = src; });
+  },
+  async load(colorSrc, depthSrc, host) {
+    const token = ++this.token;
+    this.dispose();
+    const [img, dimg] = await Promise.all([this.loadImg(colorSrc), this.loadImg(depthSrc)]);
+    if (token !== this.token) return false;
+    // Hajm xaritasi va rasm shaffofligini piksel sifatida o'qiymiz
+    const G = 150;                                         // to'r zichligi (uzun tomon bo'yicha)
+    const ar = img.naturalWidth / img.naturalHeight;
+    const cols = ar >= 1 ? G : Math.max(24, Math.round(G * ar)), rows = ar >= 1 ? Math.max(24, Math.round(G / ar)) : G;
+    const rd = (im, w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0, w, h); return x.getImageData(0, 0, w, h).data; };
+    const dpx = rd(dimg, cols + 1, rows + 1), apx = rd(img, cols + 1, rows + 1);
+    const W = ar >= 1 ? 2 : 2 * ar, H = ar >= 1 ? 2 / ar : 2;
+    const depthAmt = 0.2 * Math.max(W, H);
+    const nV = (cols + 1) * (rows + 1);
+    const hgt = new Float32Array(nV), alp = new Uint8Array(nV);
+    for (let i = 0; i < nV; i++) { hgt[i] = dpx[i * 4] / 255; alp[i] = apx[i * 4 + 3]; }
+    // 2 qatlam: old yuz (+z) va orqa qobiq (−z, xiraroq) — yon tomondan qaraganda ichi bo'sh ko'rinmasin
+    const STR = 9; // pos3, normal3, uv2, side1
+    const data = new Float32Array(nV * 2 * STR);
+    const at = (x, y) => hgt[Math.min(rows, Math.max(0, y)) * (cols + 1) + Math.min(cols, Math.max(0, x))];
+    for (let side = 0; side < 2; side++) {
+      const sgn = side ? -0.3 : 1;
+      for (let y = 0; y <= rows; y++) for (let x = 0; x <= cols; x++) {
+        const i = y * (cols + 1) + x, o = (side * nV + i) * STR;
+        const u = x / cols, v = y / rows;
+        data[o] = (u - 0.5) * W; data[o + 1] = (0.5 - v) * H; data[o + 2] = hgt[i] * depthAmt * sgn;
+        const dx = (at(x + 1, y) - at(x - 1, y)) * depthAmt * sgn / (2 * W / cols);
+        const dy = (at(x, y - 1) - at(x, y + 1)) * depthAmt * sgn / (2 * H / rows);
+        let nx = side ? dx : -dx, ny = side ? dy : -dy, nz = side ? -1 : 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+        data[o + 3] = nx; data[o + 4] = ny; data[o + 5] = nz;
+        data[o + 6] = u; data[o + 7] = v; data[o + 8] = side ? -1 : 1;
+      }
+    }
+    const idx = [];
+    for (let side = 0; side < 2; side++) for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const a = y * (cols + 1) + x, b = a + 1, c = a + cols + 1, d = c + 1;
+      if (alp[a] < 8 && alp[b] < 8 && alp[c] < 8 && alp[d] < 8) continue;   // bo'sh joyni chizmaymiz
+      const s = side * nV;
+      if (side) idx.push(s + a, s + b, s + c, s + b, s + d, s + c); else idx.push(s + a, s + c, s + b, s + b, s + c, s + d);
+    }
+    // Canvas + WebGL
+    const canvas = document.createElement('canvas');
+    canvas.className = 'v3d-gl';
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false }) || canvas.getContext('experimental-webgl');
+    if (!gl) return false;
+    const big = nV * 2 > 65535;
+    const ext = big ? gl.getExtension('OES_element_index_uint') : null;
+    if (big && !ext) return false;
+    const vs = `attribute vec3 aPos; attribute vec3 aNor; attribute vec2 aUv; attribute float aSide;
+      uniform mat4 uMVP; uniform mat3 uRot; varying vec2 vUv; varying vec3 vN; varying float vSide; varying vec3 vP;
+      void main() { vUv = aUv; vN = uRot * aNor; vSide = aSide; vP = uRot * aPos; gl_Position = uMVP * vec4(aPos, 1.0); }`;
+    const fs = `precision mediump float; uniform sampler2D uTex; varying vec2 vUv; varying vec3 vN; varying float vSide; varying vec3 vP;
+      void main() {
+        vec4 c = texture2D(uTex, vUv);
+        if (c.a < 0.45) discard;
+        vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n;
+        vec3 L = normalize(vec3(-0.45, 0.65, 0.75)); vec3 V = vec3(0.0, 0.0, 1.0);
+        float diff = max(dot(n, L), 0.0);
+        float spec = pow(max(dot(reflect(-L, n), V), 0.0), 28.0);
+        float rim = pow(1.0 - max(dot(n, V), 0.0), 3.0);
+        vec3 col = c.rgb * (0.70 + 0.42 * diff) + vec3(spec * 0.22) + vec3(0.55, 0.45, 1.0) * rim * 0.22;
+        if (vSide < 0.0) col = c.rgb * 0.5 + vec3(0.5, 0.42, 1.0) * rim * 0.18;
+        gl_FragColor = vec4(col, 1.0);
+      }`;
+    const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const F = 4 * STR;
+    [['aPos', 3, 0], ['aNor', 3, 3], ['aUv', 2, 6], ['aSide', 1, 8]].forEach(([n, sz, off]) => { const l = gl.getAttribLocation(prog, n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, sz, gl.FLOAT, false, F, off * 4); });
+    const ibuf = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, big ? new Uint32Array(idx) : new Uint16Array(idx), gl.STATIC_DRAW);
+    const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.enable(gl.DEPTH_TEST);
+    Object.assign(this, { gl, canvas, prog, buf, ibuf, tex, count: idx.length, idxType: big ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, size: [W, H], depthAmt,
+      uMVP: gl.getUniformLocation(prog, 'uMVP'), uRot: gl.getUniformLocation(prog, 'uRot') });
+    host.appendChild(canvas);
+    this.resize();
+    this.ready = true;
+    return true;
+  },
+  resize() {
+    if (!this.canvas) return;
+    const r = this.canvas.parentElement.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.canvas.width = Math.max(1, Math.round(r.width * dpr)); this.canvas.height = Math.max(1, Math.round(r.height * dpr));
+  },
+  render(rxDeg, ryDeg, zoom) {
+    const gl = this.gl; if (!gl || !this.ready) return;
+    const w = this.canvas.width, h = this.canvas.height;
+    gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const rx = rxDeg * Math.PI / 180, ry = ryDeg * Math.PI / 180;
+    const cx = Math.cos(rx), sx = Math.sin(rx), cy = Math.cos(ry), sy = Math.sin(ry);
+    // R = Rx * Ry (ustun-tartibli)
+    const R = [cy, sx * sy, -cx * sy, 0, cx, sx, sy, -sx * cy, cx * cy];
+    const aspect = w / h, fov = 30 * Math.PI / 180, f = 1 / Math.tan(fov / 2);
+    const [W, H] = this.size;
+    const fitH = Math.max(H, W / aspect) * 1.08;
+    const dist = (fitH / 2) * f / (zoom || 1) + this.depthAmt * 0.5;
+    const near = 0.1, far = dist + 10;
+    const P = [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) / (near - far), -1, 0, 0, 2 * far * near / (near - far), 0];
+    // MVP = P * T(0,0,-dist) * R
+    const M = [R[0], R[1], R[2], 0, R[3], R[4], R[5], 0, R[6], R[7], R[8], 0, 0, 0, -dist, 1];
+    const MVP = new Float32Array(16);
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += P[k * 4 + r] * M[c * 4 + k]; MVP[c * 4 + r] = s; }
+    gl.uniformMatrix4fv(this.uMVP, false, MVP);
+    gl.uniformMatrix3fv(this.uRot, false, new Float32Array(R));
+    gl.drawElements(gl.TRIANGLES, this.count, this.idxType, 0);
+  },
+  dispose() {
+    this.ready = false;
+    if (this.gl) { try { const lose = this.gl.getExtension('WEBGL_lose_context'); lose && lose.loseContext(); } catch (e) {} }
+    if (this.canvas) this.canvas.remove();
+    this.gl = this.canvas = null;
+  }
+};
+
 // ===== "3D" KO'RINISH: fonsiz (AI bilan qirqilgan) mahsulot rasmi, barmoq / giroskop bilan aylantiriladi =====
-const v3d = { rx: 0, ry: 0, tx: 0, ty: 0, drag: null, raf: 0, idle: 0, gyro: null };
+const v3d = { rx: 0, ry: 0, tx: 0, ty: 0, drag: null, raf: 0, idle: 0, gyro: null, zoom: 1, tzoom: 1, pinch: null };
 function open3dView() {
   const p = products.find(x => x.id === currentDetailId);
   if (!p) return;
   const el = document.getElementById('v3d'), obj = document.getElementById('v3dObj'), load = document.getElementById('v3dLoad');
   document.getElementById('v3dName').textContent = p.name;
   obj.innerHTML = ''; obj.style.opacity = '0';
+  v3dGL.dispose(); v3dGL.token++;
+  document.getElementById('v3dGLHost').classList.remove('on');
+  v3dSetHint('hand');
+  v3d.zoom = v3d.tzoom = 1;
   const shd = document.getElementById('v3dShadow'); shd.style.display = ''; shd.style.top = ''; shd.style.bottom = ''; shd.style.width = '';
   load.style.display = 'flex';
   load.innerHTML = '<div class="v3d-spin"></div><span>' + (uiLang === 'ru' ? 'Подготовка...' : 'Tayyorlanmoqda...') + '</span>';
@@ -10321,6 +10464,7 @@ function open3dView() {
       const sh = document.getElementById('v3dShadow');
       sh.style.top = 'calc(50% + ' + Math.round(rh / 2 + 4) + 'px)'; sh.style.bottom = 'auto'; sh.style.width = Math.round(rw * 0.8) + 'px';
       load.style.display = 'none'; obj.style.opacity = '1';
+      if (cut && p.depth && v3dGL.supported()) v3dStartGL(p, srcs[i]);
     };
     img.onerror = () => tryLoad(i + 1);
     img.src = srcs[i];
@@ -10330,8 +10474,31 @@ function open3dView() {
   cancelAnimationFrame(v3d.raf); v3d.raf = requestAnimationFrame(v3dTick);
   v3dGyroOn();
 }
+function v3dSetHint(kind) {
+  const ru = uiLang === 'ru';
+  const el = document.getElementById('v3dHintTxt');
+  el.textContent = kind === 'loading' ? (ru ? 'Создаём 3D-модель…' : '3D model tayyorlanmoqda…')
+    : kind === 'gl' ? (ru ? 'Вращайте пальцем · щипок — масштаб' : 'Barmoq bilan aylantiring · ikki barmoq — kattalashtirish')
+    : (ru ? 'Вращайте пальцем' : 'Barmoq bilan aylantiring');
+  document.getElementById('v3dHint').classList.toggle('loading', kind === 'loading');
+}
+async function v3dStartGL(p, colorSrc) {
+  const host = document.getElementById('v3dGLHost');
+  v3dSetHint('loading');
+  try {
+    const ok = await v3dGL.load(colorSrc, p.depth, host);
+    if (!ok || !document.getElementById('v3d').classList.contains('open') || currentDetailId !== p.id) { if (!ok) v3dSetHint('hand'); return; }
+    host.classList.add('on');
+    document.getElementById('v3dObj').style.opacity = '0';
+    v3dSetHint('gl');
+  } catch (e) {
+    console.warn('3D:', e && e.message);
+    v3dGL.dispose(); v3dSetHint('hand');
+  }
+}
 function close3dView() {
   document.getElementById('v3d').classList.remove('open');
+  v3dGL.dispose(); v3dGL.token++;
   cancelAnimationFrame(v3d.raf); v3dGyroOff(); v3d.drag = null;
 }
 function v3dTick(t) {
@@ -10339,31 +10506,38 @@ function v3dTick(t) {
   // Qo'l tegmasa — sekin o'z-o'zidan chayqaladi
   if (!v3d.drag && !v3d.gyro && t - v3d.idle > 1500) { v3d.ty = Math.sin(t / 1400) * 28; v3d.tx = Math.sin(t / 2100) * 6; }
   v3d.rx += (v3d.tx - v3d.rx) * 0.12; v3d.ry += (v3d.ty - v3d.ry) * 0.12;
-  document.getElementById('v3dObj').style.transform = 'rotateX(' + v3d.rx.toFixed(2) + 'deg) rotateY(' + v3d.ry.toFixed(2) + 'deg)';
-  document.getElementById('v3dShadow').style.transform = 'translateX(' + (v3d.ry * 1.6).toFixed(1) + 'px) scaleX(' + (1 - Math.abs(v3d.ry) / 160).toFixed(3) + ')';
+  v3d.zoom += (v3d.tzoom - v3d.zoom) * 0.15;
+  if (v3dGL.ready) { v3dGL.resize(); v3dGL.render(-v3d.rx, v3d.ry, v3d.zoom); }
+  else document.getElementById('v3dObj').style.transform = 'rotateX(' + v3d.rx.toFixed(2) + 'deg) rotateY(' + v3d.ry.toFixed(2) + 'deg)';
+  document.getElementById('v3dShadow').style.transform = 'translateX(' + (v3d.ry * 1.6).toFixed(1) + 'px) scale(' + ((1 - Math.abs(v3d.ry) / 160) * v3d.zoom).toFixed(3) + ',' + v3d.zoom.toFixed(3) + ')';
   const sheen = document.getElementById('v3dSheen');
   if (sheen) sheen.style.background = 'linear-gradient(' + (110 + v3d.ry * 2).toFixed(0) + 'deg, transparent 30%, rgba(255,255,255,' + (0.06 + Math.abs(v3d.ry) / 150).toFixed(3) + ') 50%, transparent 70%)';
   v3d.raf = requestAnimationFrame(v3dTick);
 }
 (function () {
   const clamp = (v, a) => Math.max(-a, Math.min(a, v));
+  const pdist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   const down = e => {
     if (!e.target.closest || !e.target.closest('#v3dStage')) return;
+    if (e.touches && e.touches.length === 2) { v3d.pinch = { d: pdist(e.touches), z: v3d.tzoom }; v3d.drag = null; return; }
     const pt = e.touches ? e.touches[0] : e;
     v3d.gyro = null; v3dGyroOff();
     v3d.drag = { x: pt.clientX, y: pt.clientY, rx: v3d.rx, ry: v3d.ry };
   };
   const move = e => {
+    if (v3d.pinch && e.touches && e.touches.length === 2) { v3d.tzoom = Math.max(0.7, Math.min(1.8, v3d.pinch.z * pdist(e.touches) / v3d.pinch.d)); if (e.cancelable) e.preventDefault(); return; }
     if (!v3d.drag) return;
     const pt = e.touches ? e.touches[0] : e;
-    v3d.ty = clamp(v3d.drag.ry + (pt.clientX - v3d.drag.x) * 0.35, 55);
+    v3d.ty = clamp(v3d.drag.ry + (pt.clientX - v3d.drag.x) * 0.35, 42);
     v3d.tx = clamp(v3d.drag.rx - (pt.clientY - v3d.drag.y) * 0.25, 30);
     if (e.cancelable) e.preventDefault();
   };
-  const up = () => { if (v3d.drag) { v3d.drag = null; v3d.idle = performance.now(); } };
+  const up = e => { if (e && e.touches && e.touches.length < 2) v3d.pinch = null; if (v3d.drag) { v3d.drag = null; v3d.idle = performance.now(); } };
+  const wheel = e => { if (!document.getElementById('v3d').classList.contains('open')) return; v3d.tzoom = Math.max(0.7, Math.min(1.8, v3d.tzoom * (e.deltaY < 0 ? 1.1 : 0.9))); e.preventDefault(); };
   const bind = () => {
     const el = document.getElementById('v3d'); if (!el) return;
     el.addEventListener('touchstart', down, { passive: true }); el.addEventListener('touchmove', move, { passive: false }); el.addEventListener('touchend', up);
+    el.addEventListener('wheel', wheel, { passive: false }); el.addEventListener('dblclick', () => { v3d.tzoom = 1; v3d.tx = v3d.ty = 0; });
     el.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
