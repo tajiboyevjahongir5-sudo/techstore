@@ -9691,8 +9691,8 @@ function getTopProducts() {
 function getBannerProducts() {
   const pool = [...products].filter(p => !isOutOfStock(p) && !bannerFailed.has(String(p.id)) && p.banner)
     .sort((a, b) => ((b.discount > 0) - (a.discount > 0)) || ((b.sold || 0) - (a.sold || 0)) || (b.id - a.id));
-  const ready = pool.filter(p => p.bannerReady);
-  return [...ready, ...pool.filter(p => !p.bannerReady)].slice(0, 5);
+  // Faqat fonsiz rasmi serverda TAYYOR bo'lganlar — tayyorlanayotgan mahsulot bo'sh slayd bo'lib chiqmasin
+  return pool.filter(p => p.bannerReady).slice(0, 5);
 }
 
 function buildSlides() {
@@ -9726,7 +9726,7 @@ function buildSlides() {
     const slideImgSrc = candidates[0];
     const imgHtml = slideImgSrc
       ? `<div class="slide-img">
-           <img src="${slideImgSrc}" alt="${p.name}" data-fallbacks="${escText(JSON.stringify(candidates.slice(1)))}" data-photo="${escText((p.images && p.images[0]) || p.image || '')}" onerror="slideImgFallback(this)">
+           <img src="${slideImgSrc}" alt="${p.name}" onload="this.dataset.ok='1'" data-fallbacks="${escText(JSON.stringify(candidates.slice(1)))}" data-photo="${escText((p.images && p.images[0]) || p.image || '')}" onerror="slideImgFallback(this)">
            <div class="slide-img-fallback" style="display:none;font-size:64px;justify-content:center;align-items:center;width:100%;height:100%">${fallbackEmoji}</div>
            <div class="slide-shadow"></div>
          </div>`
@@ -9757,6 +9757,9 @@ function buildSlides() {
       </div>
       ${imgHtml}`;
     slide.addEventListener('click', () => { openDetail(p.id); });
+    // Rasm 8 soniyada yuklanmasa — bu mahsulotni bannerdan olamiz (bo'sh slayd turmasin)
+    const sImg = slide.querySelector('.slide-img img');
+    if (sImg) setTimeout(() => { if (!sImg.dataset.ok && sImg.isConnected && !(sImg.complete && sImg.naturalWidth)) { sImg.dataset.fallbacks = '[]'; slideImgFallback(sImg); } }, 8000);
     banner.insertBefore(slide, dotsEl);
 
     // dot

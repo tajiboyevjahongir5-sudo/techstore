@@ -1257,7 +1257,7 @@ function bannerKey(p) {
   const ck = cutoutKey(p);
   const src = p.bannerImage || defaultBanner(p);
   if (!src && !ck) return null;
-  return { src, key: `${p.id}_b${crypto.createHash('sha1').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
+  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v2').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
 }
 function ffRaw(args, input) {
   return new Promise((resolve, reject) => {
@@ -1281,7 +1281,7 @@ async function alphaInfo(buf) {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const a = px[(y * N + x) * 4 + 3];
     if (a < 16) clear++;
-    else if (a > 100) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    else if (a > 190) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   }
   const corner = (x, y) => px[(y * N + x) * 4 + 3] < 16;
   const corners = [corner(0, 0), corner(N - 1, 0), corner(0, N - 1), corner(N - 1, N - 1)].filter(Boolean).length;
@@ -1291,8 +1291,9 @@ async function transparentToWebp(buf, box) {
   const pad = 0.03;
   const [bx0, by0, bx1, by1] = [Math.max(0, box[0] - pad), Math.max(0, box[1] - pad), Math.min(1, box[2] + pad), Math.min(1, box[3] + pad)];
   return ffRaw(['-i', 'pipe:0', '-frames:v', '1', '-vf',
-    `format=rgba,crop=iw*${(bx1 - bx0).toFixed(4)}:ih*${(by1 - by0).toFixed(4)}:iw*${bx0.toFixed(4)}:ih*${by0.toFixed(4)},scale='min(900,iw)':'min(900,ih)':force_original_aspect_ratio=decrease`,
-    '-c:v', 'libwebp', '-lossless', '0', '-quality', '86', '-f', 'webp', 'pipe:1'], buf);
+    // Yarim shaffof "arvoh" qismlar (aks, xira soya, ikkinchi xira ko'rinish) olib tashlanadi, chetlar silliq qoladi
+    `format=rgba,lutrgb=a='clip((val-120)*255/90\\,0\\,255)',crop=iw*${(bx1 - bx0).toFixed(4)}:ih*${(by1 - by0).toFixed(4)}:iw*${bx0.toFixed(4)}:ih*${by0.toFixed(4)},scale='min(1000,iw)':'min(1000,ih)':force_original_aspect_ratio=decrease`,
+    '-c:v', 'libwebp', '-lossless', '0', '-quality', '92', '-f', 'webp', 'pipe:1'], buf);
 }
 const BANNER_PASS = 7;
 const bannerMetaPath = k => path.join(CUTOUT_DIR, k.key + '.json');
