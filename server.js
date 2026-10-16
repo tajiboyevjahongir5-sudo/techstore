@@ -2010,6 +2010,7 @@ const botFeatures = createBotFeatures({
   getChannel: () => SHOP_CHANNEL,
   getAssistantContact: () => assistant.publicContact(),
   welcomeImagePath: path.join(__dirname, 'welcome.jpg'),
+  getBackupData: () => firebaseGet(''),
 });
 
 for (const fn of ['addReview', 'deleteReview']) {
@@ -2314,7 +2315,7 @@ function initializeTelegramBot() {
       const chatId = msg.chat.id;
       bot.sendMessage(chatId,
         `📋 <b>Buyruqlar:</b>\n\n/start — Do'konni ochish\n/buyurtmalarim — Buyurtmalarim va ularning holati\n/help — Yordam` +
-        (ADMIN_IDS.includes(String(msg.from?.id)) ? `\n\n👑 <b>Admin:</b>\n/admin — Admin panel\n/hisobot — Bugungi hisobot\n/reklama — Hammaga xabar yuborish` : '') +
+        (ADMIN_IDS.includes(String(msg.from?.id)) ? `\n\n👑 <b>Admin:</b>\n/admin — Admin panel\n/hisobot — Bugungi hisobot\n/reklama — Hammaga xabar yuborish\n/backup — Zaxira nusxa` : '') +
         `\n\nSavollar bo'lsa, do'kon yordamchisiga yozing — u 24/7 javob beradi 💬`,
         { parse_mode: 'HTML' }
       );

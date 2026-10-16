@@ -35,7 +35,7 @@ function createBotFeatures(deps) {
   const {
     firebaseGet, firebasePatch, firebaseDelete, getProducts, updateProduct,
     escHtml, fmtSom, getBot, getAdminIds, getAppUrl, getChannel, getAssistantContact,
-    welcomeImagePath,
+    welcomeImagePath, getBackupData,
   } = deps;
 
   const states = new Map();          // chatId -> { type, ... }
@@ -311,6 +311,45 @@ function createBotFeatures(deps) {
     return { ok, fail };
   }
 
+  // ---------- Kunlik zaxira nusxa ----------
+  async function sendBackup(chatIds) {
+    const b = bot();
+    if (!b || !getBackupData) return false;
+    const zlib = require('zlib');
+    const data = (await getBackupData()) || {};
+    // Bot API fayl chegarasi 50 MB — oshsa, rasmlarsiz nusxa yuboriladi
+    let json = JSON.stringify(data);
+    let gz = zlib.gzipSync(json, { level: 9 });
+    let note = '';
+    if (gz.length > 45e6) {
+      json = JSON.stringify(data, (k, v) => (typeof v === 'string' && v.startsWith('data:image/')) ? '[rasm]' : v);
+      gz = zlib.gzipSync(json, { level: 9 });
+      note = '\n⚠️ Hajm katta bo\'lgani uchun rasmlarsiz nusxa.';
+    }
+    const t = tashkentDate();
+    const counts = ['products', 'orders', 'users', 'reviews'].map(k => {
+      const v = data[k];
+      const n = Array.isArray(v) ? v.filter(Boolean).length : (v && typeof v === 'object' ? Object.keys(v).length : 0);
+      return `${k}: ${n}`;
+    }).join(' · ');
+    const caption = `💾 TechStore zaxira nusxasi — ${fmtDate(Date.now())}\n${counts}\nHajmi: ${(gz.length / 1024 / 1024).toFixed(2)} MB${note}`;
+    for (const id of chatIds) {
+      await b.sendDocument(id, gz, { caption }, { filename: `techstore-backup-${t.key}.json.gz`, contentType: 'application/gzip' }).catch(e => console.warn('Zaxira nusxani yuborib bo\'lmadi:', e.message));
+    }
+    return true;
+  }
+
+  let lastBackupKey = null;
+  async function maybeDailyBackup() {
+    const t = tashkentDate();
+    if (t.h !== 3 || !bot() || !getAdminIds().length) return;
+    if (!lastBackupKey) lastBackupKey = (await firebaseGet('meta/lastBackup')) || '';
+    if (lastBackupKey === t.key) return;
+    lastBackupKey = t.key;
+    await firebasePatch('meta', { lastBackup: t.key });
+    await sendBackup(getAdminIds());
+  }
+
   // ---------- Kunlik hisobot ----------
   async function buildReport() {
     const [orders, users] = await Promise.all([firebaseGet('orders').then(o => o || {}), firebaseGet('users').then(u => u || {})]);
@@ -504,6 +543,7 @@ function createBotFeatures(deps) {
         { command: 'admin', description: 'Admin panel' },
         { command: 'hisobot', description: 'Bugungi hisobot' },
         { command: 'reklama', description: 'Hammaga xabar yuborish' },
+        { command: 'backup', description: 'Zaxira nusxa (hozir)' },
       ], { scope: JSON.stringify({ type: 'chat', chat_id: Number(id) }) }).catch(() => {});
     }
   }
@@ -522,6 +562,11 @@ function createBotFeatures(deps) {
     if (cmd === '/buyurtmalarim' || cmd === '/orders') { await sendMyOrders(msg.chat.id, msg.from.id); return true; }
     if (cmd === '/hisobot' && isAdmin(msg.from.id)) { await sendReport([msg.chat.id]); return true; }
     if (cmd === '/reklama' && isAdmin(msg.from.id)) { await startBroadcast(msg.chat.id); return true; }
+    if (cmd === '/backup' && isAdmin(msg.from.id)) {
+      await b.sendMessage(msg.chat.id, '💾 Zaxira nusxa tayyorlanmoqda...');
+      await sendBackup([msg.chat.id]);
+      return true;
+    }
 
     const cur = states.get(chatId);
     if (!cur) return false;
@@ -566,6 +611,7 @@ function createBotFeatures(deps) {
     setInterval(async () => {
       minuteTick++;
       try { await maybeDailyReport(); } catch (e) { console.warn('Kunlik hisobot xatosi:', e.message); }
+      try { await maybeDailyBackup(); } catch (e) { console.warn('Zaxira nusxa xatosi:', e.message); }
       if (minuteTick % 60 === 5) {
         try { await sweepCarts(); } catch (e) { console.warn('Savat eslatmasi xatosi:', e.message); }
         try { await sweepUnshipped(); } catch (e) { console.warn('Jo\'natish eslatmasi xatosi:', e.message); }
@@ -575,7 +621,7 @@ function createBotFeatures(deps) {
 
   return {
     sendWelcome, sendMyOrders, sendArrivedPrompt, handleMessage, handleCallback, setCommands,
-    syncUserData, onProductUpdated, listReviews, reviewPhoto, startSchedulers,
+    sendBackup, syncUserData, onProductUpdated, listReviews, reviewPhoto, startSchedulers,
     addReview, markDelivered, listAllReviews, deleteReview, broadcastText, STATUS_LABELS,
     _internals: { buildReport, sweepCarts, sweepUnshipped, maybeDailyReport, states },
   };
