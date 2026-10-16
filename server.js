@@ -1287,12 +1287,15 @@ function defaultBanner(p) {
   const d = DEFAULT_BANNERS[p.id];
   return d && String(p.name || '').trim().toLowerCase() === d[0].toLowerCase() ? d[1] : '';
 }
-const { removeUniformBackground, splitCollage } = require('./cutout');
+const { removeUniformBackground: _rub, splitCollage } = require('./cutout');
+// Oq fon usuli + AI niqobi (alohida jarayonda) bilan tekshiriladi
+const aiMask = async png => (await runCutoutWorker(png, 'mask')).buffer;
+const removeUniformBackground = input => _rub(input, { aiMask });
 function bannerKey(p) {
   const ck = cutoutKey(p);
   const src = p.bannerImage || defaultBanner(p);
   if (!src && !ck) return null;
-  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v4').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
+  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v5').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
 }
 function ffRaw(args, input) {
   return new Promise((resolve, reject) => {
@@ -1312,22 +1315,25 @@ async function alphaInfo(buf) {
   const N = 64;
   const px = await ffRaw(['-i', 'pipe:0', '-frames:v', '1', '-vf', `scale=${N}:${N},format=rgba`, '-f', 'rawvideo', 'pipe:1'], buf);
   if (px.length < N * N * 4) return null;
-  let clear = 0, x0 = N, y0 = N, x1 = -1, y1 = -1;
+  let clear = 0, x0 = N, y0 = N, x1 = -1, y1 = -1, vis = 0, solid = 0;
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const a = px[(y * N + x) * 4 + 3];
+    if (a >= 16) vis++; if (a >= 150) solid++;
     if (a < 16) clear++;
     else if (a > 190) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   }
   const corner = (x, y) => px[(y * N + x) * 4 + 3] < 16;
   const corners = [corner(0, 0), corner(N - 1, 0), corner(0, N - 1), corner(N - 1, N - 1)].filter(Boolean).length;
-  return { transparent: clear / (N * N) > 0.08 && corners >= 3 && x1 > x0, box: [x0 / N, y0 / N, (x1 + 1) / N, (y1 + 1) / N] };
+  return { transparent: clear / (N * N) > 0.08 && corners >= 3 && x1 > x0, box: [x0 / N, y0 / N, (x1 + 1) / N, (y1 + 1) / N], solid: vis ? solid / vis : 1 };
 }
-async function transparentToWebp(buf, box) {
+async function transparentToWebp(buf, box, solid = 1) {
   const pad = 0.03;
+  // Mahsulotning o'zi ko'p yarim shaffof bo'lsa (kumush/shisha) — faqat juda xira qoldiqlar olinadi, aks holda "arvoh"lar ham
+  const lut = solid < 0.85 ? `clip((val-24)*255/60\\,0\\,255)` : `clip((val-120)*255/90\\,0\\,255)`;
   const [bx0, by0, bx1, by1] = [Math.max(0, box[0] - pad), Math.max(0, box[1] - pad), Math.min(1, box[2] + pad), Math.min(1, box[3] + pad)];
   return ffRaw(['-i', 'pipe:0', '-frames:v', '1', '-vf',
     // Yarim shaffof "arvoh" qismlar (aks, xira soya, ikkinchi xira ko'rinish) olib tashlanadi, chetlar silliq qoladi
-    `format=rgba,lutrgb=a='clip((val-120)*255/90\\,0\\,255)',crop=iw*${(bx1 - bx0).toFixed(4)}:ih*${(by1 - by0).toFixed(4)}:iw*${bx0.toFixed(4)}:ih*${by0.toFixed(4)},scale='min(1000,iw)':'min(1000,ih)':force_original_aspect_ratio=decrease`,
+    `format=rgba,lutrgb=a='${lut}',crop=iw*${(bx1 - bx0).toFixed(4)}:ih*${(by1 - by0).toFixed(4)}:iw*${bx0.toFixed(4)}:ih*${by0.toFixed(4)},scale='min(1000,iw)':'min(1000,ih)':force_original_aspect_ratio=decrease`,
     '-c:v', 'libwebp', '-lossless', '0', '-quality', '92', '-f', 'webp', 'pipe:1'], buf);
 }
 const BANNER_PASS = 7;
@@ -1367,7 +1373,7 @@ async function getBannerImage(p) {
               if (!v || v.score >= BANNER_PASS) return save(buffer, { ok: true, from: 'banner-white', score: v?.score ?? null, issues: v?.issues });
             }
             const info = await alphaInfo(src).catch(() => null);
-            if (info && info.transparent) return save(await transparentToWebp(src, info.box), { ok: true, from: 'banner' });
+            if (info && info.transparent) return save(await transparentToWebp(src, info.box, info.solid), { ok: true, from: 'banner' });
             const r = await runCutoutWorker(src);
             if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) throw new Error('banner rasmida mahsulot aniq ajralmadi');
             const v = await judgeCutout(r.buffer, p);
@@ -1433,7 +1439,10 @@ async function judgeCutout(buf, p) {
 
 // Oq fon usuli ikki variant beradi (ichki "teshik"lar bilan/siz) — Gemini yaxshisini tanlaydi
 async function pickUniform(ub, p) {
-  const a = await judgeCutout(ub.buffer, p);
+  if (ub.ai) console.log(`🖼 Banner (${p.id}) oq fon + AI: tiklandi ${ub.ai.restored}, olindi ${ub.ai.removed}, teshik ${ub.ai.autoHoles}, moslik ${ub.ai.agree}`);
+  let a = await judgeCutout(ub.buffer, p);
+  // Gemini yo'q bo'lsa — AI niqobi bilan moslik juda past natija sifatsiz deb hisoblanadi (bannerga chiqmaydi)
+  if (!a && ub.ai && ub.ai.agree != null && ub.ai.agree < 0.55) a = { score: 4, issues: `AI niqobi bilan mos emas (${ub.ai.agree})` };
   if (!ub.holesBuffer || !a) return { buffer: ub.buffer, v: a };
   const b = await judgeCutout(ub.holesBuffer, p);
   return b && b.score > a.score ? { buffer: ub.holesBuffer, v: b } : { buffer: ub.buffer, v: a };

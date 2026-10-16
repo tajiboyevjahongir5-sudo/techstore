@@ -112,6 +112,27 @@ async function removeBackground(input, { maxSide = 1000 } = {}) {
   return p;
 }
 
+// AI "mahsulot ehtimoli" niqobi (320×320, 0–255) — oq fon usulini tekshirish uchun: rasm butunligicha cho'zilgan holda
+async function saliency(input) {
+  const run = async () => {
+    const { ort, session } = await getSession();
+    const rgb = await ffmpeg(['-i', 'pipe:0', '-frames:v', '1', '-vf', `scale=${SIZE}:${SIZE},format=rgb24`, '-f', 'rawvideo', 'pipe:1'], input);
+    if (rgb.length < SIZE * SIZE * 3) throw new Error("rasmni o'qib bo'lmadi");
+    const data = new Float32Array(3 * SIZE * SIZE);
+    for (let i = 0; i < SIZE * SIZE; i++) for (let c = 0; c < 3; c++) data[c * SIZE * SIZE + i] = (rgb[i * 3 + c] / 255 - MEAN[c]) / STD[c];
+    const out = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', data, [1, 3, SIZE, SIZE]) });
+    const pred = out[session.outputNames[0]].data;
+    let mn = Infinity, mx = -Infinity;
+    for (let i = 0; i < pred.length; i++) { if (pred[i] < mn) mn = pred[i]; if (pred[i] > mx) mx = pred[i]; }
+    const range = mx - mn || 1, mask = Buffer.alloc(SIZE * SIZE);
+    for (let i = 0; i < mask.length; i++) mask[i] = Math.round(Math.min(1, Math.max(0, (pred[i] - mn) / range)) * 255);
+    return { buffer: mask, coverage: null };
+  };
+  const p = queue.then(run, run);
+  queue = p.catch(() => {});
+  return p;
+}
+
 // ===== HAJM XARITASI ("3D" model uchun) =====
 // Depth Anything V2 Small (int8, 35 MB) fonsiz rasmdan chuqurlik xaritasini taxmin qiladi.
 // Unga mahsulot siluetidan hisoblangan "yumaloqlash" qo'shiladi — chekkalar nolga tushadi,
@@ -334,7 +355,7 @@ async function splitViews(rgba, w, h) {
 // mahsulot ichidagi oq qismlar (ekran, korpus) saqlanadi, chunki ular chetga ulanmagan.
 // Fon bir xil bo'lmasa (xona, tutun, rang-barang) — null (unda AI ishlatiladi).
 const UB = 1000;
-async function removeUniformBackground(input, { split = false } = {}) {
+async function removeUniformBackground(input, { split = false, aiMask = null } = {}) {
   const rgba = await ffmpeg(['-i', 'pipe:0', '-frames:v', '1', '-vf',
     `format=rgba,scale=${UB}:${UB}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${UB}:${UB}:-1:-1:color=0x00000000,format=rgba`,
     '-f', 'rawvideo', 'pipe:1'], input);
@@ -393,6 +414,36 @@ async function removeUniformBackground(input, { split = false } = {}) {
     }
   }
   let visible0 = 0; for (let i = 0; i < N; i++) if (A(i) >= 40) visible0++;
+  // AI niqobi bilan tekshirish: (1) mahsulotning och/kumush qismi fon deb o'chib ketgan bo'lsa — AI aniq "mahsulot"
+  // degan joylar tiklanadi (soat korpusi "titilib" qolmaydi); (2) qolgan och tekis joyni AI aniq "fon" desa —
+  // u ham olib tashlanadi (quloqchin halqasi ichidagi oq dog'). Niqob bo'lmasa — avvalgidek.
+  let ai = null, fix = { restored: 0, removed: 0, agree: null };
+  if (aiMask && !split) {
+    try {
+      const flat = await ffmpeg(['-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${UB}x${UB}`, '-i', 'pipe:0', '-f', 'lavfi', '-i', `color=c=white:s=${UB}x${UB}`,
+        '-filter_complex', '[1][0]overlay=format=auto,format=rgb24', '-frames:v', '1', '-f', 'image2pipe', '-c:v', 'png', 'pipe:1'], rgba);
+      const m = await aiMask(flat);
+      if (m && m.length >= 320 * 320) ai = m;
+    } catch (_) { ai = null; }
+  }
+  if (ai) {
+    const S = 320, R = 2;
+    const lo = Buffer.alloc(S * S), hi = Buffer.alloc(S * S);   // eroziya (aniq mahsulot) va kengaytirish (aniq fon)
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      let a = 255, b = 0;
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const v = ai[Math.min(S - 1, Math.max(0, y + dy)) * S + Math.min(S - 1, Math.max(0, x + dx))];
+        if (v < a) a = v; if (v > b) b = v;
+      }
+      lo[y * S + x] = a; hi[y * S + x] = b;
+    }
+    const at = (buf, i) => { const x = i % UB, y = (i / UB) | 0; return buf[Math.min(S - 1, (y * S / UB) | 0) * S + Math.min(S - 1, (x * S / UB) | 0)]; };
+    for (let i = 0; i < N; i++) {
+      if (A(i) < 200) continue;
+      if (isBg[i]) { if (at(lo, i) > 200) { isBg[i] = 0; fix.restored++; } }
+      else if (bgLike(i) && at(hi, i) < 30) { isBg[i] = 1; fix.removed++; }
+    }
+  }
   for (let i = 0; i < N; i++) if (isBg[i]) rgba[i * 4 + 3] = 0;
   if (split) return splitViews(rgba, UB, UB);
   keepMainObject(rgba, UB, UB);
@@ -415,7 +466,7 @@ async function removeUniformBackground(input, { split = false } = {}) {
   const webp = await encode(rgba);
   // Mahsulot bilan o'ralgan ichki "teshik"lar (quloqchin halqasi, ruchka orasi) — fonga o'xshash tekis och joylar.
   // Bu mahsulotning oq qismi ham bo'lishi mumkin, shuning uchun alohida variant: qaysi biri yaxshi — tekshiruvchi tanlaydi.
-  let holesBuffer = null;
+  let holesBuffer = null, autoHoles = 0;
   {
     const lum = i => 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
     const cand = i => rgba[i * 4 + 3] > 200 && Math.max(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) > 160 && Math.max(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) - Math.min(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) < 28;
@@ -436,13 +487,42 @@ async function removeUniformBackground(input, { split = false } = {}) {
       if (!ok || n < N * 0.0015 || sd > 8) continue;
       for (const i of comp) copy[i * 4 + 3] = 0;
       found++;
+      // AI ham "fon" desa (o'rtacha ehtimol past) — bu aniq teshik, asosiy natijada ham olib tashlanadi
+      if (ai) {
+        let t = 0; for (const i of comp) { const x = i % UB, y = (i / UB) | 0; t += ai[Math.min(319, (y * 320 / UB) | 0) * 320 + Math.min(319, (x * 320 / UB) | 0)]; }
+        if (t / n < 110) {
+          for (const i of comp) rgba[i * 4 + 3] = 0;
+          // Teshik chetidagi och "hoshiya" (silliqlangan o'tish piksellari) ham olinadi
+          for (const i of comp) {
+            const x = i % UB, y = (i / UB) | 0;
+            for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+              const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= UB || yy >= UB) continue;
+              const j = yy * UB + xx; if (!rgba[j * 4 + 3]) continue;
+              const mx = Math.max(rgba[j * 4], rgba[j * 4 + 1], rgba[j * 4 + 2]), mn = Math.min(rgba[j * 4], rgba[j * 4 + 1], rgba[j * 4 + 2]);
+              if (mx > 120 && mx - mn < 30) rgba[j * 4 + 3] = 0;
+            }
+          }
+          autoHoles++;
+        }
+      }
     }
     if (found) holesBuffer = await encode(copy);
   }
-  return { buffer: webp, holesBuffer, coverage: solid / N, bg };
+  const buffer = autoHoles ? await encode(rgba) : webp;
+  // AI bilan qanchalik mos (IoU): juda past bo'lsa — natija shubhali
+  if (ai) {
+    let inter = 0, uni = 0;
+    for (let i = 0; i < N; i++) {
+      const x = i % UB, y = (i / UB) | 0;
+      const a = rgba[i * 4 + 3] > 128, b = ai[Math.min(319, (y * 320 / UB) | 0) * 320 + Math.min(319, (x * 320 / UB) | 0)] > 128;
+      if (a && b) inter++; if (a || b) uni++;
+    }
+    fix.agree = uni ? +(inter / uni).toFixed(3) : null;
+  }
+  return { buffer, holesBuffer: autoHoles ? null : holesBuffer, coverage: solid / N, bg, ai: ai ? { ...fix, autoHoles } : null };
 }
 
 // Kollaj bo'lsa — ko'rinishlar ro'yxati (≥2), aks holda null
 async function splitCollage(input) { return removeUniformBackground(input, { split: true }); }
 
-module.exports = { removeBackground, removeUniformBackground, splitCollage, heightMap, available: () => !!FFMPEG };
+module.exports = { removeBackground, removeUniformBackground, saliency, splitCollage, heightMap, available: () => !!FFMPEG };
