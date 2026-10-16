@@ -164,6 +164,9 @@ function productSummary(p) {
     stock: (p.stock === null || p.stock === undefined || p.stock === '') ? 'cheklanmagan' : Number(p.stock),
     sold: p.sold || 0,
     discount_until: p.discountUntil ? new Date(p.discountUntil).toISOString() : undefined,
+    variants: Array.isArray(p.variants) && p.variants.length
+      ? p.variants.map(v => ({ variant_id: v.id, name: v.name, price: v.price, stock: (v.stock === null || v.stock === undefined) ? 'cheklanmagan' : v.stock }))
+      : undefined,
   };
 }
 
@@ -220,6 +223,17 @@ const SPECS_SCHEMA = {
     type: 'object',
     properties: { name: { type: 'string' }, value: { type: 'string' } },
     required: ['name', 'value'],
+    additionalProperties: false,
+  },
+};
+
+const VARIANTS_SCHEMA = {
+  type: 'array',
+  description: "Variantlar (rang, xotira hajmi): har birining nomi, narxi va ombordagi soni. Masalan [{name:'256GB Qora', price:18500000, stock:3}]",
+  items: {
+    type: 'object',
+    properties: { name: { type: 'string' }, price: { type: 'integer' }, stock: { type: 'integer' } },
+    required: ['name', 'price'],
     additionalProperties: false,
   },
 };
@@ -434,6 +448,7 @@ const TOOL_DEFS = {
         image_ids: { type: 'array', items: { type: 'string' }, description: 'Rasm ID lari (max 5), birinchisi asosiy rasm' },
         emoji: { type: 'string', description: "Rasm bo'lmasa ko'rsatiladigan emoji" },
         stock: { type: 'integer', description: "Omborda nechta bor (admin aytsa). Aytilmasa yuborma — cheklanmagan bo'ladi." },
+        variants: VARIANTS_SCHEMA,
         discount_until: { type: 'string', description: "Chegirma tugash vaqti ISO formatda (masalan 2026-10-20T23:59:00+05:00), admin aytsa" },
       },
       required: ['name', 'brand', 'price', 'category', 'description'],
@@ -457,6 +472,7 @@ const TOOL_DEFS = {
         image_ids: { type: 'array', items: { type: 'string' } },
         add_image_ids: { type: 'array', items: { type: 'string' } },
         stock: { type: 'integer', description: "Ombordagi yangi soni; -1 — cheklanmagan qilish" },
+        variants: VARIANTS_SCHEMA,
         discount_until: { type: 'string', description: "Chegirma tugash vaqti ISO formatda; bo'sh satr — muddatsiz qilish" },
       },
       required: ['id'],
@@ -1347,6 +1363,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
           image: images[0] || null,
           images,
           stock: Number.isInteger(input.stock) && input.stock >= 0 ? input.stock : null,
+          variants: Array.isArray(input.variants) && input.variants.length ? input.variants : null,
           discountUntil: input.discount_until ? Date.parse(input.discount_until) || null : null,
         });
         if (result.error) return result;
@@ -1365,6 +1382,11 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         if (input.category) patch.cat = input.category;
         if (input.description) patch.desc = input.description;
         if (Number.isInteger(input.stock)) patch.stock = input.stock < 0 ? null : input.stock;
+        if (Array.isArray(input.variants)) {
+          // Mavjud variant ID lari nom bo'yicha saqlanadi (savatdagilar buzilmasin)
+          const old = Array.isArray(existing.variants) ? existing.variants : [];
+          patch.variants = input.variants.map(v => ({ ...v, id: (old.find(o => String(o.name).toLowerCase() === String(v.name).toLowerCase()) || {}).id }));
+        }
         if (typeof input.discount_until === 'string') patch.discountUntil = input.discount_until ? (Date.parse(input.discount_until) || null) : null;
         const specs = specsFromInput(input.specs);
         if (specs) patch.specs = specs;

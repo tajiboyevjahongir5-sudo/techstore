@@ -2565,6 +2565,17 @@ input[type="datetime-local"].form-input { min-width: 0; width: 100%; font-size: 
 .form-row .form-input { min-width: 0; width: 100%; }
 .cart-item-price { white-space: nowrap; }
 #profile { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+.pd-variants { margin: -2px 0 16px; }
+.pd-variants-title { font-size: 12px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
+.pd-variant-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pd-variant { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 13px; border-radius: 14px; border: 1.5px solid var(--glass-border); background: #161a58; color: var(--text); font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all .2s; min-width: 92px; }
+.pd-variant b { font-size: 13px; font-weight: 700; }
+.pd-variant small { font-size: 11px; color: var(--text2); font-weight: 600; }
+.pd-variant.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, #161a58); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.pd-variant.on small { color: #c7d2fe; }
+.pd-variant.out { opacity: .5; }
+.pd-variant.out small { color: var(--red); }
+.cart-item-variant { font-size: 11px; color: var(--accent); font-weight: 700; margin-top: 2px; }
 .detail-add-btn.is-out { filter: none; opacity: 1; background: linear-gradient(135deg, #f59e0b, #f97316) !important; box-shadow: 0 6px 18px rgba(249,115,22,0.35) !important; }
 .pd-stock { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 10px; margin: -6px 0 14px; }
 .pd-stock.out { background: rgba(245,91,91,0.12); color: var(--red); }
@@ -4112,6 +4123,10 @@ body.modal-open {
         </div>
         <div class="pd-countdown" id="pdCountdown" style="display:none"></div>
       </div>
+      <div class="pd-variants" id="pdVariants" style="display:none">
+        <div class="pd-variants-title">Variantni tanlang</div>
+        <div class="pd-variant-chips" id="pdVariantChips"></div>
+      </div>
       <div class="pd-stock" id="pdStock" style="display:none"></div>
 
       <div class="pd-perks pd-anim" style="--d:5">
@@ -4773,6 +4788,7 @@ body.modal-open {
       </div>
       <div class="form-group"><label class="form-label"><i class="ti ti-discount-2" style="color:var(--accent);margin-right:6px"></i>Chegirma (%)</label><input class="form-input" type="number" placeholder="0" id="prodDiscount" min="0" max="99"></div>
       <div class="form-group"><label class="form-label"><i class="ti ti-clock" style="color:var(--accent);margin-right:6px"></i>Chegirma tugash vaqti (ixtiyoriy)</label><input class="form-input" type="datetime-local" id="prodDiscUntil"></div>
+      <div class="form-group"><label class="form-label"><i class="ti ti-category" style="color:var(--accent);margin-right:6px"></i>Variantlar (ixtiyoriy)</label><textarea class="form-input as-textarea" id="prodVariants" rows="3" placeholder="Har qatorda: nomi | narx | soni&#10;256GB Qora | 18500000 | 3&#10;512GB Oq | 21000000 | 1"></textarea><div class="as-hint">Rang yoki xotira hajmi bo'yicha. Soni bo'sh — cheklanmagan.</div></div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeAddModal()">Bekor</button>
         <button class="btn-save" id="saveProductBtn" onclick="saveProduct()">Saqlash</button>
@@ -4992,6 +5008,7 @@ body.modal-open {
       </div>
       <div class="form-group"><label class="form-label"><i class="ti ti-package" style="color:var(--accent);margin-right:6px"></i>Omborda (dona)</label><input class="form-input" type="number" min="0" placeholder="bo'sh — cheklanmagan" id="editStock"></div>
       <div class="form-group"><label class="form-label"><i class="ti ti-clock" style="color:var(--accent);margin-right:6px"></i>Chegirma tugash vaqti (ixtiyoriy)</label><input class="form-input" type="datetime-local" id="editDiscUntil"></div>
+      <div class="form-group"><label class="form-label"><i class="ti ti-category" style="color:var(--accent);margin-right:6px"></i>Variantlar (ixtiyoriy)</label><textarea class="form-input as-textarea" id="editVariants" rows="3" placeholder="Har qatorda: nomi | narx | soni&#10;256GB Qora | 18500000 | 3"></textarea><div class="as-hint">Bo'sh qoldirsangiz variantlar o'chiriladi.</div></div>
       <div class="form-group"><label class="form-label"><i class="ti ti-file-description" style="color:var(--accent);margin-right:6px"></i>Tavsif</label><input class="form-input" id="editDesc"></div>
       <div class="form-group">
         <label class="form-label"><i class="ti ti-photo" style="color:var(--accent);margin-right:6px"></i>Rasmlar (max 5 ta)</label>
@@ -5766,7 +5783,8 @@ function renderProducts(list, opts = {}) {
   const stagger = opts.quick ? 0.02 : 0.045;
   list.forEach((p, idx) => {
     const isFav = favorites.has(p.id);
-    const priceStr = formatPriceHTML(p.price);
+    const minVar = hasVariants(p) ? Math.min(...p.variants.map(v => Number(v.price) || p.price)) : null;
+    const priceStr = minVar ? `${formatPriceHTML(minVar)}<small style="font-size:9px;color:var(--text3);margin-left:3px">dan</small>` : formatPriceHTML(p.price);
     const oldPrice = p.discount > 0 ? Math.round(p.price / (1 - p.discount/100)) : null;
     const oldPriceStr = oldPrice ? formatPriceHTML(oldPrice) : null;
     const card = document.createElement('div');
@@ -5865,8 +5883,20 @@ function applyFilterState(list, f = filterState) {
   return out.slice().sort((a, b) => (isOutOfStock(a) ? 1 : 0) - (isOutOfStock(b) ? 1 : 0));
 }
 
-function isOutOfStock(p) {
-  return p && p.stock !== undefined && p.stock !== null && p.stock !== '' && Number(p.stock) <= 0;
+function hasVariants(p) { return !!(p && Array.isArray(p.variants) && p.variants.length); }
+function variantOf(p, vid) { return vid && hasVariants(p) ? p.variants.find(v => String(v.id) === String(vid)) || null : null; }
+function stockOf(p, vid) {
+  const v = variantOf(p, vid);
+  const s = v ? v.stock : p.stock;
+  return (s === null || s === undefined || s === '') ? null : Number(s);
+}
+function cartKey(id, variant) { return variant ? `${id}::${variant}` : String(id); }
+function itemKey(c) { return cartKey(c.id, c.variant); }
+function isOutOfStock(p, vid) {
+  if (!p) return false;
+  if (vid) { const st = stockOf(p, vid); return st !== null && st <= 0; }
+  if (hasVariants(p)) return p.variants.every(v => v.stock !== null && v.stock !== undefined && v.stock !== '' && Number(v.stock) <= 0);
+  return p.stock !== undefined && p.stock !== null && p.stock !== '' && Number(p.stock) <= 0;
 }
 
 function updateFilterBadge() {
@@ -6112,6 +6142,7 @@ function fillDetailInfo(p, allImgs) {
     document.getElementById('pdBarOld').textContent = '';
   }
   startDiscountCountdown(p);
+  renderVariantChips(p);
 
   // Ombordagi soni
   const stockEl = document.getElementById('pdStock');
@@ -6214,8 +6245,10 @@ function toggleDescMore() {
 function updateDetailCartBtn() {
   const btn = document.getElementById('pdAddBtn');
   if (!btn) return;
-  const inCart = cart.some(c => c.id === currentDetailId);
-  const out = isOutOfStock(products.find(x => x.id === currentDetailId));
+  const dp = products.find(x => x.id === currentDetailId);
+  const dvid = hasVariants(dp) ? selectedVariantId : null;
+  const inCart = cart.some(c => itemKey(c) === cartKey(currentDetailId, dvid));
+  const out = isOutOfStock(dp, dvid);
   btn.classList.toggle('in-cart', inCart);
   btn.classList.toggle('is-out', out && !inCart);
   const waiting = out && waitlistIds.has(currentDetailId);
@@ -6240,6 +6273,52 @@ async function subscribeWaitlist(p) {
   } catch (e) {
     showToast(e.message, '✗', 'var(--red)');
   }
+}
+
+// ===== VARIANTLAR (rang / xotira) =====
+let selectedVariantId = null;
+function renderVariantChips(p) {
+  const box = document.getElementById('pdVariants');
+  if (!hasVariants(p)) { box.style.display = 'none'; selectedVariantId = null; return; }
+  const firstAvail = p.variants.find(v => !isOutOfStock(p, v.id)) || p.variants[0];
+  if (!variantOf(p, selectedVariantId)) selectedVariantId = firstAvail.id;
+  document.getElementById('pdVariantChips').innerHTML = p.variants.map(v => {
+    const out = isOutOfStock(p, v.id);
+    return `<button class="pd-variant ${String(v.id) === String(selectedVariantId) ? 'on' : ''} ${out ? 'out' : ''}" onclick="selectVariant('${escText(v.id)}')">
+      <b>${escText(v.name)}</b><small>${out ? 'Tugagan' : formatPrice(v.price)}</small></button>`;
+  }).join('');
+  box.style.display = '';
+  applyVariantPrice(p);
+}
+function selectVariant(vid) {
+  selectedVariantId = vid;
+  const p = products.find(x => x.id === currentDetailId);
+  if (!p) return;
+  if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+  renderVariantChips(p);
+  updateDetailCartBtn();
+}
+function applyVariantPrice(p) {
+  const v = variantOf(p, selectedVariantId);
+  if (!v) return;
+  const price = Number(v.price);
+  const priceNum = String(Math.round(price)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
+  document.getElementById('detailPrice').innerHTML = `${priceNum}<small>so'm</small>`;
+  document.getElementById('pdBarPrice').textContent = formatPrice(price);
+  if (p.discount > 0 && p.discount < 100) {
+    const old = Math.round(price / (1 - p.discount / 100));
+    document.getElementById('detailOldPrice').textContent = formatPrice(old);
+    document.getElementById('pdSave').textContent = `Tejaysiz: ${formatPrice(old - price)}`;
+    document.getElementById('pdBarOld').textContent = formatPrice(old);
+  }
+  // Ombor holati tanlangan variant bo'yicha
+  const stockEl = document.getElementById('pdStock');
+  const st = stockOf(p, v.id);
+  if (st !== null && st <= 0) { stockEl.className = 'pd-stock out'; stockEl.innerHTML = '<i class="ti ti-alert-circle"></i> Bu variant hozircha tugagan'; stockEl.style.display = ''; }
+  else if (st !== null && st <= 5) { stockEl.className = 'pd-stock low'; stockEl.innerHTML = `<i class="ti ti-flame"></i> Shoshiling! Faqat ${st} ta qoldi`; stockEl.style.display = ''; }
+  else if (st !== null) { stockEl.className = 'pd-stock ok'; stockEl.innerHTML = '<i class="ti ti-circle-check"></i> Omborda bor'; stockEl.style.display = ''; }
+  else stockEl.style.display = 'none';
+  applyIconFallback(stockEl);
 }
 
 // Chegirma tugashiga ortga sanoq
@@ -6337,6 +6416,7 @@ function addToCartById(e, id, btn) {
   e.stopPropagation();
   const p = products.find(x=>x.id===id);
   if(!p) return;
+  if (hasVariants(p)) { openDetail(p.id); showToast('Rang yoki xotira hajmini tanlang', '👆', 'var(--accent)'); return; }
   if (!canAddMore(p)) return;
   if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 
@@ -6367,29 +6447,33 @@ function addToCartFromDetail() {
   if(!p) return;
   const btn = document.getElementById('pdAddBtn');
   // Ikkinchi bosishda savatga o'tamiz
-  if (cart.some(c => c.id === p.id)) { showTab('cart'); return; }
-  if (isOutOfStock(p)) { subscribeWaitlist(p); return; }
-  if (!addProductToCart(p)) { if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error'); return; }
+  const vid = hasVariants(p) ? selectedVariantId : null;
+  if (cart.some(c => itemKey(c) === cartKey(p.id, vid))) { showTab('cart'); return; }
+  if (isOutOfStock(p, vid)) { subscribeWaitlist(p); return; }
+  if (!addProductToCart(p, { variant: vid })) { if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error'); return; }
   updateDetailCartBtn();
   if (btn) { btn.classList.remove('bump'); void btn.offsetWidth; btn.classList.add('bump'); }
   if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 }
 
 // Ombordagi soniga qarab savatga qo'shish mumkinmi (aks holda xabar chiqadi)
-function canAddMore(p, extra = 1) {
-  if (isOutOfStock(p)) { showToast('Bu mahsulot hozircha tugagan', '😔', 'var(--red)'); return false; }
-  if (p.stock !== null && p.stock !== undefined && p.stock !== '') {
-    const inCart = cart.find(c => c.id === p.id)?.qty || 0;
-    if (inCart + extra > Number(p.stock)) { showToast(`Omborda faqat ${p.stock} ta bor`, '📦', 'var(--orange)'); return false; }
+function canAddMore(p, extra = 1, vid = null) {
+  if (isOutOfStock(p, vid)) { showToast(vid ? 'Bu variant hozircha tugagan' : 'Bu mahsulot hozircha tugagan', '😔', 'var(--red)'); return false; }
+  const st = stockOf(p, vid);
+  if (st !== null) {
+    const inCart = cart.find(c => itemKey(c) === cartKey(p.id, vid))?.qty || 0;
+    if (inCart + extra > st) { showToast(`Omborda faqat ${st} ta bor`, '📦', 'var(--orange)'); return false; }
   }
   return true;
 }
 
 function addProductToCart(p, opts = {}) {
-  if (!canAddMore(p)) return false;
-  const existing = cart.find(c=>c.id===p.id);
+  const vid = opts.variant || null;
+  const v = variantOf(p, vid);
+  if (!canAddMore(p, 1, vid)) return false;
+  const existing = cart.find(c => itemKey(c) === cartKey(p.id, vid));
   if(existing) { existing.qty++; }
-  else { cart.push({id:p.id,name:p.name,brand:p.brand,emoji:p.emoji,image:p.image||null,price:p.price,qty:1}); }
+  else { cart.push({id:p.id,variant:vid||undefined,variantName:v?v.name:undefined,name:p.name,brand:p.brand,emoji:p.emoji,image:p.image||null,price:v?Number(v.price):p.price,qty:1}); }
   updateCartBadge();
   if (!opts.silent) showToast('Savatga qo\'shildi','🛒','var(--accent)');
   renderCart();
@@ -6588,19 +6672,20 @@ function renderCart() {
   const subtotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
   const itemsHtml = cart.map(c=>{
     const itemTotal = c.price * c.qty;
-    return `<div class="cart-item" data-id="${c.id}">
+    const k = itemKey(c);
+    return `<div class="cart-item" data-id="${c.id}" data-key="${escText(k)}">
       <div class="cart-item-img">${c.image?`<img src="${c.image}" alt="">`:c.emoji}</div>
       <div class="cart-item-info">
         <div class="cart-item-brand">${c.brand}</div>
-        <div class="cart-item-name">${c.name}</div>
+        <div class="cart-item-name">${c.name}</div>${c.variantName ? `<div class="cart-item-variant">${escText(c.variantName)}</div>` : ''}
         <div class="cart-item-price">${formatPrice(itemTotal)}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-        <div class="cart-item-del" onclick="removeFromCart(${c.id})"><i class="ti ti-trash"></i></div>
+        <div class="cart-item-del" onclick="removeFromCart('${escText(k)}')"><i class="ti ti-trash"></i></div>
         <div class="qty-ctrl">
-          <button class="qty-btn" onclick="chQty(${c.id},-1)">−</button>
+          <button class="qty-btn" onclick="chQty('${escText(k)}',-1)">−</button>
           <span class="qty-num">${c.qty}</span>
-          <button class="qty-btn" onclick="chQty(${c.id},1)">+</button>
+          <button class="qty-btn" onclick="chQty('${escText(k)}',1)">+</button>
         </div>
       </div>
     </div>`;
@@ -6623,20 +6708,23 @@ function goCheckout() {
   for (const c of cart) {
     const p = products.find(x => x.id === c.id);
     if (!p) { showToast(`"${c.name}" endi sotuvda yo'q — savatdan olib tashlang`, '⚠️', 'var(--orange)'); return; }
-    if (isOutOfStock(p)) { showToast(`"${p.name}" tugagan — savatdan olib tashlang`, '😔', 'var(--red)'); return; }
-    if (p.stock !== null && p.stock !== undefined && p.stock !== '' && c.qty > Number(p.stock)) { showToast(`"${p.name}" dan faqat ${p.stock} ta bor`, '📦', 'var(--orange)'); return; }
+    if (c.variant && !variantOf(p, c.variant)) { showToast(`"${p.name}" ning tanlangan varianti endi yo'q — savatdan olib tashlang`, '⚠️', 'var(--orange)'); return; }
+    if (isOutOfStock(p, c.variant)) { showToast(`"${p.name}" tugagan — savatdan olib tashlang`, '😔', 'var(--red)'); return; }
+    const st = stockOf(p, c.variant);
+    if (st !== null && c.qty > st) { showToast(`"${p.name}" dan faqat ${st} ta bor`, '📦', 'var(--orange)'); return; }
   }
   showTab('address');
 }
 
-function chQty(id, delta) {
-  const item = cart.find(c=>c.id===id);
+function chQty(key, delta) {
+  key = String(key);
+  const item = cart.find(c => itemKey(c) === key);
   if(!item) return;
-  const prod = products.find(x => x.id === id);
-  if (delta > 0 && prod && !canAddMore(prod, delta)) return;
+  const prod = products.find(x => x.id === item.id);
+  if (delta > 0 && prod && !canAddMore(prod, delta, item.variant)) return;
   item.qty += delta;
   if(item.qty < 1) {
-    removeFromCart(id);
+    removeFromCart(key);
     showToast('Savatdan olib tashlandi','🗑️','var(--red)');
     return;
   }
@@ -6645,18 +6733,19 @@ function chQty(id, delta) {
   updateCartBadge();
 }
 
-function removeFromCart(id) {
-  const row = document.querySelector(`.cart-item[data-id="${id}"]`);
+function removeFromCart(key) {
+  key = String(key);
+  const row = [...document.querySelectorAll('.cart-item')].find(r => r.dataset.key === key);
   if (row) {
     row.classList.add('removing');
     setTimeout(() => {
-      cart = cart.filter(c=>c.id!==id);
+      cart = cart.filter(c => itemKey(c) !== key);
       saveData();
       renderCart();
       updateCartBadge();
     }, 350);
   } else {
-    cart = cart.filter(c=>c.id!==id);
+    cart = cart.filter(c => itemKey(c) !== key);
     saveData();
     renderCart();
     updateCartBadge();
@@ -7387,7 +7476,7 @@ function openAddModal() {
   editingProdId = null;
   document.getElementById('addModalTitle').innerHTML = '<i class="ti ti-circle-plus" style="color:var(--accent);margin-right:8px;font-size:22px;vertical-align:middle"></i>Yangi mahsulot';
   document.getElementById('saveProductBtn').textContent = 'Saqlash';
-  ['prodName','prodBrand','prodPrice','prodQty','prodDiscount','prodDesc','prodDiscUntil'].forEach(id=>document.getElementById(id).value='');
+  ['prodName','prodBrand','prodPrice','prodQty','prodDiscount','prodDesc','prodDiscUntil','prodVariants'].forEach(id=>document.getElementById(id).value='');
   newProdImages = [];
   renderImgGrid(newProdImages, 'addImgGrid', 'addImgCount', 'removeNewImg');
   document.getElementById('prodImgInput').value = '';
@@ -7418,6 +7507,7 @@ async function saveProduct() {
   const newProd = {
     id: Date.now(), name, brand, price, discount,
     stock: stockVal === '' ? null : Math.max(0, parseInt(stockVal) || 0),
+    variants: parseVariantsText(document.getElementById('prodVariants').value),
     discountUntil: discUntilVal ? new Date(discUntilVal).getTime() : null,
     emoji: newProdImages.length ? null : (catEmojis[cat]||'📦'),
     image: newProdImages[0] || null,
@@ -7453,6 +7543,17 @@ async function saveProduct() {
   }
 }
 
+// "256GB Qora | 18500000 | 3" qatorlarini variantlar ro'yxatiga aylantiradi (mavjud ID lar nom bo'yicha saqlanadi)
+function parseVariantsText(text, old = []) {
+  const rows = String(text || '').split('\n').map(l => l.trim()).filter(Boolean);
+  if (!rows.length) return null;
+  return rows.slice(0, 12).map(l => {
+    const [name, price, stock] = l.split('|').map(x => (x || '').trim());
+    const prev = (old || []).find(o => String(o.name).toLowerCase() === String(name).toLowerCase());
+    return { id: prev ? prev.id : undefined, name, price: parseInt(String(price).replace(/\D/g, '')) || 0, stock: stock === '' || stock === undefined ? null : Math.max(0, parseInt(stock) || 0) };
+  });
+}
+
 function toLocalInputValue(ts) {
   const d = new Date(ts);
   const pad = n => String(n).padStart(2, '0');
@@ -7469,6 +7570,7 @@ function openEditModal(id) {
   document.getElementById('editPrice').value = p.price;
   document.getElementById('editDiscount').value = p.discount;
   document.getElementById('editStock').value = (p.stock === null || p.stock === undefined) ? '' : p.stock;
+  document.getElementById('editVariants').value = hasVariants(p) ? p.variants.map(v => `${v.name} | ${v.price} | ${v.stock === null || v.stock === undefined ? '' : v.stock}`).join('\n') : '';
   document.getElementById('editDiscUntil').value = p.discountUntil ? toLocalInputValue(p.discountUntil) : '';
   document.getElementById('editDesc').value = p.desc||'';
   editProdImages = p.images ? [...p.images] : (p.image ? [p.image] : []);
@@ -7487,6 +7589,7 @@ async function saveEditProduct() {
     price: parseInt(document.getElementById('editPrice').value) || p.price,
     discount: parseInt(document.getElementById('editDiscount').value) || 0,
     stock: document.getElementById('editStock').value.trim() === '' ? null : Math.max(0, parseInt(document.getElementById('editStock').value) || 0),
+    variants: parseVariantsText(document.getElementById('editVariants').value, p.variants) || [],
     discountUntil: document.getElementById('editDiscUntil').value ? new Date(document.getElementById('editDiscUntil').value).getTime() : null,
     desc: document.getElementById('editDesc').value.trim() || p.desc
   };

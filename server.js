@@ -423,7 +423,9 @@ async function deductStockForOrder(order) {
       if (!p) continue;
       const q = Math.max(1, Number(it.qty) || 1);
       p.sold = (Number(p.sold) || 0) + q;
-      if (p.stock !== null && p.stock !== undefined && p.stock !== '') p.stock = Math.max(0, Number(p.stock) - q);
+      const v = it.variant && Array.isArray(p.variants) ? p.variants.find(x => String(x.id) === String(it.variant)) : null;
+      if (v) { if (v.stock !== null && v.stock !== undefined && v.stock !== '') v.stock = Math.max(0, Number(v.stock) - q); }
+      else if (p.stock !== null && p.stock !== undefined && p.stock !== '') p.stock = Math.max(0, Number(p.stock) - q);
     }
     return { list };
   });
@@ -1566,6 +1568,24 @@ function buildProduct(body) {
     if (!isNaN(t) && t > 0) discountUntil = t;
   }
 
+  // Variantlar (rang/xotira): har birining o'z narxi va ombor soni
+  let variants = null;
+  if (Array.isArray(body.variants)) {
+    variants = [];
+    for (const v of body.variants.slice(0, 12)) {
+      if (!v || !String(v.name || '').trim()) continue;
+      const vp = parseInt(v.price);
+      if (isNaN(vp) || vp <= 0) return { error: `"${String(v.name).slice(0, 40)}" varianti narxi noto'g'ri` };
+      let vs = null;
+      if (v.stock !== undefined && v.stock !== null && String(v.stock).trim() !== '') {
+        vs = parseInt(v.stock);
+        if (isNaN(vs) || vs < 0) return { error: `"${String(v.name).slice(0, 40)}" varianti soni noto'g'ri` };
+      }
+      variants.push({ id: String(v.id || ('v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6))).slice(0, 40), name: sanitizeInput(String(v.name).slice(0, 60)), price: vp, stock: vs });
+    }
+    if (!variants.length) variants = null;
+  }
+
   const cleanImages = Array.isArray(images) ? images.filter(img => typeof img === 'string').slice(0, 5) : [];
   const mainImage = body.image && typeof body.image === 'string' ? body.image : (cleanImages[0] || null);
 
@@ -1583,6 +1603,7 @@ function buildProduct(body) {
       specs: Array.isArray(specs) ? specs.filter(pair => Array.isArray(pair)).map(pair => [sanitizeInput(pair[0]), sanitizeInput(pair[1])]) : [],
       emoji: body.emoji ? sanitizeInput(body.emoji) : null,
       stock,
+      variants,
       discountUntil: parsedDiscount > 0 ? discountUntil : null,
       // Vaqtinchalik chegirmada asl narx — muddat tugaganda narx shunga qaytadi
       regularPrice: parsedDiscount > 0 && Number(body.regularPrice) > parsedPrice ? Math.round(Number(body.regularPrice)) : null,
@@ -1957,7 +1978,11 @@ async function restoreExpiredDiscounts() {
 async function addToWaitlist(pid, uid, via = 'miniapp') {
   await firebasePatch(`waitlist/${pid}`, { [String(uid)]: { via, at: Date.now() } });
 }
-function hasStock(p) { return p && (p.stock === null || p.stock === undefined || p.stock === '' || Number(p.stock) > 0); }
+function hasStock(p) {
+  if (!p) return false;
+  if (Array.isArray(p.variants) && p.variants.length) return p.variants.some(v => v.stock === null || v.stock === undefined || v.stock === '' || Number(v.stock) > 0);
+  return p.stock === null || p.stock === undefined || p.stock === '' || Number(p.stock) > 0;
+}
 async function notifyWaitlist(product) {
   const list = (await firebaseGet(`waitlist/${product.id}`)) || {};
   const ids = Object.keys(list);
