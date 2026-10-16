@@ -2669,6 +2669,24 @@ input[type="datetime-local"].form-input::-webkit-datetime-edit { padding: 0; }
 .m3-btns { display: flex; gap: 6px; flex-shrink: 0; }
 .m3-btn { width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #fff; cursor: pointer; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); }
 .m3-btn:active { transform: scale(0.9); }
+.bn-thumb { width: 58px; height: 58px; flex-shrink: 0; border-radius: 12px; background: radial-gradient(circle at 50% 40%, #2a2f7a, #12154a); display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 20px; color: var(--text3); }
+.bn-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.fn-period { display: flex; gap: 4px; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 3px; }
+.fn-period span { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 8px; cursor: pointer; color: var(--text2); }
+.fn-period span.on { background: var(--accent); color: #fff; }
+.fn-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.fn-tot { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 10px; text-align: center; }
+.fn-tot b { display: block; font-size: 20px; font-weight: 900; color: #fff; }
+.fn-tot span { font-size: 10.5px; color: var(--text2); }
+.fn-tot i { display: block; font-style: normal; font-size: 10.5px; color: #34d399; margin-top: 2px; }
+.fn-list { display: flex; flex-direction: column; gap: 6px; max-height: 460px; overflow-y: auto; }
+.fn-row { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 13px; padding: 9px 11px; }
+.fn-row.warn { border-color: rgba(251,191,36,0.45); background: rgba(251,191,36,0.06); }
+.fn-name { font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn-nums { display: flex; gap: 12px; font-size: 11.5px; color: var(--text2); margin-top: 4px; flex-wrap: wrap; }
+.fn-nums b { color: #fff; }
+.fn-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.07); margin-top: 6px; overflow: hidden; display: flex; }
+.fn-bar i { display: block; height: 100%; }
 .st-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 10px; }
 .st-revs { display: flex; flex-direction: column; gap: 10px; }
 .st-rev { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 10px 12px; }
@@ -4867,6 +4885,12 @@ body.modal-open {
           <div class="m3-note" id="m3Note">TRELLIS har bir mahsulot rasmidan 3D model yasaydi, Gemini sifatini 1–10 baholaydi. 7 va undan yuqorisi mijozga avtomatik ko'rsatiladi.</div>
           <div id="m3List" class="m3-list"></div>
         </div>
+        <div class="st-card m3-card">
+          <div class="st-head"><div class="st-title">🖼 Banner rasmlari</div><div class="st-sub" id="bnSummary"></div></div>
+          <div class="m3-note">Bosh sahifa bannerida ko'rinadigan fonsiz rasmlar. Yomon qirqilganini yashiring yoki o'zingizning <b>shaffof PNG</b> rasmingizni yuklang — u qirqilmasdan ishlatiladi.</div>
+          <div id="bnList" class="m3-list"></div>
+          <input type="file" id="bnFile" accept="image/png,image/webp,image/jpeg" style="display:none" onchange="bannerUpload(this)">
+        </div>
         <div class="admin-prod-list" id="adminProdList"></div>
       </div>
 
@@ -4929,6 +4953,18 @@ body.modal-open {
         <div class="st-card">
           <div class="st-head"><div class="st-title">🏆 Eng ko'p sotilganlar</div></div>
           <div id="statTopProducts" class="st-top"></div>
+        </div>
+        <div class="st-card">
+          <div class="st-head"><div class="st-title">📊 Sotuv voronkasi</div>
+            <div class="fn-period"><span data-d="7" onclick="loadFunnel(7)">7 kun</span><span data-d="30" class="on" onclick="loadFunnel(30)">30 kun</span></div></div>
+          <div class="m3-note">Har bir mahsulot: nechta xaridor ko'rdi → savatga qo'shdi → buyurtma berdi. ⚠️ — ko'p ko'riladi, lekin kam sotiladi (narx, rasm yoki tavsifni tekshiring).</div>
+          <div id="fnTotals" class="fn-totals"></div>
+          <div id="fnList" class="fn-list"></div>
+        </div>
+        <div class="st-card">
+          <div class="st-head"><div class="st-title">🔍 Topilmagan qidiruvlar</div><div class="st-sub" id="smCount"></div></div>
+          <div class="m3-note">Mijozlar izlagan, lekin do'konda topilmagan mahsulotlar (Mini App qidiruvi va yordamchi admin). Omborga nima olib kelishni shundan bilasiz.</div>
+          <div id="smList" class="m3-list"></div>
         </div>
         <div class="st-card">
           <div class="st-head"><div class="st-title">⭐ Mijozlar fikrlari</div><div class="st-sub" id="statReviewsCount"></div></div>
@@ -6492,6 +6528,7 @@ function filterProducts(quick) {
     const matchQ = !q.trim() || productMatchesQuery(p, q);
     return matchCat && matchQ;
   });
+  if (q.trim()) { if (!products.some(p => productMatchesQuery(p, q))) trackSearchMiss(q); else clearTimeout(missTimer); }
   renderProducts(applyFilterState(filtered), { quick: !!quick });
   updateFilterBadge();
   renderHomeSections();
@@ -6510,6 +6547,7 @@ function openDetail(id) {
   const p = products.find(x=>x.id===id);
   if(!p) return;
   currentDetailId = id;
+  trackEvent(id, 'view');
   // Joriy mahsulot rasmlarini zoom uchun saqlash
   document.getElementById('detailHeaderName').textContent = p.name;
   document.getElementById('pdHero3d').classList.toggle('show', !!(p.model3d || p.cutout || p.image || (p.images && p.images.length)));
@@ -7001,7 +7039,34 @@ function addProductToCart(p, opts = {}) {
   if (!opts.silent) showToast('Savatga qo\'shildi','🛒','var(--accent)');
   renderCart();
   saveData();
+  trackEvent(p.id, 'cart');
   return true;
+}
+
+// ===== STATISTIKA: ko'rish / savatga qo'shish (admin "sotuv voronkasi" uchun) =====
+const trackedEvents = new Set();
+function trackEvent(pid, type) {
+  const k = type + ':' + pid;
+  if (trackedEvents.has(k) || adminUnlocked) return;
+  trackedEvents.add(k);
+  try {
+    fetch('/api/track/event', { method: 'POST', keepalive: true,
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' },
+      body: JSON.stringify({ pid, type }) }).catch(() => {});
+  } catch (_) {}
+}
+// Hech narsa topilmagan qidiruv — admin "topilmagan qidiruvlar" ro'yxatiga (yozish to'xtagach, bir marta)
+let missTimer = null; const sentMisses = new Set();
+function trackSearchMiss(q) {
+  clearTimeout(missTimer);
+  q = String(q || '').trim();
+  if (q.length < 2 || adminUnlocked) return;
+  missTimer = setTimeout(() => {
+    const k = q.toLowerCase();
+    if (sentMisses.has(k)) return;
+    sentMisses.add(k);
+    fetch('/api/track/search', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q }) }).catch(() => {});
+  }, 1800);
 }
 
 // ===== SAVATGA UCHISH ANIMATSIYASI =====
@@ -7811,7 +7876,7 @@ function switchAdminTab(btn, tabId) {
   const wrap = document.querySelector('#admin .admin-wrap');
   if (wrap) wrap.scrollTop = 0;
   if(tabId==='adminOrders') loadAdminOrders();
-  if(tabId==='adminProducts') { renderAdminProducts(); loadModels3d(); }
+  if(tabId==='adminProducts') { renderAdminProducts(); loadModels3d(); loadBanners(); }
   if(tabId==='adminUsers') renderUsersList();
   if(tabId==='adminSettings') loadSettingsUI();
   if(tabId==='adminStats') loadAdminStats();
@@ -7821,7 +7886,7 @@ function switchAdminTab(btn, tabId) {
 function refreshAdminTab() {
   const tabId = currentAdminTab || 'adminOrders';
   if(tabId==='adminOrders') loadAdminOrders();
-  else if(tabId==='adminProducts') { renderAdminProducts(); loadModels3d(); }
+  else if(tabId==='adminProducts') { renderAdminProducts(); loadModels3d(); loadBanners(); }
   else if(tabId==='adminUsers') renderUsersList();
   else if(tabId==='adminSettings') loadSettingsUI();
   else if(tabId==='adminStats') loadAdminStats();
@@ -8592,6 +8657,106 @@ function previewModel3d(src, name) {
   open3dView({ preview: { model3d: src, name } });
 }
 
+// ===== ADMIN: BANNER RASMLARI =====
+const BN_STATUS = { ok: ['m3-ok', 'Bannerda'], fail: ['m3-bad', "Bannerga chiqmaydi"], pending: ['m3-wait', 'Tayyorlanmoqda'], hidden: ['m3-off', 'Siz yashirgansiz'] };
+const BN_SRC = { upload: 'Siz yuklagan rasm', link: 'Banner havolasi', default: 'Ishlab chiqaruvchi rasmi', photo: 'Mahsulot suratidan' };
+let bannerUploadPid = null;
+function adminHeaders(json) { const h = { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' }; if (json) h['Content-Type'] = 'application/json'; return h; }
+async function loadBanners() {
+  const el = document.getElementById('bnList'); if (!el) return;
+  try {
+    const res = await fetch('/api/admin/banners', { headers: adminHeaders() });
+    if (!res.ok) throw new Error();
+    const items = await res.json();
+    document.getElementById('bnSummary').textContent = `${items.filter(i => i.status === 'ok').length}/${items.length} bannerda`;
+    const q = v => JSON.stringify(String(v)).replace(/"/g, '&quot;');
+    el.innerHTML = items.map(i => {
+      const [cls, label] = BN_STATUS[i.status] || ['m3-off', i.status];
+      const extra = [BN_SRC[i.source] || '', i.score != null ? `Baho: ${i.score}/10` : '', i.why || ''].filter(Boolean).join(' · ');
+      const btns = [
+        `<div class="m3-btn" title="O'z rasmingizni yuklash (shaffof PNG)" onclick="bannerPick(${q(i.id)})"><i class="ti ti-upload"></i></div>`,
+        i.hidden ? `<div class="m3-btn" title="Bannerda ko'rsatish" onclick="bannerAction(${q(i.id)},'show')"><i class="ti ti-eye"></i></div>`
+                 : `<div class="m3-btn" title="Bannerdan yashirish" onclick="bannerAction(${q(i.id)},'hide')"><i class="ti ti-x"></i></div>`,
+        `<div class="m3-btn" title="Qayta tayyorlash" onclick="bannerAction(${q(i.id)},'rebuild')"><i class="ti ti-history"></i></div>`,
+        i.source === 'upload' ? `<div class="m3-btn" title="Yuklangan rasmni olib tashlash" onclick="bannerAction(${q(i.id)},'reset')"><i class="ti ti-trash"></i></div>` : '',
+      ].join('');
+      return `<div class="m3-row"><div class="bn-thumb">${i.img ? `<img src="${i.img}" loading="lazy" alt="" onerror="this.replaceWith(document.createTextNode('🖼'))">` : '🖼'}</div>
+        <div class="m3-info"><div class="m3-name">${escHtml(decodeEntities(i.name || ''))}</div>
+        <div class="m3-st"><span class="m3-badge ${cls}">${label}</span>${escHtml(extra)}</div></div><div class="m3-btns">${btns}</div></div>`;
+    }).join('') || `<div class="st-empty">Mahsulotlar yo'q</div>`;
+    applyIconFallback(el);
+  } catch (e) { el.innerHTML = `<div class="st-empty">Banner holatini yuklab bo'lmadi</div>`; }
+}
+async function bannerAction(pid, act) {
+  if (act === 'reset' && !(await confirmAsync("Yuklagan rasmingiz olib tashlansinmi? Banner yana avtomatik tayyorlanadi."))) return;
+  try {
+    const res = await fetch(`/api/admin/banners/${encodeURIComponent(pid)}/${act}`, { method: 'POST', headers: adminHeaders() });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Xatolik');
+    showToast(act === 'hide' ? 'Bannerdan yashirildi' : act === 'show' ? "Bannerda ko'rsatiladi" : 'Qayta tayyorlanmoqda…', '🖼');
+    setTimeout(loadBanners, act === 'rebuild' || act === 'reset' ? 4000 : 300);
+  } catch (e) { showToast(e.message, '✗', 'var(--red)'); }
+}
+function bannerPick(pid) { bannerUploadPid = pid; const f = document.getElementById('bnFile'); f.value = ''; f.click(); }
+async function bannerUpload(input) {
+  const file = input.files && input.files[0]; if (!file || !bannerUploadPid) return;
+  if (file.size > 8e6) { showToast('Rasm 8 MB dan katta', '✗', 'var(--red)'); return; }
+  const data = await new Promise((ok, err) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = err; r.readAsDataURL(file); });
+  showToast('Yuklanmoqda…', '⏳');
+  try {
+    const res = await fetch(`/api/admin/banners/${encodeURIComponent(bannerUploadPid)}/image`, { method: 'POST', headers: adminHeaders(true), body: JSON.stringify({ image: data }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Xatolik');
+    showToast(d.ok ? 'Banner rasmi yangilandi' : `Rasm saqlandi, lekin bannerga chiqmadi: ${d.why || 'sifat past'}`, d.ok ? '✅' : '⚠️', d.ok ? 'var(--green)' : 'var(--orange)');
+    loadBanners();
+  } catch (e) { showToast(e.message, '✗', 'var(--red)'); }
+}
+
+// ===== ADMIN: SOTUV VORONKASI =====
+async function loadFunnel(days) {
+  days = days || Number(document.querySelector('.fn-period .on')?.dataset.d) || 30;
+  document.querySelectorAll('.fn-period span').forEach(x => x.classList.toggle('on', Number(x.dataset.d) === days));
+  const list = document.getElementById('fnList'), tot = document.getElementById('fnTotals'); if (!list) return;
+  try {
+    const res = await fetch('/api/admin/funnel?days=' + days, { headers: adminHeaders() });
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const pct = (a, b) => b ? Math.min(100, Math.round(a / b * 1000) / 10) : 0;
+    tot.innerHTML = `<div class="fn-tot"><b>${d.totals.views}</b><span>👁 Ko'rishlar</span></div>
+      <div class="fn-tot"><b>${d.totals.carts}</b><span>🛒 Savatga</span><i>${pct(d.totals.carts, d.totals.views)}%</i></div>
+      <div class="fn-tot"><b>${d.totals.orders}</b><span>✅ Buyurtma</span><i>${pct(d.totals.orders, d.totals.views)}%</i></div>`;
+    const rows = d.rows.filter(r => r.views || r.carts || r.orders);
+    const maxV = Math.max(1, ...rows.map(r => r.views));
+    list.innerHTML = rows.map(r => {
+      const warn = r.views >= 15 && pct(r.orders, r.views) < 2;
+      return `<div class="fn-row${warn ? ' warn' : ''}"><div class="fn-name">${warn ? '⚠️ ' : ''}${escHtml(decodeEntities(r.name || ''))}</div>
+        <div class="fn-nums"><span>👁 <b>${r.views}</b></span><span>🛒 <b>${r.carts}</b> (${pct(r.carts, r.views)}%)</span><span>✅ <b>${r.orders}</b> (${pct(r.orders, r.views)}%)</span>${r.sold ? `<span>📦 sotildi: <b>${r.sold}</b></span>` : ''}</div>
+        <div class="fn-bar" style="width:${Math.max(4, r.views / maxV * 100)}%"><i style="width:${100 - pct(r.carts, r.views)}%;background:rgba(107,127,255,.55)"></i><i style="width:${Math.max(0, pct(r.carts, r.views) - pct(r.orders, r.views))}%;background:#A78BFA"></i><i style="width:${pct(r.orders, r.views)}%;background:#34d399"></i></div></div>`;
+    }).join('') || `<div class="st-empty">Hali ma'lumot yo'q — mijozlar mahsulotlarni ko'rishi bilan shu yerda paydo bo'ladi${d.since ? '' : ' (hisoblash endi boshlandi)'}</div>`;
+  } catch (e) { list.innerHTML = `<div class="st-empty">Voronkani yuklab bo'lmadi</div>`; tot.innerHTML = ''; }
+}
+
+// ===== ADMIN: TOPILMAGAN QIDIRUVLAR =====
+async function loadSearchMisses() {
+  const el = document.getElementById('smList'); if (!el) return;
+  try {
+    const res = await fetch('/api/admin/search-misses', { headers: adminHeaders() });
+    if (!res.ok) throw new Error();
+    const items = await res.json();
+    document.getElementById('smCount').textContent = items.length ? `${items.length} ta` : '';
+    const src = s => [s.miniapp ? `Mini App: ${s.miniapp}` : '', s.assistant ? `Yordamchi: ${s.assistant}` : ''].filter(Boolean).join(' · ');
+    el.innerHTML = items.map(i => `<div class="m3-row"><div class="m3-info"><div class="m3-name">"${escHtml(i.q)}"</div>
+      <div class="m3-st"><span class="m3-badge ${i.nowAvailable ? 'm3-ok' : 'm3-wait'}">${i.nowAvailable ? 'Endi bor' : i.count + ' marta'}</span>${escHtml(src(i.sources))}${i.lastAt ? ' · ' + new Date(i.lastAt).toLocaleDateString('uz-UZ') : ''}</div></div>
+      <div class="m3-btns"><div class="m3-btn" title="Ko'rib chiqildi — ro'yxatdan olib tashlash" onclick="deleteSearchMiss('${i.key}')"><i class="ti ti-check"></i></div></div></div>`).join('')
+      || `<div class="st-empty">Hozircha yo'q — mijozlar izlagan hamma narsa do'konda topildi 👍</div>`;
+    applyIconFallback(el);
+  } catch (e) { el.innerHTML = `<div class="st-empty">Ro'yxatni yuklab bo'lmadi</div>`; }
+}
+async function deleteSearchMiss(key) {
+  try { await fetch('/api/admin/search-misses/' + key, { method: 'DELETE', headers: adminHeaders() }); } catch (_) {}
+  loadSearchMisses();
+}
+
 async function loadAdminReviews() {
   const el = document.getElementById('statReviews');
   if (!el) return;
@@ -8683,6 +8848,8 @@ async function loadAdminStats() {
     renderRevenueBars(confirmedOrders);
     renderTopProducts(confirmedOrders);
     loadAdminReviews();
+    loadFunnel();
+    loadSearchMisses();
 
     const daysUz = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
     const last7Days = [];

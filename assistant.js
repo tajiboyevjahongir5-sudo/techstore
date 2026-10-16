@@ -1522,6 +1522,8 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         if (input.category) list = list.filter(p => p.cat === input.category);
         if (input.min_price) list = list.filter(p => finalPrice(p) >= input.min_price);
         if (input.max_price) list = list.filter(p => finalPrice(p) <= input.max_price);
+        // Mijoz izlagan, lekin do'konda yo'q mahsulot — admin "topilmagan qidiruvlar" ro'yxatiga
+        if (q && !list.length && chat.role !== 'admin' && deps.onSearchMiss) deps.onSearchMiss(q, 'assistant');
         const limit = Math.min(Math.max(parseInt(input.limit) || 30, 1), 100);
         return { total: list.length, products: list.slice(0, limit).map(productSummary) };
       }

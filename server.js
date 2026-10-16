@@ -998,6 +998,8 @@ function publicProduct(p, now = Date.now(), ratings = null) {
   const bk = bannerKey(p);
   out.banner = bk ? `/api/banner-img/${encodeURIComponent(p.id)}?v=${bk.key.split('_b').pop()}` : null;
   out.bannerReady = bannerReady(p);
+  if (out.bannerImage && !/^https:/i.test(out.bannerImage)) delete out.bannerImage;
+  delete out.bannerHidden;
   const first = imgs[0];
   out.image = first ? (isDataImg(first) ? imgUrl(p.id, 0, first, 480) : first) : (isDataImg(p.image) ? null : p.image || null);
   return out;
@@ -1083,6 +1085,8 @@ function cutoutKey(p) {
 async function loadImageSource(src) {
   const m = String(src).match(/^data:image\/[a-z+]+;base64,(.+)$/i);
   if (m) return Buffer.from(m[1], 'base64');
+  const loc = String(src).match(/^local:([A-Za-z0-9_.-]+)$/);
+  if (loc) return fs.readFileSync(path.join(CUTOUT_DIR, 'banner-src', loc[1]));
   if (!/^https:\/\//i.test(src)) throw new Error('rasm manzili yaroqsiz');
   // Ba'zi saytlar (CDN) bitta turdagi so'rovni bloklaydi — bir nechta variant bilan urinib ko'ramiz
   const variants = [
@@ -1406,6 +1410,218 @@ async function getBannerImage(p) {
   return cutoutJobs.get(jk);
 }
 
+// ===== ADMIN: BANNER RASMLARI (ko'rish, yashirish, qayta yasash, o'z PNG rasmini yuklash) =====
+async function setProductFields(id, fields) {
+  return mutateProducts(list => {
+    const p = list.find(x => String(x.id) === String(id));
+    if (!p) return { list, result: { error: 'Mahsulot topilmadi' } };
+    for (const [k, v] of Object.entries(fields)) { if (v === null || v === undefined) delete p[k]; else p[k] = v; }
+    return { list, result: { product: p } };
+  });
+}
+function dropBannerCache(p) {
+  const k = bannerKey(p);
+  if (!k) return;
+  for (const f of [k.key + '.webp', k.key + '.json']) { try { fs.unlinkSync(path.join(CUTOUT_DIR, f)); } catch (_) {} }
+}
+app.get('/api/admin/banners', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const list = await getProducts();
+    res.json(list.map(p => {
+      const k = bannerKey(p);
+      const meta = k ? readBannerMeta(k) : null;
+      const src = p.bannerImage || defaultBanner(p);
+      return {
+        id: p.id, name: p.name, hidden: !!p.bannerHidden,
+        source: !src ? 'photo' : String(src).startsWith('local:') ? 'upload' : p.bannerImage ? 'link' : 'default',
+        status: p.bannerHidden ? 'hidden' : !meta ? 'pending' : meta.ok ? 'ok' : 'fail',
+        from: meta?.from || null, score: meta?.score ?? null, why: meta && !meta.ok ? (meta.why || meta.issues || '') : '',
+        img: k && meta?.ok ? `/api/banner-img/${encodeURIComponent(p.id)}?v=${k.key.split('_b').pop()}` : null,
+      };
+    }));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/banners/:pid/:action(hide|show|rebuild|reset)', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
+    if (!p) return res.status(404).json({ error: 'Mahsulot topilmadi' });
+    const act = req.params.action;
+    if (act === 'hide' || act === 'show') await setProductFields(p.id, { bannerHidden: act === 'hide' ? true : null });
+    if (act === 'rebuild') dropBannerCache(p);
+    if (act === 'reset') {
+      dropBannerCache(p);
+      const m = String(p.bannerImage || '').match(/^local:([A-Za-z0-9_.-]+)$/);
+      if (m) { try { fs.unlinkSync(path.join(CUTOUT_DIR, 'banner-src', m[1])); } catch (_) {} }
+      await setProductFields(p.id, { bannerImage: null, bannerHidden: null });
+    }
+    if (act === 'rebuild' || act === 'reset') {
+      const fresh = (await getProducts()).find(x => String(x.id) === String(p.id));
+      getBannerImage(fresh).catch(() => {});
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// Admin o'zi tayyorlagan rasmni yuklaydi (shaffof PNG eng yaxshisi — fon kesilmaydi)
+app.post('/api/admin/banners/:pid/image', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
+    if (!p) return res.status(404).json({ error: 'Mahsulot topilmadi' });
+    const m = String(req.body?.image || '').match(/^data:image\/(png|webp|jpeg);base64,(.+)$/i);
+    if (!m) return res.status(400).json({ error: 'PNG, WEBP yoki JPG rasm yuboring' });
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length > 8e6) return res.status(400).json({ error: 'Rasm 8 MB dan katta' });
+    const dir = path.join(CUTOUT_DIR, 'banner-src');
+    fs.mkdirSync(dir, { recursive: true });
+    const name = `${String(p.id).replace(/[^0-9A-Za-z_-]/g, '')}-${Date.now()}.${m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase()}`;
+    fs.writeFileSync(path.join(dir, name), buf);
+    // eski yuklanganlarini tozalaymiz
+    try { for (const f of fs.readdirSync(dir)) if (f.startsWith(String(p.id) + '-') && f !== name) fs.unlinkSync(path.join(dir, f)); } catch (_) {}
+    const r = await setProductFields(p.id, { bannerImage: 'local:' + name, bannerHidden: null });
+    const buf2 = await getBannerImage(r.product).catch(() => null);
+    const k = bannerKey(r.product), meta = k ? readBannerMeta(k) : null;
+    res.json({ ok: !!buf2, why: meta && !meta.ok ? (meta.why || meta.issues || '') : '' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== TOPILMAGAN QIDIRUVLAR (do'konda yo'q, lekin mijozlar izlagan mahsulotlar) =====
+const searchMissBuf = new Map();   // kalit → { q, n, sources }
+let searchMisses = null;           // firebase'dagi to'liq ro'yxat (xotirada)
+const normQuery = q => String(q || '').toLowerCase().replace(/[^\p{L}\p{N}\s+.-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+const queryKey = q => crypto.createHash('sha1').update(q).digest('hex').slice(0, 12);
+function productMatchesText(p, q) {
+  const hay = `${p.name} ${p.brand} ${p.cat} ${(p.variants || []).map(v => v.name).join(' ')}`.toLowerCase();
+  return q.split(' ').filter(w => w.length > 1).every(w => hay.includes(w));
+}
+async function recordSearchMiss(raw, source) {
+  const q = normQuery(raw);
+  if (q.length < 2 || !/\p{L}{2}/u.test(q)) return false;
+  if ((await getProducts()).some(p => productMatchesText(p, q))) return false;   // aslida bor — hisoblanmaydi
+  const key = queryKey(q);
+  const e = searchMissBuf.get(key) || { q, n: 0, sources: {} };
+  e.n++; e.sources[source] = (e.sources[source] || 0) + 1;
+  searchMissBuf.set(key, e);
+  return true;
+}
+async function flushSearchMisses() {
+  if (!searchMissBuf.size) return;
+  if (!searchMisses) searchMisses = (await firebaseGet('searchMisses')) || {};
+  const batch = [...searchMissBuf.entries()]; searchMissBuf.clear();
+  for (const [key, e] of batch) {
+    const cur = searchMisses[key] || { q: e.q, count: 0, firstAt: Date.now(), sources: {} };
+    cur.q = e.q; cur.count = (cur.count || 0) + e.n; cur.lastAt = Date.now();
+    for (const [s, n] of Object.entries(e.sources)) cur.sources[s] = (cur.sources?.[s] || 0) + n;
+    searchMisses[key] = cur;
+    await firebasePatch(`searchMisses/${key}`, cur).catch(() => {});
+  }
+}
+app.post('/api/track/search', apiRateLimiter, async (req, res) => {
+  try { await recordSearchMiss(req.body?.q, 'miniapp'); } catch (_) {}
+  res.json({ ok: true });
+});
+app.get('/api/admin/search-misses', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    await flushSearchMisses();
+    if (!searchMisses) searchMisses = (await firebaseGet('searchMisses')) || {};
+    const products = await getProducts();
+    const items = Object.entries(searchMisses).filter(([, v]) => v && v.q).map(([key, v]) => ({
+      key, q: v.q, count: v.count || 0, lastAt: v.lastAt || 0, sources: v.sources || {},
+      nowAvailable: products.some(p => productMatchesText(p, v.q)),
+    })).sort((a, b) => b.count - a.count || b.lastAt - a.lastAt).slice(0, 60);
+    res.json(items);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/admin/search-misses/:key', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const key = String(req.params.key).replace(/[^0-9a-f]/g, '');
+    if (searchMisses) delete searchMisses[key];
+    await firebaseDelete(`searchMisses/${key}`);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== SOTUV VORONKASI: ko'rildi → savatga qo'shildi → buyurtma =====
+// Har kun uchun mahsulot bo'yicha noyob (bir xaridor kuniga bir marta) ko'rishlar va savatga qo'shishlar
+const funnelBuf = new Map();      // `${day}|${pid}` → { v, c }
+const funnelSeen = new Set();     // `${day}|${pid}|${type}|${who}` — takrorlarni sanamaslik uchun
+let funnelSeenDay = '';
+const tashkentDay = (t = Date.now()) => new Date(t + 5 * 3600e3).toISOString().slice(0, 10);
+app.post('/api/track/event', apiRateLimiter, async (req, res) => {
+  try {
+    const type = req.body?.type === 'cart' ? 'c' : req.body?.type === 'view' ? 'v' : null;
+    const pid = String(req.body?.pid || '').slice(0, 30);
+    if (!type || !pid) return res.json({ ok: false });
+    if (!(await getProducts()).some(p => String(p.id) === pid)) return res.json({ ok: false });
+    const user = userFromInitData(req);
+    const who = user ? 'u' + user.id : 'ip' + (req.ip || '');
+    if (user && ADMIN_IDS.map(String).includes(String(user.id))) return res.json({ ok: true });   // adminning o'zi hisoblanmaydi
+    const day = tashkentDay();
+    if (day !== funnelSeenDay) { funnelSeen.clear(); funnelSeenDay = day; }
+    const sk = `${day}|${pid}|${type}|${who}`;
+    if (funnelSeen.has(sk)) return res.json({ ok: true });
+    funnelSeen.add(sk);
+    const k = `${day}|${pid}`;
+    const e = funnelBuf.get(k) || { v: 0, c: 0 };
+    e[type]++;
+    funnelBuf.set(k, e);
+    res.json({ ok: true });
+  } catch (_) { res.json({ ok: false }); }
+});
+async function flushFunnel() {
+  if (!funnelBuf.size) return;
+  const batch = [...funnelBuf.entries()]; funnelBuf.clear();
+  const byDay = {};
+  for (const [k, e] of batch) { const [day, pid] = k.split('|'); (byDay[day] = byDay[day] || {})[pid] = e; }
+  for (const [day, items] of Object.entries(byDay)) {
+    const cur = (await firebaseGet(`funnel/${day}`)) || {};
+    const patch = {};
+    for (const [pid, e] of Object.entries(items)) {
+      const c = cur[pid] || { v: 0, c: 0 };
+      patch[pid] = { v: (c.v || 0) + e.v, c: (c.c || 0) + e.c };
+    }
+    await firebasePatch(`funnel/${day}`, patch).catch(() => {});
+  }
+}
+app.get('/api/admin/funnel', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    await flushFunnel();
+    const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 30));
+    const all = (await firebaseGet('funnel')) || {};
+    const from = tashkentDay(Date.now() - (days - 1) * 86400e3);
+    const agg = {};
+    for (const [day, items] of Object.entries(all)) {
+      if (day < from) continue;
+      for (const [pid, e] of Object.entries(items || {})) {
+        const a = agg[pid] = agg[pid] || { views: 0, carts: 0, orders: 0, sold: 0 };
+        a.views += e.v || 0; a.carts += e.c || 0;
+      }
+    }
+    // Buyurtmalar faqat ko'rishlar hisoblana boshlagan kundan sanaladi (aks holda foizlar ma'nosiz bo'ladi)
+    const firstDay = Object.keys(all).sort()[0];
+    const trackStart = firstDay ? Date.parse(firstDay + 'T00:00:00+05:00') : Date.now();
+    const since = Math.max(Date.now() - days * 86400e3, trackStart);
+    const orders = (await firebaseGet('orders')) || {};
+    const products = await getProducts();
+    for (const o of Object.values(orders)) {
+      if (!o || (o.createdAt || 0) < since || /cancel|reject/i.test(o.status || '')) continue;
+      let items = Array.isArray(o.items) ? o.items : [];
+      if (!items.length) items = String(o.products || '').split(',').map(n => { const p = products.find(x => x.name === n.trim()); return p ? { id: p.id, qty: 1 } : null; }).filter(Boolean);
+      const seen = new Set();
+      for (const it of items) {
+        const pid = String(it.id);
+        const a = agg[pid] = agg[pid] || { views: 0, carts: 0, orders: 0, sold: 0 };
+        if (!seen.has(pid)) { a.orders++; seen.add(pid); }
+        if (['confirmed', 'shipped', 'delivered'].includes(o.status)) a.sold += Math.max(1, Number(it.qty) || 1);
+      }
+    }
+    const rows = products.map(p => ({ id: p.id, name: p.name, ...(agg[String(p.id)] || { views: 0, carts: 0, orders: 0, sold: 0 }) }))
+      .sort((a, b) => b.views - a.views || b.orders - a.orders);
+    const tot = rows.reduce((t, r) => ({ views: t.views + r.views, carts: t.carts + r.carts, orders: t.orders + r.orders }), { views: 0, carts: 0, orders: 0 });
+    const since0 = Object.keys(all).sort()[0] || null;
+    res.json({ days, since: since0, totals: tot, rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+setInterval(() => { flushSearchMisses().catch(() => {}); flushFunnel().catch(() => {}); }, 60000);
+
 // Fonni kesish uchun kattaroq manba: Unsplash kabi saytlar o'lchamni URL'da beradi (w=600 → 1600)
 function hiResSrc(src) {
   try {
@@ -1449,6 +1665,7 @@ async function pickUniform(ub, p) {
 }
 
 function bannerReady(p) {
+  if (p && p.bannerHidden) return false;
   const k = bannerKey(p);
   if (!k) return false;
   const m = readBannerMeta(k);
@@ -2302,6 +2519,7 @@ const assistant = createAssistant({
   getStorageInfo,
   dataDir: VOLUME_DIR ? path.join(VOLUME_DIR, '.data') : null,
   onPaymentText: (text, source, key) => matchPaymentText(text, source, key),
+  onSearchMiss: (q, source) => { recordSearchMiss(q, source).catch(() => {}); },
   getPaymentChannel: () => PAYMENT_CHANNEL.id ? chanKey(PAYMENT_CHANNEL.id) : '',
   notifyAdminsViaBot: async (text) => {
     if (!botInstance) return;

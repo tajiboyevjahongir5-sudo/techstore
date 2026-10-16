@@ -444,20 +444,36 @@ function createBotFeatures(deps) {
   async function onProductUpdated(before, after) {
     const b = bot();
     if (!b || !before || !after) return;
-    const oldPrice = Number(before.price) || 0;
-    const newPrice = Number(after.price) || 0;
-    if (!(newPrice > 0 && oldPrice > 0 && newPrice < oldPrice)) return;
+    // Narx tushishi: asosiy narx yoki biror variant (xotira/rang) narxi
+    const drops = [];
+    const oldPrice = Number(before.price) || 0, newPrice = Number(after.price) || 0;
+    if (newPrice > 0 && oldPrice > 0 && newPrice < oldPrice) drops.push({ label: '', from: oldPrice, to: newPrice });
+    const prevV = new Map((before.variants || []).map(v => [String(v.id), v]));
+    for (const v of after.variants || []) {
+      const pv = prevV.get(String(v.id));
+      const a = Number(pv?.price) || 0, c = Number(v.price) || 0;
+      if (a > 0 && c > 0 && c < a && !(drops.length && drops[0].label === '' && c === newPrice)) drops.push({ label: v.name, from: a, to: c });
+    }
+    if (!drops.length) return;
     const pid = String(after.id);
     if (Date.now() - (priceAlertAt.get(pid) || 0) < 6 * 3600e3) return;
     priceAlertAt.set(pid, Date.now());
+    // Kimga: sevimlilarga qo'shganlar va savatida turganlar (bir kishiga bir marta)
     const favs = (await firebaseGet('favorites')) || {};
-    const userIds = Object.entries(favs).filter(([, f]) => (f?.ids || []).map(String).includes(pid)).map(([uid]) => uid);
-    if (!userIds.length) return;
-    const pct = Math.round((1 - newPrice / oldPrice) * 100);
-    const text = `📉 <b>Narx tushdi!</b>\n\n❤️ Sevimlilaringizdagi <b>${esc(after.name)}</b>\n<s>${fmtSom(oldPrice)}</s> → <b>${fmtSom(newPrice)}</b>${pct > 0 ? ` (−${pct}%)` : ''}\n\nShoshiling, chegirmali narx cheklangan bo'lishi mumkin 👇`;
-    for (const uid of userIds) {
+    const carts = (await firebaseGet('carts')) || {};
+    const who = new Map();
+    for (const [uid, f] of Object.entries(favs)) if ((f?.ids || []).map(String).includes(pid)) who.set(uid, 'fav');
+    for (const [uid, c] of Object.entries(carts)) if ((c?.items || []).some(i => String(i.id) === pid) && !who.has(uid)) who.set(uid, 'cart');
+    if (!who.size) return;
+    const lines = drops.slice(0, 4).map(d => {
+      const pct = Math.round((1 - d.to / d.from) * 100);
+      return `${d.label ? esc(d.label) + ': ' : ''}<s>${fmtSom(d.from)}</s> → <b>${fmtSom(d.to)}</b>${pct > 0 ? ` (−${pct}%)` : ''}`;
+    }).join('\n');
+    for (const [uid, why] of who) {
+      const where = why === 'cart' ? '🛒 Savatingizdagi' : '❤️ Sevimlilaringizdagi';
+      const text = `📉 <b>Narx tushdi!</b>\n\n${where} <b>${esc(after.name)}</b>\n${lines}\n\nShoshiling, chegirmali narx cheklangan bo'lishi mumkin 👇`;
       try {
-        await safeSend(() => b.sendMessage(uid, text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[shopButton("👀 Ko'rish", `?product=${pid}`)]] } }));
+        await safeSend(() => b.sendMessage(uid, text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[shopButton(why === 'cart' ? '🛒 Savatni ochish' : "👀 Ko'rish", why === 'cart' ? '?tab=cart' : `?product=${pid}`)]] } }));
         bump('priceAlerts');
       } catch (_) {}
       await sleep(60);
