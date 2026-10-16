@@ -1356,7 +1356,7 @@ Admin bilan ishlash qoidalari:
   - Kollaj (bir rasmda bir nechta ko'rinish) kelsa — uni o'zing bo'lma: rasmning o'zini qo'sh, tizim 3D uchun avtomatik ko'rinishlarga ajratadi. Do'konda kollaj ko'rinadi, banner uchun asosiy ko'rinish olinadi. Rasmlar kelsa (bir yoki bir nechta xabarda) — hammasini yig'.
   3) Qo'shish: add_product ni chaqir; image_ids = birinchi yuborilgan rasm + 4 tomondan rasmlar (jami 5 tagacha, birinchisi asosiy). Tavsif (o'zbekcha, 1-3 jumla) va 4-6 ta xususiyatni o'zing yoz (faqat aniq bilganlaringni). Natijani bitta qatorda ayt va "3D model rasmlardan avtomatik tayyorlanadi" deb qo'sh.
   - Admin "keyin" desa — bitta rasm bilan qo'sh va "4 tomondan rasmlarni keyin yuborsangiz, 3D model aniqroq chiqadi" de. Keyinroq admin shu mahsulot uchun rasmlar yuborsa (masalan "iPhone uchun 3D rasmlar") — update_product add_image_ids bilan qo'sh (jami 5 tagacha).
-  - Admin hammasini birdan yuborsa (rasmlar + narx + ma'lumot) — qadamlarni o'tkazib yubor va darhol qo'sh, ortiqcha savol berma.
+  - Admin ma'lumotlarni birdan yuborsa (narx + ma'lumot) — 1-qadamni o'tkazib yubor va darhol qo'sh; lekin 4 tomondan rasmlar hali kelmagan bo'lsa, qo'shgandan keyin ularni ALBATTA so'ra (2-qadam).
 - Narx majburiy. Admin narxni aytmagan bo'lsa, qo'shishdan oldin faqat narxni so'ra — narxni hech qachon o'zing o'ylab topma. "18.5 mln" = 18500000 so'm. Dollarda aytilsa, so'mdagi narxni so'ra.
 - Xususiyatlarni ishonchli bilmasang, faqat aniq bilganlaringni yoz.
 - O'chirish (delete_product) va buyurtmani rad etish kabi qaytarib bo'lmaydigan amallarni admin aniq so'ramagan bo'lsa, avval tasdiqlashni so'ra.
@@ -1374,7 +1374,9 @@ Admin bilan ishlash qoidalari:
 - "Falonchini blokdan chiqar", "kimlar bloklangan?" — unmute_customer (aldashga urinish yoki haqorat uchun 12 soatga avtomatik to'xtatilgan xaridorlar).
 - Admin topshiriq bersa, tushunganingcha darhol bajar — "hozir yo'q" deb rad etma. Avval tegishli asbob bilan haqiqiy ma'lumotni tekshir (xaridorlar ro'yxati uchun list_customer_chats). Topshiriq noaniq bo'lsa, bitta qisqa aniqlashtiruvchi savol ber.
 - Raqamlar va statistika (foydalanuvchilar, buyurtmalar, daromad) haqida so'ralsa, HAR DOIM avval get_stats (yoki list_users, list_orders) ni chaqir va faqat natijadagi aniq raqamlarni ayt. Raqamlarni batafsil ko'rsat (masalan: jami, bugun qo'shilgan, bot/Mini App orqali, buyurtma berganlar).
-- Bilmagan narsangni to'qib chiqarma va taxminiy tushuntirish berma. Ma'lumotda biror narsa bo'lmasa, aniq ayt: nima hisoblanadi va nima hisoblanmaydi (get_stats natijasidagi note'ga tayan).`;
+- Bilmagan narsangni to'qib chiqarma va taxminiy tushuntirish berma. Ma'lumotda biror narsa bo'lmasa, aniq ayt: nima hisoblanadi va nima hisoblanmaydi (get_stats natijasidagi note'ga tayan).${chat && chat.pending3d && Date.now() - chat.pending3d.at < 3 * 3600e3 ? `
+
+KUTILAYOTGAN 3D RASMLAR: "${chat.pending3d.name}" (ID ${chat.pending3d.id}) uchun 4 tomondan rasm so'ralgan. Admin rasm(lar) yuborsa va boshqa (yangi) mahsulot haqida gapirmasa — bu shu mahsulotning 3D rasmlari: update_product (id ${chat.pending3d.id}, add_image_ids) bilan qo'sh va "📸 Rasmlar qo'shildi, 3D model yangilanadi" deb ayt. Yangi mahsulot ekani aniq bo'lsa — odatdagidek qo'shish tartibi.` : ''}`;
     }
 
     const notes = chat && Array.isArray(chat.notes) ? chat.notes.map(cleanNote).filter(Boolean) : [];
@@ -1511,7 +1513,10 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         if (result.error) return result;
         stats.actions++;
         log(`Mahsulot qo'shildi: ${result.product.name} (${fmtSum(result.product.price)})`);
-        return { success: true, product: productSummary(result.product), missing_image_ids: missing.length ? missing : undefined };
+        // 3D model uchun 4 tomondan rasm yo'q bo'lsa — albatta so'raymiz (javobda unutilsa ham kod o'zi qo'shadi)
+        if (images.length < 4) { chat.pending3d = { id: result.product.id, name: result.product.name, at: Date.now() }; chat.ask3dNow = true; }
+        return { success: true, product: productSummary(result.product), missing_image_ids: missing.length ? missing : undefined,
+          ...(images.length < 4 ? { next_step: "MAJBURIY: javobing oxirida admindan 3D model uchun mahsulotni 4 tomondan (old, orqa, chap yon, o'ng yon) suratga olib yuborishini so'ra — 4 ta alohida rasm yoki bitta kollaj. Rasmlar kelsa update_product add_image_ids bilan shu mahsulotga qo'sh." } : {}) };
       }
       case 'update_product': {
         const existing = await store.getProduct(input.id);
@@ -1533,6 +1538,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         const specs = specsFromInput(input.specs);
         if (specs) patch.specs = specs;
         let missing = [];
+        if ((input.image_ids || input.add_image_ids) && chat.pending3d && String(chat.pending3d.id) === String(input.id ?? input.product_id)) chat.pending3d = null;
         if (input.image_ids || input.add_image_ids) {
           const base = input.image_ids ? [] : (existing.images && existing.images.length ? existing.images : (existing.image ? [existing.image] : []));
           const r = resolveImages(chat, input.image_ids || input.add_image_ids);
@@ -2548,6 +2554,11 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         if (canVoice(chat)) byVoice = true;
       }
       reply = reply.replace(/\[OVOZ\]\s*/gi, '');
+      // Mahsulot hozirgina 4 tadan kam rasm bilan qo'shildi va AI 3D rasmlarni so'rashni unutdi — o'zimiz qo'shamiz
+      if (chat.role === 'admin' && chat.ask3dNow) {
+        chat.ask3dNow = false;
+        if (!/3d|tomondan|kollaj/i.test(reply)) reply += "\n\n📸 3D model uchun mahsulotni 4 tomondan suratga olib yuboring: old, orqa, chap yon, o'ng yon (4 ta alohida rasm yoki bitta kollaj; oq yoki bir xil fonda). Hozir imkon bo'lmasa — keyin yuborsangiz ham bo'ladi.";
+      }
       if (!(byVoice && await sendVoiceReply(chat, reply))) await sendHumanlike(chat, reply);
 
       chat.aiRetries = 0;
