@@ -42,7 +42,7 @@ function getSession() {
   return sessionPromise;
 }
 
-async function removeBackground(input, { maxSide = 900 } = {}) {
+async function removeBackground(input, { maxSide = 1000 } = {}) {
   const run = async () => {
     const { ort, session } = await getSession();
     // 1) Model uchun 320x320 RGB
@@ -65,7 +65,7 @@ async function removeBackground(input, { maxSide = 900 } = {}) {
       for (let x = 0; x < SIZE; x++) {
         const i = y * SIZE + x;
         let v = (pred[i] - mn) / range;
-        v = Math.min(1, Math.max(0, (v - 0.12) / 0.76));       // yumshoq chegara
+        v = Math.min(1, Math.max(0, (v - 0.2) / 0.6));         // chegara (kattalashtirgandan keyin yana aniqlanadi)
         const b = Math.round(v * 255);
         mask[i] = b;
         if (b > 96) { covered++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
@@ -83,11 +83,13 @@ async function removeBackground(input, { maxSide = 900 } = {}) {
     fs.writeFileSync(tmp + '_m.png', maskPng);
     try {
       const filter =
-        `[0:v]format=rgba[img];[1:v]format=gray[m0];[m0][img]scale2ref=w=iw:h=ih:flags=bicubic[m][img2];` +
+        `[0:v]format=rgba[img];[1:v]format=gray[m0];[m0][img]scale2ref=w=iw:h=ih:flags=bicubic[m1][img2];` +
+        // Kattalashtirilgan niqob chetini aniqlaymiz (xira "tutun" chegara qolmasin)
+        `[m1]lut=y='clip((val-56)*255/150\,0\,255)'[m];` +
         `[img2][m]alphamerge,crop=iw*${(fx1 - fx0).toFixed(4)}:ih*${(fy1 - fy0).toFixed(4)}:iw*${fx0.toFixed(4)}:ih*${fy0.toFixed(4)},` +
         `scale='min(${maxSide},iw)':'min(${maxSide},ih)':force_original_aspect_ratio=decrease`;
       const webp = await ffmpeg(['-i', 'pipe:0', '-i', tmp + '_m.png', '-filter_complex', filter, '-frames:v', '1',
-        '-c:v', 'libwebp', '-lossless', '0', '-quality', '86', '-f', 'webp', 'pipe:1'], input);
+        '-c:v', 'libwebp', '-lossless', '0', '-quality', '92', '-f', 'webp', 'pipe:1'], input);
       return { buffer: webp, coverage: ratio };
     } finally {
       try { fs.unlinkSync(tmp + '_m.png'); } catch (_) {}

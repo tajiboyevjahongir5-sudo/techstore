@@ -1077,8 +1077,21 @@ async function loadImageSource(src) {
   const m = String(src).match(/^data:image\/[a-z+]+;base64,(.+)$/i);
   if (m) return Buffer.from(m[1], 'base64');
   if (!/^https:\/\//i.test(src)) throw new Error('rasm manzili yaroqsiz');
-  const r = await fetch(src, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*' }, signal: AbortSignal.timeout(20000) });
-  if (!r.ok || !String(r.headers.get('content-type') || '').startsWith('image/')) throw new Error('rasm yuklanmadi: ' + r.status);
+  // Ba'zi saytlar (CDN) bitta turdagi so'rovni bloklaydi — bir nechta variant bilan urinib ko'ramiz
+  const variants = [
+    { 'User-Agent': 'Mozilla/5.0 (TechStore image proxy)', Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*' },
+    { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9', Referer: new URL(src).origin + '/' },
+    { 'User-Agent': 'curl/8.5.0', Accept: '*/*' },
+  ];
+  let r = null, lastErr = '';
+  for (const headers of variants) {
+    try {
+      r = await fetch(src, { headers, signal: AbortSignal.timeout(20000) });
+      if (r.ok && String(r.headers.get('content-type') || '').startsWith('image/')) break;
+      lastErr = 'status ' + r.status; r = null;
+    } catch (e) { lastErr = e.message; r = null; }
+  }
+  if (!r) throw new Error('rasm yuklanmadi: ' + lastErr);
   const buf = Buffer.from(await r.arrayBuffer());
   if (buf.length > 12e6) throw new Error('rasm juda katta');
   return buf;
@@ -1281,51 +1294,55 @@ async function transparentToWebp(buf, box) {
     `format=rgba,crop=iw*${(bx1 - bx0).toFixed(4)}:ih*${(by1 - by0).toFixed(4)}:iw*${bx0.toFixed(4)}:ih*${by0.toFixed(4)},scale='min(900,iw)':'min(900,ih)':force_original_aspect_ratio=decrease`,
     '-c:v', 'libwebp', '-lossless', '0', '-quality', '86', '-f', 'webp', 'pipe:1'], buf);
 }
+const BANNER_PASS = 7;
+const bannerMetaPath = k => path.join(CUTOUT_DIR, k.key + '.json');
+function readBannerMeta(k) { try { return JSON.parse(fs.readFileSync(bannerMetaPath(k), 'utf8')); } catch (_) { return null; } }
 async function getBannerImage(p) {
   const k = bannerKey(p);
   if (!k) return null;
   const file = path.join(CUTOUT_DIR, k.key + '.webp');
-  const failFile = path.join(CUTOUT_DIR, k.key + '.fail');
-  if (fs.existsSync(file)) return fs.readFileSync(file);
-  if (fs.existsSync(failFile) && Date.now() - fs.statSync(failFile).mtimeMs < 6 * 3600e3) return null;
+  const meta = readBannerMeta(k);
+  if (fs.existsSync(file) && meta) {
+    // Banner rasmining o'zi yuklanmagan va mahsulot suratidan kesilgan bo'lsa — 1 soatdan keyin asl rasmni qayta sinaymiz
+    const retrySource = meta.from === 'photo' && k.src && Date.now() - (meta.at || 0) > 3600e3;
+    if (!retrySource) return meta.ok ? fs.readFileSync(file) : null;
+  } else if (meta && !meta.ok && Date.now() - (meta.at || 0) < 6 * 3600e3) return null;
   const jk = k.key + ':banner';
   if (!cutoutJobs.has(jk)) {
     const prev = [...cutoutJobs.values()].pop() || Promise.resolve();
     const job = prev.catch(() => {}).then(async () => {
-      let out = null, why = '';
+      const save = (buf, m) => {
+        fs.mkdirSync(CUTOUT_DIR, { recursive: true });
+        if (buf) fs.writeFileSync(file, buf);
+        fs.writeFileSync(bannerMetaPath(k), JSON.stringify({ ...m, at: Date.now() }));
+        if (!m.ok) console.warn(`🖼 Banner rasmi (${p.id}) bannerga qo'yilmaydi: ${m.why || ''} ${m.score != null ? '(baho ' + m.score + ')' : ''}`);
+        return m.ok ? buf : null;
+      };
       try {
+        let why = '';
+        // 1) Admin bergan (yoki standart) banner rasmi
         if (k.src) {
-          const src = await loadImageSource(k.src);
-          const info = await alphaInfo(src).catch(() => null);
-          if (info && info.transparent) out = await transparentToWebp(src, info.box);
-          else {
+          try {
+            const src = await loadImageSource(k.src);
+            const info = await alphaInfo(src).catch(() => null);
+            if (info && info.transparent) return save(await transparentToWebp(src, info.box), { ok: true, from: 'banner' });
             const r = await runCutoutWorker(src);
             if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) throw new Error('banner rasmida mahsulot aniq ajralmadi');
-            out = r.buffer;
-          }
+            const v = await judgeCutout(r.buffer, p);
+            if (!v || v.score >= BANNER_PASS) return save(r.buffer, { ok: true, from: 'banner-ai', score: v?.score ?? null, issues: v?.issues });
+            why = `banner rasmidan kesilgani sifatsiz: ${v.issues}`;
+          } catch (e) { why = e.message; }
         }
-      } catch (e) { why = e.message; }
-      try {
-        if (!out) {                                   // asosiy suratning fonsiz varianti (navbat ichida — to'g'ridan-to'g'ri)
-          const ck = cutoutKey(p);
-          const cf = ck && path.join(CUTOUT_DIR, ck.key + '.webp');
-          if (cf && fs.existsSync(cf)) out = fs.readFileSync(cf);
-          else if (ck) {
-            const r = await runCutoutWorker(await loadImageSource(ck.src));
-            if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) throw new Error((why ? why + '; ' : '') + 'mahsulot suratida ham aniq ajralmadi');
-            fs.mkdirSync(CUTOUT_DIR, { recursive: true });
-            fs.writeFileSync(cf, r.buffer);
-            out = r.buffer;
-          }
-        }
-        if (!out) throw new Error(why || 'fonsiz rasm tayyorlanmadi');
-        fs.mkdirSync(CUTOUT_DIR, { recursive: true });
-        fs.writeFileSync(file, out);
-        return out;
+        // 2) Asosiy mahsulot surati (kattaroq o'lchamda) — fonini kesamiz va Gemini tekshiradi
+        const ck = cutoutKey(p);
+        if (!ck) return save(null, { ok: false, why: why || "rasm yo'q" });
+        const r = await runCutoutWorker(await loadHiRes(ck.src));
+        if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) return save(null, { ok: false, from: 'photo', why: (why ? why + '; ' : '') + 'mahsulot suratida aniq ajralmadi' });
+        const v = await judgeCutout(r.buffer, p);
+        const ok = !v || v.score >= BANNER_PASS;
+        return save(ok ? r.buffer : null, { ok, from: 'photo', score: v?.score ?? null, issues: v?.issues, why: ok ? why : `sifat past: ${v.issues}` });
       } catch (e) {
-        console.warn(`🖼 Banner rasmi (${p.id}) tayyorlanmadi:`, e.message);
-        try { fs.mkdirSync(CUTOUT_DIR, { recursive: true }); fs.writeFileSync(failFile, e.message); } catch (_) {}
-        return null;
+        try { return save(null, { ok: false, why: e.message }); } catch (_) { return null; }
       } finally {
         cutoutJobs.delete(jk);
       }
@@ -1334,9 +1351,43 @@ async function getBannerImage(p) {
   }
   return cutoutJobs.get(jk);
 }
+
+// Fonni kesish uchun kattaroq manba: Unsplash kabi saytlar o'lchamni URL'da beradi (w=600 → 1600)
+function hiResSrc(src) {
+  try {
+    const u = new URL(src);
+    if (u.hostname === 'images.unsplash.com') { u.searchParams.set('w', '1600'); u.searchParams.set('q', '90'); return u.href; }
+  } catch (_) {}
+  return src;
+}
+async function loadHiRes(src) {
+  if (/^https:/i.test(src)) { const hi = hiResSrc(src); if (hi !== src) { try { return await loadImageSource(hi); } catch (_) {} } }
+  return loadImageSource(src);
+}
+// Gemini fonsiz rasmni ko'rib baholaydi: qoldiq fon (tutun, soya, bo'laklar), xiralik, kesilgan joylar
+async function judgeCutout(buf, p) {
+  try {
+    if (typeof assistant === 'undefined' || !assistant.geminiGenerate) return null;
+    const jpg = await ffRaw(['-f', 'lavfi', '-i', 'color=c=0x8a8f98:s=16x16', '-i', 'pipe:0', '-filter_complex',
+      `[1]scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease[c];[0][c]scale2ref[bg][c2];[bg][c2]overlay`, '-frames:v', '1', '-f', 'image2pipe', '-c:v', 'mjpeg', '-q:v', '3', 'pipe:1'], buf);
+    const r = await assistant.geminiGenerate([
+      { inline_data: { mime_type: 'image/jpeg', data: jpg.toString('base64') } },
+      { text: `Bu "${p.name}" mahsulotining fonini AI olib tashlagan rasmi (kulrang fon — shaffof joy). U do'kon bannerida ko'rsatiladi. ` +
+        `Qat'iy baholang: mahsulot to'liq va aniq ajratilganmi; atrofida eski fondan qoldiq (tutun, rangli dog'lar, soya, stol, qo'l, boshqa narsalar) yo'qmi; chetlari toza va tiniqmi (xira emasmi); mahsulotning biror qismi kesilib ketmaganmi. ` +
+        `Faqat JSON: {"score": 1-10, "issues": "qisqa, o'zbekcha"}` },
+    ], { json: true });
+    if (!r || r.error || !r.text) return null;
+    const j = JSON.parse(String(r.text).replace(/^```(?:json)?|```$/gm, '').trim());
+    const score = Math.round(Number(j.score));
+    return Number.isFinite(score) ? { score, issues: String(j.issues || '').slice(0, 200) } : null;
+  } catch (_) { return null; }
+}
+
 function bannerReady(p) {
   const k = bannerKey(p);
-  return !!(k && fs.existsSync(path.join(CUTOUT_DIR, k.key + '.webp')));
+  if (!k) return false;
+  const m = readBannerMeta(k);
+  return !!(m && m.ok && fs.existsSync(path.join(CUTOUT_DIR, k.key + '.webp')));
 }
 app.get('/api/banner-img/:pid', async (req, res) => {
   try {

@@ -9689,7 +9689,7 @@ function getTopProducts() {
 // Banner uchun: fonsiz (shaffof) rasmi tayyor mahsulotlar oldinda — bannerda faqat chiroyli,
 // fonsiz mahsulot rasmlari chiqsin. Tartib baribir haqiqiy: chegirma → ko'p sotilgan → yangi.
 function getBannerProducts() {
-  const pool = [...products].filter(p => !isOutOfStock(p) && !bannerFailed.has(String(p.id)) && (p.banner || p.cutout))
+  const pool = [...products].filter(p => !isOutOfStock(p) && !bannerFailed.has(String(p.id)) && p.banner)
     .sort((a, b) => ((b.discount > 0) - (a.discount > 0)) || ((b.sold || 0) - (a.sold || 0)) || (b.id - a.id));
   const ready = pool.filter(p => p.bannerReady);
   return [...ready, ...pool.filter(p => !p.bannerReady)].slice(0, 5);
@@ -9721,7 +9721,8 @@ function buildSlides() {
     // Navbat: tayyor banner (shaffof PNG) → AI bilan fonsizlashtirilgan mahsulot surati → oddiy surat → emoji
     // Server banner rasmini o'zi tekshiradi: shaffof bo'lsa o'zi, fonli bo'lsa AI bilan fonini olib tashlaydi
     // Oddiy (fonli) surat bannerga qo'yilmaydi — fonsiz rasm bo'lmasa mahsulot bannerdan chiqariladi
-    const candidates = [...new Set([p.banner, p.cutout].filter(Boolean))];
+    // Faqat server tekshirgan banner rasmi (Gemini sifat nazoratidan o'tgan) — tekshirilmagan fonsiz rasm qo'yilmaydi
+    const candidates = p.banner ? [p.banner] : [];
     const slideImgSrc = candidates[0];
     const imgHtml = slideImgSrc
       ? `<div class="slide-img">
