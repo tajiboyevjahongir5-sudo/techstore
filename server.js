@@ -1295,7 +1295,7 @@ function bannerKey(p) {
   const ck = cutoutKey(p);
   const src = p.bannerImage || defaultBanner(p);
   if (!src && !ck) return null;
-  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v5').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
+  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v6').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
 }
 function ffRaw(args, input) {
   return new Promise((resolve, reject) => {
@@ -1439,7 +1439,7 @@ async function judgeCutout(buf, p) {
 
 // Oq fon usuli ikki variant beradi (ichki "teshik"lar bilan/siz) — Gemini yaxshisini tanlaydi
 async function pickUniform(ub, p) {
-  if (ub.ai) console.log(`🖼 Banner (${p.id}) oq fon + AI: tiklandi ${ub.ai.restored}, olindi ${ub.ai.removed}, teshik ${ub.ai.autoHoles}, moslik ${ub.ai.agree}`);
+  if (ub.ai) console.log(`🖼 Banner (${p.id}) oq fon + AI: tiklandi ${ub.ai.restored}, olindi ${ub.ai.removed}, teshik ${ub.ai.autoHoles}, orol ${ub.ai.islands || 0}, moslik ${ub.ai.agree}`);
   let a = await judgeCutout(ub.buffer, p);
   // Gemini yo'q bo'lsa — AI niqobi bilan moslik juda past natija sifatsiz deb hisoblanadi (bannerga chiqmaydi)
   if (!a && ub.ai && ub.ai.agree != null && ub.ai.agree < 0.55) a = { score: 4, issues: `AI niqobi bilan mos emas (${ub.ai.agree})` };

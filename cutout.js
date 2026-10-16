@@ -444,6 +444,32 @@ async function removeUniformBackground(input, { split = false, aiMask = null } =
       else if (bgLike(i) && at(hi, i) < 30) { isBg[i] = 1; fix.removed++; }
     }
   }
+  // Mahsulot ichida qolgan fon "orol"lari (quloqchin halqasi ichi): rangi fon rangiga yaqin, soya bilan bir oz
+  // o'zgaradi, lekin chetdagi fonga tutashmagan. AI ham "mahsulot" demasa va mahsulotning katta qismi bo'lmasa — olinadi.
+  if (!split) {
+    let prod = 0; for (let i = 0; i < N; i++) if (!isBg[i] && A(i) >= 40) prod++;
+    const seen = new Uint8Array(N);
+    const light = j => { const r = rgba[j * 4], g = rgba[j * 4 + 1], b = rgba[j * 4 + 2]; const mx = Math.max(r, g, b); return mx > 150 && mx - Math.min(r, g, b) < 30; };
+    for (let s0 = 0; s0 < N; s0++) {
+      if (seen[s0] || isBg[s0] || A(s0) < 200 || dist(s0) > TOL * 0.7) continue;
+      const comp = [s0]; seen[s0] = 1; let dsum = 0, asum = 0, big = false;
+      for (let k = 0; k < comp.length; k++) {
+        const i = comp[k], x = i % UB; dsum += dist(i);
+        if (ai) { const y = (i / UB) | 0; asum += ai[Math.min(319, (y * 320 / UB) | 0) * 320 + Math.min(319, (x * 320 / UB) | 0)]; }
+        if (comp.length > prod * 0.4) { big = true; break; }
+        for (const j of [x > 0 ? i - 1 : -1, x < UB - 1 ? i + 1 : -1, i - UB, i + UB]) {
+          if (j < 0 || j >= N || seen[j] || isBg[j] || A(j) < 200) continue;
+          const dn = Math.hypot(rgba[j * 4] - rgba[i * 4], rgba[j * 4 + 1] - rgba[i * 4 + 1], rgba[j * 4 + 2] - rgba[i * 4 + 2]);
+          if (dist(j) < TOL || (dn < 7 && light(j))) { seen[j] = 1; comp.push(j); }
+        }
+      }
+      if (big) { for (let k = 0; k < comp.length; k++) seen[comp[k]] = 1; continue; }
+      const n = comp.length;
+      if (n < N * 0.002 || dsum / n > 24 || (ai && asum / n > 160)) continue;
+      for (const i of comp) isBg[i] = 1;
+      fix.islands = (fix.islands || 0) + 1;
+    }
+  }
   for (let i = 0; i < N; i++) if (isBg[i]) rgba[i * 4 + 3] = 0;
   if (split) return splitViews(rgba, UB, UB);
   keepMainObject(rgba, UB, UB);
