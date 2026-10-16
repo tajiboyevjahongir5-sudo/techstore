@@ -1205,11 +1205,18 @@ const model3d = createModel3D({
     return `${p.id}_${h.digest('hex').slice(0, 12)}`;
   },
   loadImageSource: p => loadImageSource(cutoutKey(p).src),
+  // Kollaj (bitta rasmda 4 tomon) bo'lsa — alohida ko'rinishlarga ajratiladi; jami 4 tagacha
   loadImages: async p => {
-    const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 4);
+    const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 5);
     const out = [];
-    for (const src of imgs) { try { out.push(await loadImageSource(src)); } catch (_) {} }
-    return out;
+    for (const src of imgs) {
+      if (out.length >= 4) break;
+      let buf; try { buf = await loadImageSource(src); } catch (_) { continue; }
+      const views = await splitCollage(buf).catch(() => null);
+      if (views && views.length >= 2) { console.log(`🧊 3D (${p.id}): kollaj ${views.length} ta ko'rinishga ajratildi`); out.push(...views); }
+      else out.push(buf);
+    }
+    return out.slice(0, 4);
   },
   gemini: (parts, opts) => assistant.geminiGenerate(parts, opts),
 });
@@ -1279,7 +1286,7 @@ function defaultBanner(p) {
   const d = DEFAULT_BANNERS[p.id];
   return d && String(p.name || '').trim().toLowerCase() === d[0].toLowerCase() ? d[1] : '';
 }
-const { removeUniformBackground } = require('./cutout');
+const { removeUniformBackground, splitCollage } = require('./cutout');
 function bannerKey(p) {
   const ck = cutoutKey(p);
   const src = p.bannerImage || defaultBanner(p);

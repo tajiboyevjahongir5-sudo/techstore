@@ -281,12 +281,60 @@ function keepMainObject(rgba, w, h) {
   }
 }
 
+// ===== KOLLAJNI KO'RINISHLARGA AJRATISH =====
+// Bitta rasmda bir nechta ko'rinish (old, orqa, yonlar) oq fonda alohida turgan bo'lsa — har biri alohida
+// shaffof PNG bo'lib qaytadi (o'qish tartibida: chapdan o'ngga, yuqoridan pastga). Aks holda null.
+async function splitViews(rgba, w, h) {
+  const N = w * h, lab = new Int32Array(N), comps = [];
+  const stack = [];
+  for (let s0 = 0; s0 < N; s0++) {
+    if (lab[s0] || rgba[s0 * 4 + 3] < 128) continue;
+    const id = comps.length + 1; let size = 0, x0 = w, y0 = h, x1 = 0, y1 = 0, edge = false;
+    lab[s0] = id; stack.push(s0);
+    while (stack.length) {
+      const i = stack.pop(); size++;
+      const x = i % w, y = (i / w) | 0;
+      if (x < 3 || y < 3 || x >= w - 3 || y >= h - 3) edge = true;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1])
+        if (j >= 0 && !lab[j] && rgba[j * 4 + 3] >= 128) { lab[j] = id; stack.push(j); }
+    }
+    comps.push({ id, size, edge, box: [x0, y0, x1, y1] });
+  }
+  const total = comps.reduce((a, c) => a + c.size, 0);
+  // Ko'rinish: yetarlicha katta bo'lak (ingichka yon ko'rinish ham — bo'yi rasmning 15% idan uzun)
+  const views = comps.filter(c => !c.edge && c.size >= total * 0.03 && Math.max(c.box[2] - c.box[0], c.box[3] - c.box[1]) >= Math.min(w, h) * 0.15);
+  if (views.length < 2 || views.length > 6) return null;
+  if (views.reduce((a, c) => a + c.size, 0) < total * 0.9) return null;    // ko'p mayda bo'laklar — kollaj emas
+  // O'qish tartibi: avval qator (yuqoridan), keyin ustun
+  const rowH = Math.max(...views.map(c => c.box[3] - c.box[1])) * 0.5;
+  views.sort((a, b) => (Math.abs(a.box[1] - b.box[1]) > rowH ? a.box[1] - b.box[1] : a.box[0] - b.box[0]));
+  const out = [];
+  for (const c of views) {
+    const pad = 16;
+    const [x0, y0, x1, y1] = [Math.max(0, c.box[0] - pad), Math.max(0, c.box[1] - pad), Math.min(w - 1, c.box[2] + pad), Math.min(h - 1, c.box[3] + pad)];
+    const cw = x1 - x0 + 1, ch = y1 - y0 + 1, buf = Buffer.alloc(cw * ch * 4);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const i = (y + y0) * w + (x + x0), o = (y * cw + x) * 4;
+      // Faqat shu bo'lak (va uning yarim shaffof cheti) — qo'shni ko'rinishlar kirmasin
+      const keep = lab[i] === c.id || (!lab[i] && rgba[i * 4 + 3] > 0);
+      if (!keep) continue;
+      buf[o] = rgba[i * 4]; buf[o + 1] = rgba[i * 4 + 1]; buf[o + 2] = rgba[i * 4 + 2]; buf[o + 3] = rgba[i * 4 + 3];
+    }
+    // Kvadrat kanvasga markazlab (TRELLIS uchun qulay), PNG
+    const side = Math.max(cw, ch) + 40;
+    out.push(await ffmpeg(['-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${cw}x${ch}`, '-i', 'pipe:0', '-frames:v', '1',
+      '-vf', `pad=${side}:${side}:(ow-iw)/2:(oh-ih)/2:color=0x00000000,scale='min(1024,iw)':-1`, '-f', 'image2pipe', '-c:v', 'png', 'pipe:1'], buf));
+  }
+  return out;
+}
+
 // ===== BIR XIL RANGLI FONNI OLIB TASHLASH (oq/kulrang fondagi mahsulot surati) =====
 // Chetdan boshlab fon rangiga yaqin piksellar "bo'yoq quyish" (flood fill) bilan o'chiriladi —
 // mahsulot ichidagi oq qismlar (ekran, korpus) saqlanadi, chunki ular chetga ulanmagan.
 // Fon bir xil bo'lmasa (xona, tutun, rang-barang) — null (unda AI ishlatiladi).
 const UB = 1000;
-async function removeUniformBackground(input) {
+async function removeUniformBackground(input, { split = false } = {}) {
   const rgba = await ffmpeg(['-i', 'pipe:0', '-frames:v', '1', '-vf',
     `format=rgba,scale=${UB}:${UB}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${UB}:${UB}:-1:-1:color=0x00000000,format=rgba`,
     '-f', 'rawvideo', 'pipe:1'], input);
@@ -346,6 +394,7 @@ async function removeUniformBackground(input) {
   }
   let visible0 = 0; for (let i = 0; i < N; i++) if (A(i) >= 40) visible0++;
   for (let i = 0; i < N; i++) if (isBg[i]) rgba[i * 4 + 3] = 0;
+  if (split) return splitViews(rgba, UB, UB);
   keepMainObject(rgba, UB, UB);
   for (let i = 0; i < N; i++) if (rgba[i * 4 + 3] === 0) isBg[i] = 1;
   // Natija: fon shaffof, chegarada silliq o'tish; mahsulot chegarasi (bbox)
@@ -393,4 +442,7 @@ async function removeUniformBackground(input) {
   return { buffer: webp, holesBuffer, coverage: solid / N, bg };
 }
 
-module.exports = { removeBackground, removeUniformBackground, heightMap, available: () => !!FFMPEG };
+// Kollaj bo'lsa — ko'rinishlar ro'yxati (≥2), aks holda null
+async function splitCollage(input) { return removeUniformBackground(input, { split: true }); }
+
+module.exports = { removeBackground, removeUniformBackground, splitCollage, heightMap, available: () => !!FFMPEG };

@@ -176,7 +176,11 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
     current = p.id;
     set(p.id, { key, status: 'working', error: null, tries, hidden: prev.key === key ? prev.hidden : false, approved: prev.key === key ? prev.approved : null });
     try {
-      const src = await loadImageSource(p);
+      // Barcha rasmlar (kollaj bo'lsa — ajratilgan ko'rinishlar); tekshiruv birinchi ko'rinish bo'yicha
+      let all = null;
+      if (loadImages) { try { const more = await loadImages(p); if (more && more.length) all = more; } catch (_) {} }
+      const src = all ? all[0] : await loadImageSource(p);
+      if (!all) all = [src];
       const mime = /^\x89PNG/.test(src.slice(0, 4).toString('latin1')) ? 'image/png' : /^RIFF/.test(src.slice(0, 4).toString()) ? 'image/webp' : 'image/jpeg';
       if (!force) {
         const pc = await precheck(src, mime, p);
@@ -186,8 +190,6 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
           return;
         }
       }
-      let all = [src];
-      if (loadImages) { try { const more = await loadImages(p); if (more && more.length) all = more; } catch (_) {} }
       let best = null;
       for (let attempt = 0; attempt < 2; attempt++) {
         const seed = attempt === 0 ? 0 : Math.floor(Math.random() * 2147483647);
