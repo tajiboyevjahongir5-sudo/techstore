@@ -1219,6 +1219,7 @@ const model3d = createModel3D({
     return out.slice(0, 4);
   },
   gemini: (parts, opts) => assistant.geminiGenerate(parts, opts),
+  notify: async text => { if (botInstance) await Promise.all(ADMIN_IDS.map(id => botInstance.sendMessage(id, text).catch(() => {}))); },
 });
 app.get('/api/model3d/:file', async (req, res) => {
   const pid = String(req.params.file).replace(/\.glb$/i, '');
@@ -2011,6 +2012,7 @@ async function addProduct(data) {
   const { product, error } = buildProduct(data);
   if (error) return { error };
   await mutateProducts(list => ({ list: [product, ...list.filter(p => p.id !== product.id)] }));
+  setTimeout(() => { try { model3d.sweep(); } catch (_) {} }, 5000);   // 3D modelni navbatni kutmasdan boshlaymiz
   return { product };
 }
 
@@ -2030,6 +2032,8 @@ async function updateProduct(id, data) {
     botFeatures.onProductUpdated(before, result.product).catch(e => console.warn('Narx xabari xatosi:', e.message));
     // Omborga qayta kelsa — kutayotganlarga xabar
     if (!hasStock(before) && hasStock(result.product)) notifyWaitlist(result.product).catch(e => console.warn('Kutish ro\'yxati xatosi:', e.message));
+    // Rasmlar o'zgarsa (masalan, 4 tomondan rasmlar qo'shildi) — 3D model darhol qayta yasaladi
+    if (JSON.stringify(before.images || before.image || null) !== JSON.stringify(result.product.images || result.product.image || null)) setTimeout(() => { try { model3d.sweep(); } catch (_) {} }, 5000);
   }
   return result;
 }

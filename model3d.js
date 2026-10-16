@@ -14,7 +14,7 @@ const MAX_TRIES = 3;                 // bitta rasm uchun jami muvaffaqiyatsiz ur
 const RETRY_FAILED_MS = 24 * 3600e3; // xatodan keyin qayta urinish
 const SWEEP_MS = 10 * 60e3;
 
-function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages, gemini, onChange, loadGradio = () => import('@gradio/client') }) {
+function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages, gemini, onChange, notify, loadGradio = () => import('@gradio/client') }) {
   const STATE_FILE = path.join(dir, 'models3d.json');
   let state = {};
   try { state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch (_) { state = {}; }
@@ -167,6 +167,9 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
     throw lastErr || new Error('TRELLIS ishlamadi');
   }
 
+  // Adminga natija haqida xabar (bot orqali)
+  function tell(text) { try { notify && Promise.resolve(notify(text)).catch(() => {}); } catch (_) {} }
+
   // ---- Bitta mahsulot ----
   async function build(p, { force = false } = {}) {
     const key = imageKey(p);
@@ -186,6 +189,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
         const pc = await precheck(src, mime, p);
         if (pc && pc.suitable === false) {
           set(p.id, { status: 'unsuitable', reason: String(pc.reason || '').slice(0, 300), tries: MAX_TRIES });
+          tell(`🧊 "${p.name}" — rasm 3D model uchun yaroqsiz: ${pc.reason || ''}\nBoshqa rasm yuboring (oq fonda, mahsulot to'liq, 4 tomondan) yoki Admin → Mahsulotlar → 3D modellar'da "Qayta yasash".`);
           console.log(`🧊 3D (${p.id}) rasm yaroqsiz: ${pc.reason}`);
           return;
         }
@@ -210,12 +214,20 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
       const status = best.score === null ? 'unchecked' : best.score >= PASS_SCORE ? 'ready' : 'rejected';
       set(p.id, { status, score: best.score, reason: best.issues, file, space: best.space, size: best.glb.length, views: best.views || 1, tries: 0, force: false });
       console.log(`🧊 3D (${p.id}) tayyor: ${status}, baho ${best.score ?? '—'}`);
+      const side = (best.views || 1) > 1 ? `${best.views} tomondan` : 'bitta rasmdan';
+      tell(status === 'ready'
+        ? `🧊 3D model tayyor: "${p.name}" — ${side}, baho ${best.score}/10 ✅\nMijozlar mahsulot sahifasida "3D ko'rinish" tugmasi orqali ko'radi.`
+        : status === 'rejected'
+          ? `🧊 "${p.name}" uchun 3D model yasaldi, lekin sifati past (${best.score}/10${best.issues ? ': ' + best.issues : ''}) — mijozlarga ko'rsatilmaydi.\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" yoki "Qayta yasash" mumkin.${(best.views || 1) < 4 ? " 4 tomondan rasm qo'shsangiz aniqroq chiqadi." : ''}`
+          : `🧊 3D model tayyor: "${p.name}" — ${side}, lekin avtomatik baholanmadi (Gemini kaliti yo'q).\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" ni bosing.`);
     } catch (e) {
       if (e && e.quota) {
+        if (Date.now() >= pausedUntil) tell(`⏸ 3D model: Hugging Face bepul GPU limiti tugadi — "${p.name}" navbatda, taxminan 1 soatdan keyin o'zi davom etadi.`);
         pausedUntil = Date.now() + 60 * 60e3;
         set(p.id, { status: 'queued', error: 'GPU limiti tugadi — keyinroq davom etadi' });
       } else {
         set(p.id, { status: 'failed', error: String(e && e.message || e).slice(0, 300), tries: tries + 1 });
+        if (tries + 1 >= MAX_TRIES || tries === 0) tell(`⚠️ "${p.name}" uchun 3D model yasab bo'lmadi: ${String(e && e.message || e).slice(0, 200)}${tries + 1 < MAX_TRIES ? "\n24 soatdan keyin o'zi qayta urinadi." : ''}`);
       }
     } finally {
       current = null;

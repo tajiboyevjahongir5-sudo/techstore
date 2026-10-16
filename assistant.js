@@ -1169,15 +1169,44 @@ function createAssistant(deps) {
     }
   }
 
+  // Katta yoki boshqa formatdagi rasmni 2048px gacha kichraytirib PNG (shaffoflik saqlanadi) qiladi
+  function shrinkImage(buf) {
+    return new Promise((resolve, reject) => {
+      if (!FFMPEG_PATH) return reject(new Error("ffmpeg yo'q"));
+      const ff = spawn(FFMPEG_PATH, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-frames:v', '1',
+        '-vf', "scale='min(2048,iw)':'min(2048,ih)':force_original_aspect_ratio=decrease", '-f', 'image2pipe', '-c:v', 'png', 'pipe:1']);
+      const out = [];
+      ff.stdout.on('data', d => out.push(d));
+      ff.on('error', reject);
+      ff.on('close', code => {
+        const b = Buffer.concat(out);
+        if (code !== 0 || !b.length) return reject(new Error('ffmpeg ' + code));
+        if (b.length <= MAX_IMAGE_BYTES) return resolve({ buffer: b, mime: 'image/png' });
+        // PNG juda katta — JPEG
+        const ff2 = spawn(FFMPEG_PATH, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-frames:v', '1', '-q:v', '3', '-f', 'image2pipe', '-c:v', 'mjpeg', 'pipe:1']);
+        const o2 = []; ff2.stdout.on('data', d => o2.push(d)); ff2.on('error', reject);
+        ff2.on('close', c2 => { const j = Buffer.concat(o2); c2 === 0 && j.length ? resolve({ buffer: j, mime: 'image/jpeg' }) : reject(new Error('ffmpeg jpeg')); });
+        ff2.stdin.on('error', () => {}); ff2.stdin.end(b);
+      });
+      ff.stdin.on('error', () => {});
+      ff.stdin.end(buf);
+    });
+  }
+
   async function downloadImage(msg) {
     try {
       if (msg.photo) {
         const buf = await client.downloadMedia(msg, { thumb: pickPhotoSize(msg.photo) });
         if (Buffer.isBuffer(buf) && buf.length) return { buffer: buf, mime: 'image/jpeg' };
-      } else if (msg.document && /^image\/(jpeg|png|webp|gif)$/.test(msg.document.mimeType || '')) {
-        if (Number(msg.document.size) > MAX_IMAGE_BYTES) return null;
+      } else if (msg.document && /^image\//.test(msg.document.mimeType || '')) {
+        // Fayl sifatida (siqilmasdan) yuborilgan rasm: 20 MB gacha, katta bo'lsa yoki boshqa formatda — kichraytirib PNG/JPEG qilamiz
+        if (Number(msg.document.size) > 20 * 1024 * 1024) return { error: 'big' };
         const buf = await client.downloadMedia(msg, {});
-        if (Buffer.isBuffer(buf) && buf.length) return { buffer: buf, mime: msg.document.mimeType };
+        if (!Buffer.isBuffer(buf) || !buf.length) return null;
+        const mt = msg.document.mimeType;
+        if (/^image\/(jpeg|png|webp)$/.test(mt) && buf.length <= MAX_IMAGE_BYTES) return { buffer: buf, mime: mt };
+        const conv = await shrinkImage(buf).catch(() => null);
+        return conv || { error: 'format', mime: mt };
       }
     } catch (e) {
       console.error('Assistant: rasmni yuklab olishda xato:', e.message);
@@ -1246,7 +1275,15 @@ function createAssistant(deps) {
     const blocks = [];
     const plain = [];
     for (const msg of msgs) {
-      const img = (msg.photo || msg.document) ? await downloadImage(msg) : null;
+      let img = (msg.photo || msg.document) ? await downloadImage(msg) : null;
+      if (img && img.error) {
+        const why = img.error === 'big' ? "juda katta (20 MB dan ortiq)" : `ochilmadi (format: ${img.mime || "noma'lum"})`;
+        blocks.push({ type: 'text', text: `[Admin/foydalanuvchi rasm faylini yubordi, lekin u ${why}. Bu rasm SAQLANMADI — uni hech qayerga qo'sha olmaysan. Rasmni oddiy rasm qilib (Telegram'da "rasm" sifatida, fayl emas) qayta yuborishni so'ra.]` });
+        plain.push('[rasm fayli ochilmadi]');
+        img = null;
+        if (msg.message) { blocks.push({ type: 'text', text: msg.message }); plain.push(msg.message); }
+        continue;
+      }
       if (img) {
         const photoId = `photo_${++chat.photoSeq}`;
         chat.photos.set(photoId, `data:${img.mime};base64,${img.buffer.toString('base64')}`);
@@ -1516,6 +1553,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         // 3D model uchun 4 tomondan rasm yo'q bo'lsa — albatta so'raymiz (javobda unutilsa ham kod o'zi qo'shadi)
         if (images.length < 4) { chat.pending3d = { id: result.product.id, name: result.product.name, at: Date.now() }; chat.ask3dNow = true; }
         return { success: true, product: productSummary(result.product), missing_image_ids: missing.length ? missing : undefined,
+          ...(input.image_ids && input.image_ids.length && !images.length ? { warning: "Ko'rsatilgan rasmlar topilmadi — mahsulot RASMSIZ qo'shildi. Buni adminga ochiq ayt va rasmlarni qayta yuborishni so'ra." } : {}),
           ...(images.length < 4 ? { next_step: "MAJBURIY: javobing oxirida admindan 3D model uchun mahsulotni 4 tomondan (old, orqa, chap yon, o'ng yon) suratga olib yuborishini so'ra — 4 ta alohida rasm yoki bitta kollaj. Rasmlar kelsa update_product add_image_ids bilan shu mahsulotga qo'sh." } : {}) };
       }
       case 'update_product': {
@@ -1538,7 +1576,10 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         const specs = specsFromInput(input.specs);
         if (specs) patch.specs = specs;
         let missing = [];
-        if ((input.image_ids || input.add_image_ids) && chat.pending3d && String(chat.pending3d.id) === String(input.id ?? input.product_id)) chat.pending3d = null;
+        if ((input.image_ids || input.add_image_ids) && !((input.image_ids || input.add_image_ids).some(id => chat.photos.has(String(id))))) {
+          return { error: "Rasmlar topilmadi — ular yuklanmagan yoki eskirgan. Hech narsa qo'shilmadi. Adminga rasmlarni qayta yuborishni so'ra (oddiy rasm sifatida)." };
+        }
+        if ((input.image_ids || input.add_image_ids) && chat.pending3d && String(chat.pending3d.id) === String(input.id)) chat.pending3d = null;
         if (input.image_ids || input.add_image_ids) {
           const base = input.image_ids ? [] : (existing.images && existing.images.length ? existing.images : (existing.image ? [existing.image] : []));
           const r = resolveImages(chat, input.image_ids || input.add_image_ids);
