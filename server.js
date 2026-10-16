@@ -1197,8 +1197,20 @@ async function getDepthMap(p) {
 const model3d = createModel3D({
   dir: path.join(CUTOUT_DIR, 'models3d'),
   getProducts,
-  imageKey: p => { const k = cutoutKey(p); return k ? k.key : null; },
+  // Kalit barcha rasmlardan: 4 tomondan rasmlar qo'shilsa model qaytadan (aniqroq) yasaladi
+  imageKey: p => {
+    const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 4);
+    if (!imgs.length) return null;
+    const h = crypto.createHash('sha1'); imgs.forEach(src => h.update(String(src).slice(0, 4096)).update(String(String(src).length)));
+    return `${p.id}_${h.digest('hex').slice(0, 12)}`;
+  },
   loadImageSource: p => loadImageSource(cutoutKey(p).src),
+  loadImages: async p => {
+    const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 4);
+    const out = [];
+    for (const src of imgs) { try { out.push(await loadImageSource(src)); } catch (_) {} }
+    return out;
+  },
   gemini: (parts, opts) => assistant.geminiGenerate(parts, opts),
 });
 app.get('/api/model3d/:file', async (req, res) => {

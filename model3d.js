@@ -14,7 +14,7 @@ const MAX_TRIES = 3;                 // bitta rasm uchun jami muvaffaqiyatsiz ur
 const RETRY_FAILED_MS = 24 * 3600e3; // xatodan keyin qayta urinish
 const SWEEP_MS = 10 * 60e3;
 
-function createModel3D({ dir, getProducts, imageKey, loadImageSource, gemini, onChange, loadGradio = () => import('@gradio/client') }) {
+function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages, gemini, onChange, loadGradio = () => import('@gradio/client') }) {
   const STATE_FILE = path.join(dir, 'models3d.json');
   let state = {};
   try { state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch (_) { state = {}; }
@@ -104,8 +104,12 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, gemini, on
     }
     return out;
   }
-  async function trellis(img, seed) {
+  // imgs — mahsulotning haqiqiy suratlari (old, orqa, yonlar). 2 va undan ko'p bo'lsa — TRELLIS "ko'p rasm" rejimi:
+  // model barcha tomonlarni ko'radi va orqa/yon tomonlarni taxmin qilmaydi.
+  async function trellis(imgs, seed) {
     const { Client, handle_file } = await loadGradio();
+    imgs = (Array.isArray(imgs) ? imgs : [imgs]).filter(Boolean).slice(0, 4);
+    const img = imgs[0];
     let lastErr = null;
     for (const space of spaces()) {
       try {
@@ -114,16 +118,37 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, gemini, on
         const ep = api.named_endpoints || {};
         if (!ep['/image_to_3d'] || !ep['/extract_glb']) throw new Error(`${space}: kerakli API yo'q`);
         if (ep['/start_session']) await app.predict('/start_session', {}).catch(() => {});
-        let image = handle_file(new Blob([img]));
-        if (ep['/preprocess_image']) {
-          const pre = await app.predict('/preprocess_image', argsFor(ep['/preprocess_image'], { image }));
-          image = pre.data[0];
+        const prep = async b => {
+          let im = handle_file(new Blob([b]));
+          if (ep['/preprocess_image']) im = (await app.predict('/preprocess_image', argsFor(ep['/preprocess_image'], { image: im }))).data[0];
+          return im;
+        };
+        const params = (ep['/image_to_3d'].parameters || []).map(x => x.parameter_name || x.label);
+        const canMulti = imgs.length >= 2 && (!params.length || params.includes('multiimages'));
+        let gen = null;
+        if (canMulti) {
+          try {
+            const processed = [];
+            for (const b of imgs) processed.push(await prep(b));
+            gen = await app.predict('/image_to_3d', argsFor(ep['/image_to_3d'], {
+              image: processed[0], multiimages: processed.map(im => ({ image: im, caption: null })), is_multiimage: true, seed,
+              ss_guidance_strength: 7.5, ss_sampling_steps: 12, slat_guidance_strength: 3, slat_sampling_steps: 12,
+              multiimage_algo: 'stochastic', randomize_seed: false,
+            }));
+            console.log(`🧊 TRELLIS: ${imgs.length} ta rasmdan (ko'p rasm rejimi)`);
+          } catch (e) {
+            if (/quota|zerogpu|exceeded|rate.?limit|too many/i.test(String(e && (e.message || e)))) throw e;
+            console.warn("🧊 TRELLIS ko'p rasm rejimi ishlamadi, bitta rasm bilan:", String(e && (e.message || e)).slice(0, 200));
+            gen = null;
+          }
         }
-        const gen = await app.predict('/image_to_3d', argsFor(ep['/image_to_3d'], {
-          image, multiimages: [], is_multiimage: false, seed,
-          ss_guidance_strength: 7.5, ss_sampling_steps: 12, slat_guidance_strength: 3, slat_sampling_steps: 12,
-          multiimage_algo: 'stochastic', randomize_seed: false,
-        }));
+        if (!gen) {
+          gen = await app.predict('/image_to_3d', argsFor(ep['/image_to_3d'], {
+            image: await prep(img), multiimages: [], is_multiimage: false, seed,
+            ss_guidance_strength: 7.5, ss_sampling_steps: 12, slat_guidance_strength: 3, slat_sampling_steps: 12,
+            multiimage_algo: 'stochastic', randomize_seed: false,
+          }));
+        }
         const videoUrl = findFile(gen.data, /\.mp4$/i);
         const glbOut = await app.predict('/extract_glb', argsFor(ep['/extract_glb'], { mesh_simplify: 0.95, texture_size: 1024 }));
         const glbUrl = findFile(glbOut.data, /\.glb$/i);
@@ -131,7 +156,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, gemini, on
         const glb = await download(glbUrl);
         if (glb.length < 1000 || glb.slice(0, 4).toString() !== 'glTF') throw new Error('GLB fayl buzuq');
         const video = videoUrl ? await download(videoUrl).catch(() => null) : null;
-        return { glb, video, space };
+        return { glb, video, space, views: canMulti && gen ? imgs.length : 1 };
       } catch (e) {
         lastErr = e;
         const msg = String(e && (e.message || e));
@@ -161,10 +186,12 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, gemini, on
           return;
         }
       }
+      let all = [src];
+      if (loadImages) { try { const more = await loadImages(p); if (more && more.length) all = more; } catch (_) {} }
       let best = null;
       for (let attempt = 0; attempt < 2; attempt++) {
         const seed = attempt === 0 ? 0 : Math.floor(Math.random() * 2147483647);
-        const r = await trellis(src, seed);
+        const r = await trellis(all, seed);
         let verdict = r.video ? await judge(src, mime, r.video, p) : null;
         const score = verdict && Number.isFinite(Number(verdict.score)) ? Math.max(1, Math.min(10, Math.round(Number(verdict.score)))) : null;
         const cand = { ...r, score, issues: verdict ? String(verdict.issues || '').slice(0, 300) : null };
@@ -179,7 +206,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, gemini, on
       if (prev.file && prev.file !== file) { try { fs.unlinkSync(path.join(dir, prev.file)); } catch (_) {} }
       fs.writeFileSync(path.join(dir, file), best.glb);
       const status = best.score === null ? 'unchecked' : best.score >= PASS_SCORE ? 'ready' : 'rejected';
-      set(p.id, { status, score: best.score, reason: best.issues, file, space: best.space, size: best.glb.length, tries: 0, force: false });
+      set(p.id, { status, score: best.score, reason: best.issues, file, space: best.space, size: best.glb.length, views: best.views || 1, tries: 0, force: false });
       console.log(`🧊 3D (${p.id}) tayyor: ${status}, baho ${best.score ?? '—'}`);
     } catch (e) {
       if (e && e.quota) {
@@ -241,6 +268,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, gemini, on
           status: !imageKey(p) ? 'noimage' : fresh ? s.status : 'queued',
           score: fresh ? s.score ?? null : null, reason: fresh ? s.reason || null : null, error: fresh ? s.error || null : null,
           hidden: !!(fresh && s.hidden), approved: fresh ? s.approved ?? null : null,
+          views: fresh ? s.views || null : null, photos: Array.isArray(p.images) ? p.images.length : (p.image ? 1 : 0),
           visible: !!publicInfo(p),
           preview: fresh && s.file ? `/api/model3d/${encodeURIComponent(p.id)}.glb?v=${String(s.key).slice(-12)}` : null,
         };

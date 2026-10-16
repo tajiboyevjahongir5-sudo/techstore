@@ -5038,6 +5038,7 @@ body.modal-open {
       </div>
       <div class="form-group">
         <label class="form-label"><i class="ti ti-photo" style="color:var(--accent);margin-right:6px"></i>Rasmlar (max 5 ta)</label>
+        <div class="as-hint" style="margin:-2px 0 10px">📸 Sifatli 3D model uchun mahsulotni <b>4 tomondan</b> suratga oling: old, orqa, chap yon, o'ng yon (oq yoki bir xil fonda, yorug' joyda). Birinchi rasm — asosiy.</div>
         <div id="addImgGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px"></div>
         <div id="addImgUploadBtn" style="border:1.5px dashed rgba(107,127,255,0.35);border-radius:14px;padding:12px;text-align:center;cursor:pointer;background:rgba(107,127,255,0.04)" onclick="document.getElementById('prodImgInput').click()">
           <i class="ti ti-photo-up" style="font-size:24px;color:var(--text3)"></i>
@@ -5280,6 +5281,7 @@ body.modal-open {
       <div class="form-group"><label class="form-label"><i class="ti ti-file-description" style="color:var(--accent);margin-right:6px"></i>Tavsif</label><input class="form-input" id="editDesc"></div>
       <div class="form-group">
         <label class="form-label"><i class="ti ti-photo" style="color:var(--accent);margin-right:6px"></i>Rasmlar (max 5 ta)</label>
+        <div class="as-hint" style="margin:-2px 0 10px">📸 Sifatli 3D model uchun mahsulotni <b>4 tomondan</b> suratga oling: old, orqa, chap yon, o'ng yon (oq yoki bir xil fonda, yorug' joyda). Birinchi rasm — asosiy.</div>
         <div id="editImgGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px"></div>
         <div id="editImgUploadBtn" style="border:1.5px dashed rgba(107,127,255,0.35);border-radius:14px;padding:12px;text-align:center;cursor:pointer;background:rgba(107,127,255,0.04)" onclick="document.getElementById('editImgInput').click()">
           <i class="ti ti-photo-up" style="font-size:24px;color:var(--text3)"></i>
@@ -8351,7 +8353,7 @@ async function loadModels3d() {
     document.getElementById('m3Summary').textContent = `${shown}/${d.items.length} tayyor`;
     el.innerHTML = d.items.map(i => {
       const [cls, label] = i.hidden ? ['m3-off', 'Siz yashirgansiz'] : (i.status === 'rejected' && i.approved) ? ['m3-ok', 'Siz tasdiqlagansiz'] : (M3_STATUS[i.status] || ['m3-off', i.status || '—']);
-      const extra = [i.score != null ? `Baho: ${i.score}/10` : '', i.reason || i.error || ''].filter(Boolean).join(' · ');
+      const extra = [i.photos != null ? `📸 ${i.photos} ta rasm${i.photos < 4 ? ' (3D uchun 4 tomondan qo\'shing)' : ''}` : '', i.views > 1 ? `${i.views} tomondan yasalgan` : '', i.score != null ? `Baho: ${i.score}/10` : '', i.reason || i.error || ''].filter(Boolean).join(' · ');
       const btns = [
         i.preview ? `<div class="m3-btn" title="Ko'rish" onclick="previewModel3d('${i.preview}', ${JSON.stringify(escHtml(i.name)).replace(/"/g, '&quot;')})"><i class="ti ti-eye"></i></div>` : '',
         i.preview ? (i.visible ? `<div class="m3-btn" title="Yashirish" onclick="model3dAction(${JSON.stringify(String(i.id)).replace(/"/g, '&quot;')},'hide')"><i class="ti ti-x"></i></div>`

@@ -1350,7 +1350,12 @@ ${shopLines}`;
 ${common}
 
 Admin bilan ishlash qoidalari:
-- Admin rasm yuborib "shu mahsulotni qo'sh" desa: rasmga va admin matniga qarab mahsulotni aniqla (nom, brend, kategoriya), o'zbek tilida jozibali tavsif va 4-6 ta asosiy texnik xususiyat yoz, so'ng add_product ni rasm ID lari bilan chaqir.
+- Admin mahsulot rasmini yuborsa (yoki "shu mahsulotni qo'sh" desa) — mahsulot qo'shish TARTIBI (qadamma-qadam, har biri qisqa xabar):
+  1) Ma'lumotlar: rasmga qarab mahsulotni aniqla (nom, brend, kategoriya) va BITTA xabarda tasdiq hamda yetishmaganini so'ra: narxi (majburiy), omborda nechta, chegirma bormi, variantlari (xotira/rang — har birining narxi). Masalan: "📱 iPhone 16 Pro Max (Apple, Telefonlar) — to'g'rimi? Narxi, omborda soni, chegirma va variantlari (bo'lsa) qanday?" Admin aytgan narsalarni qayta so'rama.
+  2) 3D model uchun rasmlar: ma'lumot olingach, so'ra: "3D model uchun mahsulotni 4 tomondan suratga olib yuboring: old, orqa, chap yon, o'ng yon 📸 (oq yoki bir xil fonda, yorug' joyda, mahsulot kadrga to'liq sig'sin). Hozir imkon bo'lmasa — 'keyin' deb yozing." Rasmlar kelsa (bir yoki bir nechta xabarda) — hammasini yig'.
+  3) Qo'shish: add_product ni chaqir; image_ids = birinchi yuborilgan rasm + 4 tomondan rasmlar (jami 5 tagacha, birinchisi asosiy). Tavsif (o'zbekcha, 1-3 jumla) va 4-6 ta xususiyatni o'zing yoz (faqat aniq bilganlaringni). Natijani bitta qatorda ayt va "3D model rasmlardan avtomatik tayyorlanadi" deb qo'sh.
+  - Admin "keyin" desa — bitta rasm bilan qo'sh va "4 tomondan rasmlarni keyin yuborsangiz, 3D model aniqroq chiqadi" de. Keyinroq admin shu mahsulot uchun rasmlar yuborsa (masalan "iPhone uchun 3D rasmlar") — update_product add_image_ids bilan qo'sh (jami 5 tagacha).
+  - Admin hammasini birdan yuborsa (rasmlar + narx + ma'lumot) — qadamlarni o'tkazib yubor va darhol qo'sh, ortiqcha savol berma.
 - Narx majburiy. Admin narxni aytmagan bo'lsa, qo'shishdan oldin faqat narxni so'ra — narxni hech qachon o'zing o'ylab topma. "18.5 mln" = 18500000 so'm. Dollarda aytilsa, so'mdagi narxni so'ra.
 - Xususiyatlarni ishonchli bilmasang, faqat aniq bilganlaringni yoz.
 - O'chirish (delete_product) va buyurtmani rad etish kabi qaytarib bo'lmaydigan amallarni admin aniq so'ramagan bo'lsa, avval tasdiqlashni so'ra.
