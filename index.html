@@ -213,16 +213,10 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   justify-content: space-between;
 }
 
-.logo {
-  font-size: 24px;
-  font-weight: 850;
-  background: var(--grad);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
-  text-shadow: 0 0 20px rgba(107, 127, 255, 0.2);
-}
+.logo { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
+.logo-mark { height: 46px; width: auto; flex-shrink: 0; filter: drop-shadow(0 4px 14px rgba(124, 92, 255, 0.45)); }
+.logo-text { height: 23px; width: auto; min-width: 0; }
+.pd-sim-img .hs-add { position: absolute; right: 8px; bottom: 8px; z-index: 2; width: 32px; height: 32px; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.12); }
 
 .header-right {
   display: flex;
@@ -4515,7 +4509,7 @@ body.modal-open {
   <!-- HOME -->
   <div id="home" class="screen active">
     <div class="home-header">
-      <div class="logo">TechStore</div>
+      <div class="logo" onclick="showTab('home')"><img class="logo-mark" src="logo-mark.webp" alt=""><img class="logo-text" src="logo-text.webp" alt="TechStore"></div>
       <div class="header-right">
         <div class="cart-btn" onclick="showTab('cart')"><i class="ti ti-shopping-cart" style="font-size:18px"></i><span class="cart-badge" id="cartBadge">0</span></div>
         <div class="avatar" onclick="showTab('profile')">AK</div>
@@ -7005,7 +6999,7 @@ function addToCartById(e, id, btn) {
   addProductToCart(p, { silent: true });
   const badge = document.getElementById('cartBadge');
   if (badge) badge.textContent = before;
-  const card = btn ? btn.closest('.prod-card') : null;
+  const card = btn ? btn.closest('.prod-card, .hs-card') : null;
   flyToCart(card, p, () => updateCartBadge());
 }
 
@@ -7095,7 +7089,7 @@ function flyToCart(card, p, onLand) {
   const land = () => { try { onLand && onLand(); } finally { cartLandingFx(target); } };
   if (!target || !card || prefersReducedMotion() || !Element.prototype.animate) { land(); return; }
 
-  const imgBox = card.querySelector('.prod-img') || card;
+  const imgBox = card.querySelector('.prod-img, .pd-sim-img') || card;
   const from = imgBox.getBoundingClientRect();
   const to = target.getBoundingClientRect();
   const size = Math.min(from.width, from.height);
@@ -11362,7 +11356,7 @@ function pushRecent(id) {
 function miniCard(p, extra = '') {
   const out = isOutOfStock(p);
   return `<div class="pd-sim hs-card${out ? ' is-out' : ''}" data-id="${p.id}" onclick="openDetail(${p.id})">
-    <div class="pd-sim-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy">` : (p.emoji || '📦')}${p.discount > 0 ? `<span class="hs-disc">-${p.discount}%</span>` : ''}${extra}</div>
+    <div class="pd-sim-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy">` : (p.emoji || '📦')}${p.discount > 0 ? `<span class="hs-disc">-${p.discount}%</span>` : ''}${extra}${out ? '' : `<button class="add-btn hs-add" aria-label="Savatga qo'shish" onclick="addToCartById(event,${p.id},this)"><i class="ti ti-plus" style="color:#fff"></i></button>`}</div>
     <div class="pd-sim-info"><div class="pd-sim-name">${escText(p.name)}</div><div class="pd-sim-price">${formatPrice(p.price)}</div></div>
   </div>`;
 }
