@@ -71,6 +71,17 @@ async function removeBackground(input, { maxSide = 1000 } = {}) {
         if (b > 96) { covered++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
       }
     }
+    // Faqat asosiy mahsulot (chetdagi begona narsalar — klaviatura, qo'l, stol bo'laklari — olib tashlanadi)
+    {
+      const tmp = Buffer.alloc(SIZE * SIZE * 4);
+      for (let i = 0; i < SIZE * SIZE; i++) tmp[i * 4 + 3] = mask[i];
+      keepMainObject(tmp, SIZE, SIZE);
+      x0 = SIZE; y0 = SIZE; x1 = -1; y1 = -1; covered = 0;
+      for (let i = 0; i < SIZE * SIZE; i++) {
+        mask[i] = tmp[i * 4 + 3];
+        if (mask[i] > 96) { covered++; const x = i % SIZE, y = (i / SIZE) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      }
+    }
     const ratio = covered / (SIZE * SIZE);
     if (x1 < 0 || ratio < 0.02) throw new Error('mahsulot aniqlanmadi');
     // 3) Asl rasm + niqob → alfa, mahsulot atrofida qirqish (nisbiy koordinatalar)
@@ -229,6 +240,47 @@ async function heightMap(cutoutWebp, { useModel = true } = {}) {
   return p;
 }
 
+// ===== FAQAT ASOSIY MAHSULOT QOLSIN =====
+// Fon olib tashlangandan keyin qolgan alohida bo'laklar (chetdagi klaviatura, sichqoncha, dog'lar)
+// o'chiriladi: eng katta bo'lak — mahsulot; boshqasi faqat yetarlicha katta va rasm chetiga tegmasa qoladi
+// (masalan, quloqchinning ikki qulog'i yoki to'plamdagi ikkinchi buyum).
+function keepMainObject(rgba, w, h) {
+  const N = w * h, lab = new Int32Array(N), sizes = [0], touches = [false], boxes = [null];
+  let cur = 0;
+  const stack = [];
+  for (let s = 0; s < N; s++) {
+    if (lab[s] || rgba[s * 4 + 3] < 128) continue;
+    cur++; let size = 0, edge = false, x0 = w, y0 = h, x1 = 0, y1 = 0;
+    lab[s] = cur; stack.push(s);
+    while (stack.length) {
+      const i = stack.pop(); size++;
+      const x = i % w, y = (i / w) | 0;
+      if (x < 3 || y < 3 || x >= w - 3 || y >= h - 3) edge = true;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1];
+      for (const j of nb) if (j >= 0 && !lab[j] && rgba[j * 4 + 3] >= 128) { lab[j] = cur; stack.push(j); }
+    }
+    sizes.push(size); touches.push(edge); boxes.push([x0, y0, x1, y1]);
+  }
+  if (cur <= 1) return;
+  let main = 1; for (let c = 2; c <= cur; c++) if (sizes[c] > sizes[main]) main = c;
+  const keep = new Uint8Array(cur + 1); keep[main] = 1;
+  for (let c = 1; c <= cur; c++) if (c !== main && sizes[c] >= sizes[main] * 0.18 && !touches[c]) keep[c] = 1;
+  // Yarim shaffof chet piksellari (lab=0) — eng yaqin qolgan bo'lak bilan birga; uzoqdagilarini tozalaymiz
+  for (let i = 0; i < N; i++) {
+    const c = lab[i];
+    if (c && !keep[c]) rgba[i * 4 + 3] = 0;
+  }
+  // Olib tashlangan bo'laklar atrofidagi xira chetlar ham ketsin
+  const kb = boxes.filter((b, c) => b && keep[c]);
+  const pad = 6;
+  for (let i = 0; i < N; i++) {
+    if (lab[i] || rgba[i * 4 + 3] === 0) continue;
+    const x = i % w, y = (i / w) | 0;
+    if (!kb.some(b => x >= b[0] - pad && x <= b[2] + pad && y >= b[1] - pad && y <= b[3] + pad)) rgba[i * 4 + 3] = 0;
+  }
+}
+
 // ===== BIR XIL RANGLI FONNI OLIB TASHLASH (oq/kulrang fondagi mahsulot surati) =====
 // Chetdan boshlab fon rangiga yaqin piksellar "bo'yoq quyish" (flood fill) bilan o'chiriladi —
 // mahsulot ichidagi oq qismlar (ekran, korpus) saqlanadi, chunki ular chetga ulanmagan.
@@ -256,48 +308,89 @@ async function removeUniformBackground(input) {
   for (let y = 0; y < UB; y += 2) for (let x = 0; x < UB; x += 2) if (A(y * UB + x) >= 200) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
   if (bx1 < 0) return null;
   const corners = [[bx0 + 2, by0 + 2], [bx1 - 2, by0 + 2], [bx0 + 2, by1 - 2], [bx1 - 2, by1 - 2]].map(([x, y]) => y * UB + x);
-  if (corners.some(i => A(i) < 200)) return null;
-  const bg = [0, 1, 2].map(c => Math.round(corners.reduce((sum, i) => sum + rgba[i * 4 + c], 0) / 4));
-  // Faqat och (oq/kulrang) fon — qora yoki rangli to'rtburchak mahsulotning o'zi bo'lishi mumkin (televizor ekrani)
-  const luma = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2];
-  if (luma < 200 || Math.max(...bg) - Math.min(...bg) > 28) return null;
-  if (corners.some(i => Math.hypot(rgba[i * 4] - bg[0], rgba[i * 4 + 1] - bg[1], rgba[i * 4 + 2] - bg[2]) > 24)) return null;
+  // Kamida 3 ta burchak ko'rinadigan, och (oq/kulrang) va o'zaro o'xshash bo'lsin — bittasida begona narsa
+  // (klaviatura, sichqoncha) bo'lishi mumkin. Qora/rangli to'rtburchak — mahsulotning o'zi (televizor ekrani).
+  const light = corners.filter(i => {
+    if (A(i) < 200) return false;
+    const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2];
+    return 0.299 * r + 0.587 * g + 0.114 * b > 160 && Math.max(r, g, b) - Math.min(r, g, b) < 28;
+  });
+  if (light.length < 3) return null;
+  const bg = [0, 1, 2].map(c => Math.round(light.reduce((sum, i) => sum + rgba[i * 4 + c], 0) / light.length));
+  if (light.some(i => Math.hypot(rgba[i * 4] - bg[0], rgba[i * 4 + 1] - bg[1], rgba[i * 4 + 2] - bg[2]) > 45)) return null;
   const dist = i => Math.hypot(rgba[i * 4] - bg[0], rgba[i * 4 + 1] - bg[1], rgba[i * 4 + 2] - bg[2]);
   const TOL = 34;
-  const near = seeds.filter(i => dist(i) < TOL).length / seeds.length;
+  // Fonga o'xshash: fon rangiga yaqin YOKI och rangsiz (yorug'lik farqi bilan o'sha fon)
+  const bgLike = i => { if (dist(i) < TOL) return true; const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2]; return Math.max(r, g, b) > 160 && Math.max(r, g, b) - Math.min(r, g, b) < 28 && dist(i) < 90; };
+  const near = seeds.filter(bgLike).length / seeds.length;
   if (near < 0.8) return null;                               // chegarasi bir xil emas — oddiy fon emas
   // Flood fill: shaffof joylar va chegaradagi fonga yaqin piksellardan boshlab
   const isBg = new Uint8Array(N);
   const stack = [];
   for (let i = 0; i < N; i++) {
     const x = i % UB, y = (i / UB) | 0;
-    if (A(i) < 40 || ((x === 0 || y === 0 || x === UB - 1 || y === UB - 1) && dist(i) < TOL)) { isBg[i] = 1; stack.push(i); }
+    if (A(i) < 40 || ((x === 0 || y === 0 || x === UB - 1 || y === UB - 1) && bgLike(i))) { isBg[i] = 1; stack.push(i); }
   }
   while (stack.length) {
     const i = stack.pop(); const x = i % UB;
     const nb = [x > 0 ? i - 1 : -1, x < UB - 1 ? i + 1 : -1, i - UB, i + UB];
     for (const j of nb) {
       if (j < 0 || j >= N || isBg[j]) continue;
-      if (A(j) < 40 || dist(j) < TOL) { isBg[j] = 1; stack.push(j); }
+      if (A(j) < 40 || dist(j) < TOL) { isBg[j] = 1; stack.push(j); continue; }
+      // Fon yorug'ligi asta o'zgaradi (chetda kulrangroq, o'rtada oqroq): qo'shni piksel bilan deyarli bir xil,
+      // och va rangsiz bo'lsa — u ham fon. Mahsulot chegarasida keskin farq bo'lgani uchun ichiga o'tmaydi.
+      const dn = Math.hypot(rgba[j * 4] - rgba[i * 4], rgba[j * 4 + 1] - rgba[i * 4 + 1], rgba[j * 4 + 2] - rgba[i * 4 + 2]);
+      const mx = Math.max(rgba[j * 4], rgba[j * 4 + 1], rgba[j * 4 + 2]), mn = Math.min(rgba[j * 4], rgba[j * 4 + 1], rgba[j * 4 + 2]);
+      if (dn < 7 && mx > 160 && mx - mn < 30) { isBg[j] = 1; stack.push(j); }
     }
   }
+  let visible0 = 0; for (let i = 0; i < N; i++) if (A(i) >= 40) visible0++;
+  for (let i = 0; i < N; i++) if (isBg[i]) rgba[i * 4 + 3] = 0;
+  keepMainObject(rgba, UB, UB);
+  for (let i = 0; i < N; i++) if (rgba[i * 4 + 3] === 0) isBg[i] = 1;
   // Natija: fon shaffof, chegarada silliq o'tish; mahsulot chegarasi (bbox)
-  let x0 = UB, y0 = UB, x1 = -1, y1 = -1, solid = 0, visibleBefore = 0;
+  let x0 = UB, y0 = UB, x1 = -1, y1 = -1, solid = 0;
   for (let i = 0; i < N; i++) {
-    if (A(i) >= 40) visibleBefore++;
     if (isBg[i]) { rgba[i * 4 + 3] = 0; continue; }
     const x = i % UB, y = (i / UB) | 0;
     const touches = (x > 0 && isBg[i - 1]) || (x < UB - 1 && isBg[i + 1]) || (y > 0 && isBg[i - UB]) || (y < UB - 1 && isBg[i + UB]);
     if (touches) rgba[i * 4 + 3] = Math.round(A(i) * Math.min(1, Math.max(0.25, (dist(i) - TOL * 0.5) / TOL)));
     if (rgba[i * 4 + 3] > 190) { solid++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   }
-  const removed = 1 - solid / Math.max(1, visibleBefore);
+  const removed = 1 - solid / Math.max(1, visible0);
   if (x1 < 0 || solid < N * 0.01 || removed < 0.08) return null;   // fon deyarli yo'q yoki mahsulot topilmadi
   const pad = 12;
   x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(UB - 1, x1 + pad); y1 = Math.min(UB - 1, y1 + pad);
-  const webp = await ffmpeg(['-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${UB}x${UB}`, '-i', 'pipe:0', '-frames:v', '1',
-    '-vf', `crop=${x1 - x0 + 1}:${y1 - y0 + 1}:${x0}:${y0}`, '-c:v', 'libwebp', '-lossless', '0', '-quality', '92', '-f', 'webp', 'pipe:1'], rgba);
-  return { buffer: webp, coverage: solid / N, bg };
+  const encode = buf => ffmpeg(['-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${UB}x${UB}`, '-i', 'pipe:0', '-frames:v', '1',
+    '-vf', `crop=${x1 - x0 + 1}:${y1 - y0 + 1}:${x0}:${y0}`, '-c:v', 'libwebp', '-lossless', '0', '-quality', '92', '-f', 'webp', 'pipe:1'], buf);
+  const webp = await encode(rgba);
+  // Mahsulot bilan o'ralgan ichki "teshik"lar (quloqchin halqasi, ruchka orasi) — fonga o'xshash tekis och joylar.
+  // Bu mahsulotning oq qismi ham bo'lishi mumkin, shuning uchun alohida variant: qaysi biri yaxshi — tekshiruvchi tanlaydi.
+  let holesBuffer = null;
+  {
+    const lum = i => 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
+    const cand = i => rgba[i * 4 + 3] > 200 && Math.max(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) > 160 && Math.max(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) - Math.min(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) < 28;
+    const seen = new Uint8Array(N), copy = Buffer.from(rgba);
+    let found = 0;
+    for (let s0 = 0; s0 < N; s0++) {
+      if (seen[s0] || !cand(s0)) continue;
+      const comp = [s0]; seen[s0] = 1; let sum = 0, sum2 = 0, ok = true;
+      for (let k = 0; k < comp.length; k++) {
+        const i = comp[k], x = i % UB; const L = lum(i); sum += L; sum2 += L * L;
+        for (const j of [x > 0 ? i - 1 : -1, x < UB - 1 ? i + 1 : -1, i - UB, i + UB]) {
+          if (j < 0 || j >= N || seen[j]) continue;
+          if (cand(j) && Math.abs(lum(j) - L) < 7) { seen[j] = 1; comp.push(j); }
+        }
+        if (comp.length > N * 0.25) { ok = false; break; }
+      }
+      const n = comp.length, mean = sum / n, sd = Math.sqrt(Math.max(0, sum2 / n - mean * mean));
+      if (!ok || n < N * 0.0015 || sd > 8) continue;
+      for (const i of comp) copy[i * 4 + 3] = 0;
+      found++;
+    }
+    if (found) holesBuffer = await encode(copy);
+  }
+  return { buffer: webp, holesBuffer, coverage: solid / N, bg };
 }
 
 module.exports = { removeBackground, removeUniformBackground, heightMap, available: () => !!FFMPEG };

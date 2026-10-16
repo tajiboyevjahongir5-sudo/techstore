@@ -1272,7 +1272,7 @@ function bannerKey(p) {
   const ck = cutoutKey(p);
   const src = p.bannerImage || defaultBanner(p);
   if (!src && !ck) return null;
-  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v3').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
+  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v4').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
 }
 function ffRaw(args, input) {
   return new Promise((resolve, reject) => {
@@ -1343,8 +1343,8 @@ async function getBannerImage(p) {
             // Oq/kulrang bir xil fon (yoki shaffof chet ichidagi oq karta) — chetdan to'ldirib aniq olib tashlaymiz
             const ub = await removeUniformBackground(src).catch(() => null);
             if (ub) {
-              const v = await judgeCutout(ub.buffer, p);
-              if (!v || v.score >= BANNER_PASS) return save(ub.buffer, { ok: true, from: 'banner-white', score: v?.score ?? null, issues: v?.issues });
+              const { buffer, v } = await pickUniform(ub, p);
+              if (!v || v.score >= BANNER_PASS) return save(buffer, { ok: true, from: 'banner-white', score: v?.score ?? null, issues: v?.issues });
             }
             const info = await alphaInfo(src).catch(() => null);
             if (info && info.transparent) return save(await transparentToWebp(src, info.box), { ok: true, from: 'banner' });
@@ -1361,8 +1361,8 @@ async function getBannerImage(p) {
         const photo = await loadHiRes(ck.src);
         const ub = await removeUniformBackground(photo).catch(() => null);
         if (ub) {
-          const v = await judgeCutout(ub.buffer, p);
-          if (!v || v.score >= BANNER_PASS) return save(ub.buffer, { ok: true, from: 'photo-white', score: v?.score ?? null, issues: v?.issues });
+          const { buffer, v } = await pickUniform(ub, p);
+          if (!v || v.score >= BANNER_PASS) return save(buffer, { ok: true, from: 'photo-white', score: v?.score ?? null, issues: v?.issues });
         }
         const r = await runCutoutWorker(photo);
         if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) return save(null, { ok: false, from: 'photo', why: (why ? why + '; ' : '') + 'mahsulot suratida aniq ajralmadi' });
@@ -1401,7 +1401,7 @@ async function judgeCutout(buf, p) {
     const r = await assistant.geminiGenerate([
       { inline_data: { mime_type: 'image/jpeg', data: jpg.toString('base64') } },
       { text: `Bu "${p.name}" mahsulotining fonini AI olib tashlagan rasmi (kulrang fon — shaffof joy). U do'kon bannerida ko'rsatiladi. ` +
-        `Qat'iy baholang: mahsulot to'liq va aniq ajratilganmi; atrofida eski fondan qoldiq (oq yoki rangli to'rtburchak fon/quti, tutun, rangli dog'lar, soya, stol, qo'l, boshqa narsalar) yo'qmi; chetlari toza va tiniqmi (xira emasmi); mahsulotning biror qismi kesilib ketmaganmi. ` +
+        `Qat'iy baholang: mahsulot to'liq va aniq ajratilganmi; atrofida eski fondan qoldiq (oq yoki rangli to'rtburchak fon/quti, oq dog', tutun, rangli dog'lar, soya, stol, qo'l) va BEGONA buyumlar (klaviatura, sichqoncha, kabel, quti, boshqa mahsulot bo'laklari) yo'qmi — faqat shu mahsulotning o'zi ko'rinishi kerak; chetlari toza va tiniqmi (xira emasmi); mahsulotning biror qismi kesilib ketmaganmi. ` +
         `Faqat JSON: {"score": 1-10, "issues": "qisqa, o'zbekcha"}` },
     ], { json: true });
     if (!r || r.error || !r.text) return null;
@@ -1409,6 +1409,14 @@ async function judgeCutout(buf, p) {
     const score = Math.round(Number(j.score));
     return Number.isFinite(score) ? { score, issues: String(j.issues || '').slice(0, 200) } : null;
   } catch (_) { return null; }
+}
+
+// Oq fon usuli ikki variant beradi (ichki "teshik"lar bilan/siz) — Gemini yaxshisini tanlaydi
+async function pickUniform(ub, p) {
+  const a = await judgeCutout(ub.buffer, p);
+  if (!ub.holesBuffer || !a) return { buffer: ub.buffer, v: a };
+  const b = await judgeCutout(ub.holesBuffer, p);
+  return b && b.score > a.score ? { buffer: ub.holesBuffer, v: b } : { buffer: ub.buffer, v: a };
 }
 
 function bannerReady(p) {
