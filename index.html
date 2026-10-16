@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TechStore</title>
+<style>html, body { background: #040529; }</style>
+<link rel="preload" as="image" href="intro/box-back.webp">
+<link rel="preload" as="image" href="intro/box-front.webp">
+<link rel="preload" as="image" href="intro/p-laptop.webp">
+<link rel="preload" as="image" href="intro/p-headphones.webp">
+<link rel="preload" as="image" href="intro/p-phone.webp">
+<link rel="preload" as="image" href="intro/p-watch.webp">
+<link rel="preload" as="image" href="intro/p-airpods.webp">
+<link rel="preload" as="image" href="intro/mark.webp">
+<link rel="preload" as="image" href="intro/text.webp">
+<link rel="icon" href="logo.jpg">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -4249,6 +4260,202 @@ body.modal-open {
   .cat-chip, .profile-menu-item, .pd-sim, .prod-card, .tab-btn { cursor: pointer; }
 }
 </style>
+
+<!-- ===== KIRISH INTROSI (~3.3 s): bo'sh quti chiqadi → mahsulotlar qutiga tushadi → "TechStore" yozuvi ko'tariladi ===== -->
+<style>
+#intro { position: fixed; inset: 0; z-index: 99999; background: #040529; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+#intro img { -webkit-user-drag: none; pointer-events: none; }
+#intro .in-aur { position: absolute; width: 150vmax; height: 150vmax; left: 50%; top: 45%; transform: translate(-50%, -50%); background: conic-gradient(from 0deg, transparent 0 18%, rgba(107,127,255,.30) 28%, transparent 40%, rgba(244,114,182,.24) 60%, transparent 72%, rgba(167,139,250,.28) 86%, transparent); filter: blur(70px); opacity: 0; }
+#intro .in-floor { position: absolute; left: -30%; right: -30%; bottom: -10%; height: 60%; background-image: linear-gradient(rgba(130,140,255,.10) 1px, transparent 1px), linear-gradient(90deg, rgba(130,140,255,.10) 1px, transparent 1px); background-size: 44px 44px; transform: perspective(420px) rotateX(62deg); transform-origin: 50% 0; -webkit-mask-image: radial-gradient(ellipse 60% 70% at 50% 0%, #000, transparent 75%); mask-image: radial-gradient(ellipse 60% 70% at 50% 0%, #000, transparent 75%); opacity: 0; }
+#intro .in-stars i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: 0; animation: inTw 2.4s ease-in-out infinite; }
+/* Sahna: telefonda ekran eniga, kompyuterda balandlikka moslashadi */
+#intro .in-stage { position: relative; width: min(84vw, 50vh, 460px); display: flex; flex-direction: column; align-items: center; }
+#intro .in-box { position: relative; width: 100%; aspect-ratio: 760 / 600; }
+#intro .in-box > img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; will-change: transform, opacity; }
+#intro .in-shadow { position: absolute; left: 18%; right: 18%; bottom: 2%; height: 9%; border-radius: 50%; background: radial-gradient(closest-side, rgba(120,90,255,.55), transparent); filter: blur(6px); opacity: 0; }
+#intro .in-flash { position: absolute; left: 50%; top: 50%; width: 80%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%) scale(.2); background: radial-gradient(circle, rgba(255,255,255,.9), rgba(167,139,250,.5) 30%, transparent 65%); opacity: 0; mix-blend-mode: screen; pointer-events: none; }
+#intro .in-ring { position: absolute; left: 50%; top: 55%; width: 62%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%) scale(0); border: 3px solid rgba(190,170,255,.9); box-shadow: 0 0 40px rgba(167,139,250,.8), inset 0 0 30px rgba(244,114,182,.6); opacity: 0; pointer-events: none; }
+#intro .in-ring.r2 { border-color: rgba(244,114,182,.85); }
+#intro .in-p { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px 2px var(--c, #A78BFA); opacity: 0; pointer-events: none; }
+#intro .in-dust { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 2px #A78BFA; opacity: 0; pointer-events: none; }
+/* Yozuv: quti tagidan ko'tarilib chiqadi */
+#intro .in-text-w { position: relative; width: 94%; margin-top: 1%; aspect-ratio: 760 / 132; overflow: hidden; }
+#intro .in-text { width: 100%; height: 100%; display: block; transform: translateY(105%); filter: blur(10px); opacity: 0; }
+#intro .in-shine { position: absolute; top: -20%; bottom: -20%; width: 26%; left: -40%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); mix-blend-mode: overlay; }
+#intro .in-tag { margin-top: 2.2%; font: 600 clamp(10px, 1.6vh, 14px)/1 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif; letter-spacing: .34em; text-transform: uppercase; color: rgba(210,205,255,.8); opacity: 0; transform: translateY(8px); white-space: nowrap; }
+@media (min-width: 760px) { #intro .in-stage { width: min(70vw, 66vh, 640px); } }
+#intro .in-skip { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font: 500 12px/1 'DM Sans', system-ui, sans-serif; color: rgba(255,255,255,.35); letter-spacing: .05em; opacity: 0; animation: inFade .4s 1s forwards; }
+
+#intro.go .in-aur { animation: inAur 3s ease-out forwards; }
+#intro.go .in-floor { animation: inFade .8s .1s ease-out forwards; }
+#intro.go .in-back, #intro.go .in-front { animation: inBox .62s .05s cubic-bezier(.2,1.4,.4,1) forwards; }
+#intro.go .in-shadow { animation: inFade .5s .2s forwards; }
+#intro.go .in-prod { animation: inDrop .5s var(--t) forwards; }
+#intro.go .in-full { animation: inFade .3s 1.95s ease-out forwards; }
+#intro.go .in-flash { animation: inFlash .6s 1.9s ease-out forwards; }
+#intro.go .in-ring { animation: inRing .8s 1.92s cubic-bezier(.1,.7,.3,1) forwards; }
+#intro.go .in-ring.r2 { animation-delay: 2.04s; }
+#intro.go .in-p { animation: inP .9s var(--d, 1.95s) cubic-bezier(.1,.8,.3,1) forwards; }
+#intro.go .in-text { animation: inText .6s 2.1s cubic-bezier(.2,.9,.25,1.05) forwards; }
+#intro.go .in-shine { animation: inShine .55s 2.6s ease-in-out forwards; }
+#intro.go .in-tag { animation: inTag .45s 2.5s ease-out forwards; }
+#intro.out { animation: inOut .45s cubic-bezier(.6,0,.4,1) forwards; pointer-events: none; }
+#intro.out .in-stage { animation: inStageOut .45s cubic-bezier(.6,0,.4,1) forwards; }
+
+@keyframes inAur { 0% { opacity: 0; transform: translate(-50%,-50%) rotate(0) scale(.6); } 30% { opacity: 1; } 100% { opacity: .85; transform: translate(-50%,-50%) rotate(160deg) scale(1); } }
+@keyframes inFade { to { opacity: 1; } }
+@keyframes inTw { 0%, 100% { opacity: 0; } 50% { opacity: var(--o, .7); } }
+@keyframes inBox { 0% { opacity: 0; transform: translateY(26%) scale(.82); filter: blur(8px); } 60% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+/* Tushish: tezlanib tushadi → qutiga urilib siqiladi → biroz sakraydi */
+@keyframes inDrop {
+  0% { opacity: 0; transform: translateY(-115%) rotate(var(--r)); animation-timing-function: cubic-bezier(.5,0,1,.6); }
+  12% { opacity: 1; }
+  66% { opacity: 1; transform: translateY(3%) rotate(0) scaleY(.95); animation-timing-function: cubic-bezier(.2,.8,.4,1); }
+  84% { transform: translateY(-2.5%) scaleY(1.02); animation-timing-function: ease-in; }
+  100% { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+@keyframes inFlash { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.2); } 25% { opacity: .95; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.7); } }
+@keyframes inRing { 0% { opacity: 1; transform: translate(-50%,-50%) scale(.2); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(2.6); } }
+@keyframes inP { 0% { opacity: 1; transform: translate(-50%,-50%) translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(-50%,-50%) translate(var(--x), var(--y)) scale(.3); } }
+@keyframes inDust { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--x), var(--y)) scale(.2); } }
+@keyframes inText { 0% { opacity: 0; transform: translateY(105%); filter: blur(10px); } 40% { opacity: 1; } 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
+@keyframes inShine { to { left: 120%; } }
+@keyframes inTag { to { opacity: 1; transform: translateY(0); } }
+@keyframes inOut { to { opacity: 0; } }
+@keyframes inStageOut { to { transform: scale(1.1); filter: blur(6px); } }
+@keyframes inJolt { 0% { transform: translateY(0) scaleY(1); } 35% { transform: translateY(1.6%) scaleY(.985); } 100% { transform: translateY(0) scaleY(1); } }
+@media (prefers-reduced-motion: reduce) {
+  #intro.go *, #intro.go .in-prod, #intro.go .in-p { animation-duration: .01s !important; animation-delay: 0s !important; }
+}
+</style>
+<div id="intro" aria-hidden="true">
+  <div class="in-aur"></div>
+  <div class="in-floor"></div>
+  <div class="in-stars" id="inStars"></div>
+  <div class="in-stage" id="inStage">
+    <div class="in-box" id="inBox">
+      <div class="in-shadow"></div>
+      <img class="in-back" src="intro/box-back.webp" alt="">
+      <img class="in-prod" style="--t:.62s;--r:-8deg" data-land="0.95" src="intro/p-laptop.webp" alt="">
+      <img class="in-prod" style="--t:.86s;--r:7deg" data-land="1.19" src="intro/p-headphones.webp" alt="">
+      <img class="in-prod" style="--t:1.08s;--r:-5deg" data-land="1.41" src="intro/p-phone.webp" alt="">
+      <img class="in-prod" style="--t:1.28s;--r:9deg" data-land="1.61" src="intro/p-watch.webp" alt="">
+      <img class="in-prod" style="--t:1.46s;--r:-7deg" data-land="1.79" src="intro/p-airpods.webp" alt="">
+      <img class="in-front" src="intro/box-front.webp" alt="">
+      <img class="in-full" src="intro/mark.webp" alt="">
+      <div class="in-flash"></div>
+      <div class="in-ring"></div><div class="in-ring r2"></div>
+    </div>
+    <div class="in-text-w"><img class="in-text" src="intro/text.webp" alt="TechStore"><div class="in-shine"></div></div>
+    <div class="in-tag">Texnika · ishonch · tezkor</div>
+  </div>
+  <div class="in-skip">O'tkazib yuborish uchun bosing</div>
+</div>
+<script>
+(function () {
+  var el = document.getElementById('intro');
+  if (!el) return;
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var setBar = function (c) { try { tg && tg.setHeaderColor && tg.setHeaderColor(c); tg && tg.setBackgroundColor && tg.setBackgroundColor(c); } catch (e) {} };
+  setBar('#040529');
+  var box = document.getElementById('inBox'), cols = ['#6B7FFF', '#A78BFA', '#F472B6', '#22D3EE'];
+  // Yulduzchalar
+  var st = document.getElementById('inStars');
+  for (var s = 0; s < 40; s++) { var z = document.createElement('i'); z.style.cssText = 'left:' + (Math.random() * 100).toFixed(1) + '%;top:' + (Math.random() * 70).toFixed(1) + '%;animation-delay:' + (Math.random() * 2.4).toFixed(2) + 's;--o:' + (.3 + Math.random() * .6).toFixed(2); st.appendChild(z); }
+  // Yakuniy portlash uchqunlari
+  for (var i = 0; i < 26; i++) {
+    var p = document.createElement('i'); p.className = 'in-p';
+    var a = (i / 26) * Math.PI * 2 + Math.random() * .3, r = 34 + Math.random() * 30;
+    p.style.cssText = '--x:' + (Math.cos(a) * r).toFixed(1) + 'vmin;--y:' + (Math.sin(a) * r * .8).toFixed(1) + 'vmin;--d:' + (1.92 + Math.random() * .12).toFixed(2) + 's;--c:' + cols[i % 4] + ';width:' + (3 + Math.random() * 5).toFixed(1) + 'px;height:' + (3 + Math.random() * 5).toFixed(1) + 'px';
+    box.appendChild(p);
+  }
+  // ===== Ovoz (Web Audio — fayl yuklanmaydi). Brauzer ruxsat bermasa — jim o'tadi =====
+  var ac = null, out = null;
+  function audio() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      ac = new AC(); if (ac.state === 'suspended' && ac.resume) ac.resume();
+      out = ac.createGain(); out.gain.value = 0.5;
+      var comp = ac.createDynamicsCompressor(); out.connect(comp); comp.connect(ac.destination);
+      return ac;
+    } catch (e) { return null; }
+  }
+  function noise(t, dur, f0, f1, vol) {
+    var len = Math.max(1, ac.sampleRate * dur | 0), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    var n = ac.createBufferSource(); n.buffer = buf;
+    var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.1;
+    bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    var g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur * .55); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    n.connect(bp); bp.connect(g); g.connect(out); n.start(t); n.stop(t + dur + .02);
+  }
+  function tone(t, type, f0, f1, dur, vol) {
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .02);
+  }
+  function score(lands) {
+    if (!audio()) return;
+    try {
+      var t0 = ac.currentTime + 0.03;
+      noise(t0, .55, 250, 1800, .25);                         // quti chiqishi — "vush"
+      tone(t0 + .3, 'sine', 120, 70, .3, .5);                  // quti joyiga tushdi
+      lands.forEach(function (lt, k) {                          // har bir mahsulot: hushtak + "tuk"
+        noise(t0 + lt - .3, .3, 2600 - k * 200, 600, .12);
+        tone(t0 + lt, 'sine', 210 - k * 14, 80, .22, .55);
+        tone(t0 + lt, 'triangle', 900 + k * 140, 900 + k * 140, .09, .07);
+      });
+      var tb = t0 + 1.92;                                       // yakuniy zarba + yaltiroq akkord
+      tone(tb, 'sine', 160, 42, .6, .8);
+      noise(tb, .5, 4000, 300, .14);
+      [659.3, 830.6, 987.8, 1318.5, 1661.2].forEach(function (f, k) { tone(tb + .18 + k * .07, k % 2 ? 'triangle' : 'sine', f, f, 1.1, .12); });
+      noise(t0 + 2.08, .5, 500, 5000, .1);                      // yozuv ko'tarilishi
+    } catch (e) {}
+  }
+  function haptic(kind) { try { tg && tg.HapticFeedback && (kind === 'ok' ? tg.HapticFeedback.notificationOccurred('success') : tg.HapticFeedback.impactOccurred(kind)); } catch (e) {} }
+  function dust(fr) {   // mahsulot tushgan joydan uchqunlar
+    for (var k = 0; k < 7; k++) {
+      var d = document.createElement('i'); d.className = 'in-dust';
+      var a = -Math.PI * (0.15 + Math.random() * 0.7), r = 6 + Math.random() * 10;
+      d.style.cssText = 'left:' + (30 + fr * 40 + Math.random() * 8).toFixed(1) + '%;top:62%;--x:' + (Math.cos(a) * r).toFixed(1) + 'vmin;--y:' + (Math.sin(a) * r).toFixed(1) + 'vmin;animation:inDust .6s ease-out forwards;box-shadow:0 0 8px 2px ' + cols[k % 4];
+      box.appendChild(d); setTimeout(function (x) { return function () { x.remove(); }; }(d), 700);
+    }
+  }
+  var done = false, started = false, timers = [];
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function finish() {
+    if (done) return; done = true;
+    timers.forEach(clearTimeout);
+    el.classList.add('out'); setBar('#050833');
+    setTimeout(function () { el.remove(); try { ac && setTimeout(function () { ac.close(); }, 1500); } catch (e) {} }, 470);
+  }
+  function start() {
+    if (started) return; started = true;
+    var prods = [].slice.call(el.querySelectorAll('.in-prod'));
+    var lands = prods.map(function (p) { return parseFloat(p.getAttribute('data-land')); });
+    el.classList.add('go'); score(lands);
+    later(function () { haptic('light'); }, 330);
+    lands.forEach(function (lt, k) {
+      later(function () {
+        haptic(k === lands.length - 1 ? 'medium' : 'light');
+        dust(k / (lands.length - 1));
+        try { box.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(1.4%) scaleY(.985)' }, { transform: 'translateY(0)' }], { duration: 220, easing: 'ease-out' }); } catch (e) {}
+      }, lt * 1000);
+    });
+    later(function () { haptic('heavy'); }, 1920);
+    later(function () { haptic('ok'); }, 2600);
+    later(finish, 3250);
+  }
+  el.addEventListener('click', function () { started ? finish() : start(); });
+  // Barcha qatlamlar yuklangach boshlaymiz; 1.5 s ichida yuklanmasa — intro o'tkazib yuboriladi
+  var imgs = el.querySelectorAll('img'), left = imgs.length;
+  var ready = function () { if (--left === 0 && !done) start(); };
+  [].forEach.call(imgs, function (im) { if (im.complete && im.naturalWidth) ready(); else { im.onload = ready; im.onerror = function () { finish(); }; } });
+  setTimeout(function () { if (!started) finish(); }, 1500);
+  setTimeout(finish, 6000);
+})();
+</script>
 
 <!-- TechStore -->
 
