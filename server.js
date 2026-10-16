@@ -988,6 +988,9 @@ function publicProduct(p, now = Date.now(), ratings = null) {
   out.cutout = ck ? `/api/cutout/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
   out.depth = ck ? `/api/depth/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
   out.model3d = model3d.publicInfo(p);
+  const bk = bannerKey(p);
+  out.banner = bk ? `/api/banner-img/${encodeURIComponent(p.id)}?v=${bk.key.split('_b').pop()}` : null;
+  out.bannerReady = bannerReady(p);
   const first = imgs[0];
   out.image = first ? (isDataImg(first) ? imgUrl(p.id, 0, first, 480) : first) : (isDataImg(p.image) ? null : p.image || null);
   return out;
@@ -1074,7 +1077,7 @@ async function loadImageSource(src) {
   const m = String(src).match(/^data:image\/[a-z+]+;base64,(.+)$/i);
   if (m) return Buffer.from(m[1], 'base64');
   if (!/^https:\/\//i.test(src)) throw new Error('rasm manzili yaroqsiz');
-  const r = await fetch(src, { headers: { 'User-Agent': 'Mozilla/5.0 (TechStore)', Accept: 'image/*' }, signal: AbortSignal.timeout(20000) });
+  const r = await fetch(src, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*' }, signal: AbortSignal.timeout(20000) });
   if (!r.ok || !String(r.headers.get('content-type') || '').startsWith('image/')) throw new Error('rasm yuklanmadi: ' + r.status);
   const buf = Buffer.from(await r.arrayBuffer());
   if (buf.length > 12e6) throw new Error('rasm juda katta');
@@ -1205,6 +1208,150 @@ app.get('/api/depth/:pid', async (req, res) => {
   }
 });
 
+// ===== BANNER RASMI: har doim fonsiz (shaffof) mahsulot =====
+// 1) Admin bergan banner rasmi haqiqatan shaffof bo'lsa — o'zi (chetlari qirqiladi).
+// 2) Banner rasmida fon bo'lsa (oq/rangli) — AI bilan foni olib tashlanadi.
+// 3) Banner rasmi yo'q yoki ishlamasa — asosiy mahsulot suratining fonsiz varianti.
+// Standart mahsulotlar uchun ishlab chiqaruvchi saytlaridagi tayyor shaffof rasmlar (Mini App'dagi bilan bir xil).
+// Faqat id VA nom mos kelsa ishlatiladi (admin shu id bilan boshqa mahsulot qo'shgan bo'lsa — yo'q).
+const DEFAULT_BANNERS = {
+  1: ["iPhone 16 Pro Max", "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-16-pro-finish-select-202409-6-9inch-deserttitanium?wid=2560&hei=1440&fmt=png-alpha"],
+  2: ["Samsung Galaxy S25 Ultra", "https://upload.wikimedia.org/wikipedia/commons/e/e5/S24_Onyx_Black.png"],
+  3: ["MacBook Air M3", "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mba13-midnight-select-202402?wid=2000&hei=2000&fmt=png-alpha"],
+  4: ["MacBook Pro M3 Pro", "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mbp14-spaceblack-select-202310?wid=2000&hei=2000&fmt=png-alpha"],
+  5: ["iPad Pro M4 13\"", "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/ipad-pro-finish-select-202405-13inch-spaceblack?wid=2000&hei=2000&fmt=png-alpha"],
+  6: ["Sony WH-1000XM5", "https://www.pngmart.com/files/6/Sony-Headphone-PNG-File.png"],
+  7: ["AirPods Pro 2", "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MTJV3?wid=2000&hei=2000&fmt=png-alpha"],
+  8: ["Apple Watch Ultra 2", "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/ultra-case-unselect-gallery-1-202409?wid=2000&hei=2000&fmt=png-alpha"],
+  9: ["Samsung Galaxy Watch 7", "https://images.samsung.com/is/image/samsung/p6pim/in/sm-l310nzsains/sm-l310nzsains-front-silver?$ORIGIN_PNG$&fmt=png-alpha"],
+  10: ["PlayStation 5 Slim", "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Black_and_white_Playstation_5_base_edition_with_controller.png/960px-Black_and_white_Playstation_5_base_edition_with_controller.png"],
+  11: ["DJI Mini 4 Pro", "https://dji-official-fe.djicdn.com/dps/4e5a0e08f51a704e6c38ce713a0c0a96.png"],
+  12: ["GoPro Hero 13 Black", "https://assets.gopro.com/is/image/gopro/hero13-black-camera-hero?wid=1200&fmt=png-alpha"],
+  13: ["Xiaomi 14 Ultra", "https://i02.appmifile.com/mi-com-product/fly-birds/xiaomi-14-ultra/pc/6c5ee2c0702d847120a1ebf2d4bf6b22.png"],
+  14: ["Samsung Galaxy Z Fold 6", "https://images.samsung.com/is/image/samsung/p6pim/in/sm-f956bdbgins/sm-f956bdbgins-front-silver?$ORIGIN_PNG$&fmt=png-alpha"],
+  15: ["Dell XPS 15 OLED", "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/xps-notebooks/xps-15-9530/media-gallery/touch-black/notebook-xps-15-9530-t-black-gallery-1.psd?fmt=png-alpha&wid=1400"],
+  16: ["Bose QuietComfort 45", "https://assets.bose.com/content/dam/Bose_DAM/Web/consumer_electronics/global/products/headphones/qc45/product_silo_images/qc45_triple_black_EC_hero.png"],
+  17: ["Apple TV 4K (3-avlod)", "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/apple-tv-4k-hero-select-202210?wid=2000&hei=2000&fmt=png-alpha"],
+  18: ["Samsung 65\" Neo QLED 8K", "https://images.samsung.com/is/image/samsung/p6pim/in/qa65qn900dkxxl/qa65qn900dkxxl-front-black?$ORIGIN_PNG$&fmt=png-alpha"],
+  19: ["Logitech MX Master 3S", "https://resource.logitech.com/content/dam/logitech/en/products/mice/mx-master-3s/gallery/mx-master-3s-mouse-top-view-graphite.png"],
+  20: ["OnePlus 12 5G", "https://oasis.opstatics.com/content/dam/oasis/page/2024/global/product/12/specs/black-phone.png"]
+};
+function defaultBanner(p) {
+  const d = DEFAULT_BANNERS[p.id];
+  return d && String(p.name || '').trim().toLowerCase() === d[0].toLowerCase() ? d[1] : '';
+}
+function bannerKey(p) {
+  const ck = cutoutKey(p);
+  const src = p.bannerImage || defaultBanner(p);
+  if (!src && !ck) return null;
+  return { src, key: `${p.id}_b${crypto.createHash('sha1').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
+}
+function ffRaw(args, input) {
+  return new Promise((resolve, reject) => {
+    const ffPath = (() => { try { return require('ffmpeg-static'); } catch (_) { return null; } })();
+    if (!ffPath) return reject(new Error("ffmpeg yo'q"));
+    const ff = require('child_process').spawn(ffPath, ['-hide_banner', '-loglevel', 'error', ...args]);
+    const out = [];
+    ff.stdout.on('data', d => out.push(d));
+    ff.on('error', reject);
+    ff.on('close', code => code === 0 && out.length ? resolve(Buffer.concat(out)) : reject(new Error('ffmpeg ' + code)));
+    ff.stdin.on('error', () => {});
+    ff.stdin.end(input);
+  });
+}
+// Rasm shaffofmi: 64×64 alfa-kanal bo'yicha — burchaklar shaffof va mahsulot chegarasi
+async function alphaInfo(buf) {
+  const N = 64;
+  const px = await ffRaw(['-i', 'pipe:0', '-frames:v', '1', '-vf', `scale=${N}:${N},format=rgba`, '-f', 'rawvideo', 'pipe:1'], buf);
+  if (px.length < N * N * 4) return null;
+  let clear = 0, x0 = N, y0 = N, x1 = -1, y1 = -1;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const a = px[(y * N + x) * 4 + 3];
+    if (a < 16) clear++;
+    else if (a > 100) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  const corner = (x, y) => px[(y * N + x) * 4 + 3] < 16;
+  const corners = [corner(0, 0), corner(N - 1, 0), corner(0, N - 1), corner(N - 1, N - 1)].filter(Boolean).length;
+  return { transparent: clear / (N * N) > 0.08 && corners >= 3 && x1 > x0, box: [x0 / N, y0 / N, (x1 + 1) / N, (y1 + 1) / N] };
+}
+async function transparentToWebp(buf, box) {
+  const pad = 0.03;
+  const [bx0, by0, bx1, by1] = [Math.max(0, box[0] - pad), Math.max(0, box[1] - pad), Math.min(1, box[2] + pad), Math.min(1, box[3] + pad)];
+  return ffRaw(['-i', 'pipe:0', '-frames:v', '1', '-vf',
+    `format=rgba,crop=iw*${(bx1 - bx0).toFixed(4)}:ih*${(by1 - by0).toFixed(4)}:iw*${bx0.toFixed(4)}:ih*${by0.toFixed(4)},scale='min(900,iw)':'min(900,ih)':force_original_aspect_ratio=decrease`,
+    '-c:v', 'libwebp', '-lossless', '0', '-quality', '86', '-f', 'webp', 'pipe:1'], buf);
+}
+async function getBannerImage(p) {
+  const k = bannerKey(p);
+  if (!k) return null;
+  const file = path.join(CUTOUT_DIR, k.key + '.webp');
+  const failFile = path.join(CUTOUT_DIR, k.key + '.fail');
+  if (fs.existsSync(file)) return fs.readFileSync(file);
+  if (fs.existsSync(failFile) && Date.now() - fs.statSync(failFile).mtimeMs < 6 * 3600e3) return null;
+  const jk = k.key + ':banner';
+  if (!cutoutJobs.has(jk)) {
+    const prev = [...cutoutJobs.values()].pop() || Promise.resolve();
+    const job = prev.catch(() => {}).then(async () => {
+      let out = null, why = '';
+      try {
+        if (k.src) {
+          const src = await loadImageSource(k.src);
+          const info = await alphaInfo(src).catch(() => null);
+          if (info && info.transparent) out = await transparentToWebp(src, info.box);
+          else {
+            const r = await runCutoutWorker(src);
+            if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) throw new Error('banner rasmida mahsulot aniq ajralmadi');
+            out = r.buffer;
+          }
+        }
+      } catch (e) { why = e.message; }
+      try {
+        if (!out) {                                   // asosiy suratning fonsiz varianti (navbat ichida — to'g'ridan-to'g'ri)
+          const ck = cutoutKey(p);
+          const cf = ck && path.join(CUTOUT_DIR, ck.key + '.webp');
+          if (cf && fs.existsSync(cf)) out = fs.readFileSync(cf);
+          else if (ck) {
+            const r = await runCutoutWorker(await loadImageSource(ck.src));
+            if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) throw new Error((why ? why + '; ' : '') + 'mahsulot suratida ham aniq ajralmadi');
+            fs.mkdirSync(CUTOUT_DIR, { recursive: true });
+            fs.writeFileSync(cf, r.buffer);
+            out = r.buffer;
+          }
+        }
+        if (!out) throw new Error(why || 'fonsiz rasm tayyorlanmadi');
+        fs.mkdirSync(CUTOUT_DIR, { recursive: true });
+        fs.writeFileSync(file, out);
+        return out;
+      } catch (e) {
+        console.warn(`🖼 Banner rasmi (${p.id}) tayyorlanmadi:`, e.message);
+        try { fs.mkdirSync(CUTOUT_DIR, { recursive: true }); fs.writeFileSync(failFile, e.message); } catch (_) {}
+        return null;
+      } finally {
+        cutoutJobs.delete(jk);
+      }
+    });
+    cutoutJobs.set(jk, job);
+  }
+  return cutoutJobs.get(jk);
+}
+function bannerReady(p) {
+  const k = bannerKey(p);
+  return !!(k && fs.existsSync(path.join(CUTOUT_DIR, k.key + '.webp')));
+}
+app.get('/api/banner-img/:pid', async (req, res) => {
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
+    if (!p) return res.status(404).end();
+    const buf = await getBannerImage(p);
+    if (!buf) return res.status(404).end();
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    res.end(buf);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
 app.get('/api/cutout/:pid', async (req, res) => {
   try {
     const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
@@ -1223,6 +1370,7 @@ app.get('/api/cutout/:pid', async (req, res) => {
 async function prewarmCutouts() {
   try {
     const list = (await getProducts()).filter(Boolean);
+    for (const p of list) { await getBannerImage(p).catch(() => {}); }   // banner rasmi (ichida fonsiz surat ham tayyorlanadi)
     for (const p of list) { await getCutout(p).catch(() => {}); }
     // Keyin "3D" hajm xaritalari (mijoz kutib qolmasin)
     for (const p of list) { await getDepthMap(p).catch(() => {}); }

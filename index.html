@@ -9667,13 +9667,32 @@ function slideImgFallback(img) {
   }
   img.style.display = 'none';
   if (img.nextElementSibling) img.nextElementSibling.style.display = 'flex';
+  // Fonsiz rasm umuman tayyorlanmadi — bu mahsulotni bannerdan olib, o'rniga boshqasini qo'yamiz
+  const slide = img.closest('.slide');
+  const pid = slide && slide.dataset.prodId;
+  if (pid && !bannerFailed.has(pid)) {
+    bannerFailed.add(pid);
+    clearTimeout(bannerRebuildTimer);
+    bannerRebuildTimer = setTimeout(() => { try { buildSlides(); } catch (e) {} }, 300);
+  }
 }
+const bannerFailed = new Set();
+let bannerRebuildTimer = null;
 
 function getTopProducts() {
   // Haqiqiy ma'lumot: avval chegirmadagilar, keyin haqiqatan ko'p sotilganlar, keyin yangi qo'shilganlar
   return [...products].filter(p => !isOutOfStock(p))
     .sort((a, b) => ((b.discount > 0) - (a.discount > 0)) || ((b.sold || 0) - (a.sold || 0)) || (b.id - a.id))
     .slice(0, 5);
+}
+
+// Banner uchun: fonsiz (shaffof) rasmi tayyor mahsulotlar oldinda — bannerda faqat chiroyli,
+// fonsiz mahsulot rasmlari chiqsin. Tartib baribir haqiqiy: chegirma → ko'p sotilgan → yangi.
+function getBannerProducts() {
+  const pool = [...products].filter(p => !isOutOfStock(p) && !bannerFailed.has(String(p.id)) && (p.banner || p.cutout))
+    .sort((a, b) => ((b.discount > 0) - (a.discount > 0)) || ((b.sold || 0) - (a.sold || 0)) || (b.id - a.id));
+  const ready = pool.filter(p => p.bannerReady);
+  return [...ready, ...pool.filter(p => !p.bannerReady)].slice(0, 5);
 }
 
 function buildSlides() {
@@ -9685,7 +9704,9 @@ function buildSlides() {
   dotsEl.innerHTML = '';
   sliderIdx = 0; // Reset index to prevent out-of-bound errors on rebuild
 
-  const tops = getTopProducts();
+  const tops = getBannerProducts();
+  const wrap = banner.closest('.banner-wrap');
+  if (wrap) wrap.style.display = tops.length ? '' : 'none';
   if(!tops.length) return;
 
   tops.forEach((p, i) => {
@@ -9698,7 +9719,9 @@ function buildSlides() {
     // Navbat: banner rasmi (server orqali) → asl banner → mahsulot rasmi → emoji
     const viaProxy = (u) => /^https:\/\//.test(u || '') ? `/api/img-proxy?w=700&u=${encodeURIComponent(u)}` : u;
     // Navbat: tayyor banner (shaffof PNG) → AI bilan fonsizlashtirilgan mahsulot surati → oddiy surat → emoji
-    const candidates = [...new Set([p.bannerImage && viaProxy(p.bannerImage), p.bannerImage, p.cutout, (p.images && p.images[0]) || p.image].filter(Boolean))];
+    // Server banner rasmini o'zi tekshiradi: shaffof bo'lsa o'zi, fonli bo'lsa AI bilan fonini olib tashlaydi
+    // Oddiy (fonli) surat bannerga qo'yilmaydi — fonsiz rasm bo'lmasa mahsulot bannerdan chiqariladi
+    const candidates = [...new Set([p.banner, p.cutout].filter(Boolean))];
     const slideImgSrc = candidates[0];
     const imgHtml = slideImgSrc
       ? `<div class="slide-img">
