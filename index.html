@@ -5,14 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TechStore</title>
 <style>html, body { background: #040529; }</style>
-<link rel="preload" as="image" href="intro/box-back.webp">
-<link rel="preload" as="image" href="intro/box-front.webp">
-<link rel="preload" as="image" href="intro/p-laptop.webp">
-<link rel="preload" as="image" href="intro/p-headphones.webp">
-<link rel="preload" as="image" href="intro/p-phone.webp">
-<link rel="preload" as="image" href="intro/p-watch.webp">
-<link rel="preload" as="image" href="intro/p-airpods.webp">
-<link rel="preload" as="image" href="intro/text.webp">
 <link rel="icon" href="logo.jpg">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -4283,6 +4275,17 @@ body.modal-open {
 #intro .in-shine { position: absolute; top: -20%; bottom: -20%; width: 26%; left: -40%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); mix-blend-mode: overlay; }
 #intro .in-tag { margin-top: 2.2%; font: 600 clamp(10px, 1.6vh, 14px)/1 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif; letter-spacing: .34em; text-transform: uppercase; color: rgba(210,205,255,.8); opacity: 0; transform: translateY(8px); white-space: nowrap; }
 @media (min-width: 760px) { #intro .in-stage { width: min(70vw, 66vh, 640px); } }
+#intro .in-side { width: 100%; display: flex; flex-direction: column; align-items: center; }
+/* Kompyuter: katta quti chapda, yozuv o'ngda */
+@media (min-width: 1024px) and (min-aspect-ratio: 4/3) {
+  #intro .in-stage { flex-direction: row; width: min(94vw, 1600px); gap: 3vw; justify-content: center; }
+  #intro .in-box { width: min(60vw, 104vh, 1150px); flex: none; margin: -4vh 0 -2vh; }
+  #intro .in-side { width: min(32vw, 620px); align-items: flex-start; margin-top: 18vh; }
+  #intro .in-text-w { width: 100%; margin-top: 0; }
+  #intro .in-tag { margin-top: 4%; font-size: clamp(12px, 1.1vw, 18px); letter-spacing: .4em; }
+  #intro .in-floor { height: 50%; }
+  #intro .in-skip { font-size: 13px; }
+}
 #intro .in-skip { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font: 500 12px/1 'DM Sans', system-ui, sans-serif; color: rgba(255,255,255,.35); letter-spacing: .05em; opacity: 0; animation: inFade .4s 1s forwards; }
 
 #intro.go .in-aur { animation: inAur 3s ease-out forwards; }
@@ -4332,17 +4335,19 @@ body.modal-open {
   <div class="in-stage" id="inStage">
     <div class="in-box" id="inBox">
       <div class="in-shadow"></div>
-      <img class="in-back" src="intro/box-back.webp" alt="">
-      <img class="in-prod" style="--t:.62s;--r:-8deg" data-land="0.95" src="intro/p-laptop.webp" alt="">
-      <img class="in-prod" style="--t:.86s;--r:7deg" data-land="1.19" src="intro/p-headphones.webp" alt="">
-      <img class="in-prod" style="--t:1.08s;--r:-5deg" data-land="1.41" src="intro/p-phone.webp" alt="">
-      <img class="in-prod" style="--t:1.28s;--r:9deg" data-land="1.61" src="intro/p-watch.webp" alt="">
-      <img class="in-prod" style="--t:1.46s;--r:-7deg" data-land="1.79" src="intro/p-airpods.webp" alt="">
-      <img class="in-front" src="intro/box-front.webp" alt="">
+      <img class="in-back" data-src="box-back.webp" alt="">
+      <img class="in-prod" style="--t:.62s;--r:-8deg" data-land="0.95" data-src="p-laptop.webp" alt="">
+      <img class="in-prod" style="--t:.86s;--r:7deg" data-land="1.19" data-src="p-headphones.webp" alt="">
+      <img class="in-prod" style="--t:1.08s;--r:-5deg" data-land="1.41" data-src="p-phone.webp" alt="">
+      <img class="in-prod" style="--t:1.28s;--r:9deg" data-land="1.61" data-src="p-watch.webp" alt="">
+      <img class="in-prod" style="--t:1.46s;--r:-7deg" data-land="1.79" data-src="p-airpods.webp" alt="">
+      <img class="in-front" data-src="box-front.webp" alt="">
       <div class="in-ring"></div><div class="in-ring r2"></div>
     </div>
-    <div class="in-text-w"><img class="in-text" src="intro/text.webp" alt="TechStore"><div class="in-shine"></div></div>
+    <div class="in-side">
+    <div class="in-text-w"><img class="in-text" data-src="text.webp" alt="TechStore"><div class="in-shine"></div></div>
     <div class="in-tag">Texnika · ishonch · tezkor</div>
+    </div>
   </div>
   <div class="in-skip">O'tkazib yuborish uchun bosing</div>
 </div>
@@ -4350,6 +4355,9 @@ body.modal-open {
 (function () {
   var el = document.getElementById('intro');
   if (!el) return;
+  // Kompyuter (keng ekran) — HD rasmlar va gorizontal joylashuv; telefon — yengil rasmlar
+  var wide = window.matchMedia && matchMedia('(min-width: 1024px) and (min-aspect-ratio: 4/3)').matches;
+  [].forEach.call(el.querySelectorAll('img[data-src]'), function (im) { im.src = (wide ? 'intro/hd/' : 'intro/') + im.getAttribute('data-src'); });
   var tg = window.Telegram && window.Telegram.WebApp;
   var setBar = function (c) { try { tg && tg.setHeaderColor && tg.setHeaderColor(c); tg && tg.setBackgroundColor && tg.setBackgroundColor(c); } catch (e) {} };
   setBar('#040529');
