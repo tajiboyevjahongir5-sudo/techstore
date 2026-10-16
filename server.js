@@ -48,6 +48,12 @@ let ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).fi
 let CARD_NUMBER = process.env.CARD_NUMBER || "9860 3501 4074 7741";
 let CARD_OWNER = process.env.CARD_OWNER || "Tojiboyev Jahongir";
 let SHOP_CHANNEL = (process.env.SHOP_CHANNEL || '').replace(/^@/, '');
+// To'lovlar kanali: bank xabarlari shu kanalga tushadi, bot va yordamchi faqat shu kanalni kuzatib to'lovni tasdiqlaydi
+let PAYMENT_CHANNEL = { id: String(process.env.PAYMENT_CHANNEL_ID || '').trim(), title: '' };
+const seenChannels = new Map();   // botga kelgan kanallar (admin panelda tanlash uchun taklif)
+// -1001234567890, 1234567890 → "1234567890" (Bot API va GramJS bir xil ko'rinishda solishtiriladi)
+function chanKey(id) { return String(id || '').trim().replace(/^-100/, '').replace(/^-/, ''); }
+function isPaymentChannel(id) { return !!PAYMENT_CHANNEL.id && chanKey(id) === chanKey(PAYMENT_CHANNEL.id); }
 const APP_URL   = process.env.APP_URL
   || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `https://your-app.railway.app`);
 
@@ -822,6 +828,7 @@ async function loadSettingsFromDb() {
       if (settings.card?.number) CARD_NUMBER = settings.card.number;
       if (settings.card?.owner) CARD_OWNER = settings.card.owner;
       if (typeof settings.shop?.channel === 'string') SHOP_CHANNEL = settings.shop.channel;
+      if (settings.payment && typeof settings.payment.channelId === 'string') PAYMENT_CHANNEL = { id: settings.payment.channelId, title: settings.payment.channelTitle || '' };
       console.log("⚙️ Settings loaded from Firebase");
     }
   } catch (e) {
@@ -1519,6 +1526,51 @@ app.get('/api/admin/payment-hook', apiRateLimiter, verifyAdmin, (req, res) => {
   res.json({ url: `${APP_URL.replace(/\/$/, '')}/api/payment-hook/${paymentHookKey()}`, log: paymentLog.slice(0, 10) });
 });
 
+// Admin: to'lovlar kanali (bank xabarlari tushadigan kanal)
+async function paymentChannelStatus() {
+  const out = { id: PAYMENT_CHANNEL.id, title: PAYMENT_CHANNEL.title, bot: null, assistant: null,
+    suggestions: [...seenChannels.values()].filter(c => !isPaymentChannel(c.id)).sort((a, b) => b.at - a.at).slice(0, 5),
+    log: paymentLog.filter(l => /kanal/.test(l.source)).slice(0, 8) };
+  if (PAYMENT_CHANNEL.id && botInstance) {
+    try {
+      const me = await botInstance.getMe();
+      const m = await botInstance.getChatMember(PAYMENT_CHANNEL.id, me.id);
+      out.bot = ['administrator', 'creator'].includes(m.status) ? 'admin' : m.status;
+    } catch (e) { out.bot = 'not_member'; }
+  }
+  if (PAYMENT_CHANNEL.id && assistant.channelMembership) out.assistant = await assistant.channelMembership(chanKey(PAYMENT_CHANNEL.id)).catch(() => null);
+  return out;
+}
+app.get('/api/admin/payment-channel', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try { res.json(await paymentChannelStatus()); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/payment-channel', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    let ref = String(req.body?.channel || '').trim().replace(/^https?:\/\/t\.me\//i, '');
+    if (!ref) {
+      PAYMENT_CHANNEL = { id: '', title: '' };
+      await firebasePatch('', { 'settings/payment': { channelId: '', channelTitle: '' } });
+      return res.json(await paymentChannelStatus());
+    }
+    if (/^\d{5,}$/.test(ref)) ref = '-100' + ref;                     // 1234567890 → -1001234567890
+    else if (!/^-\d{5,}$/.test(ref)) ref = '@' + ref.replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '');
+    let id = /^-\d+$/.test(ref) ? ref : '', title = '';
+    if (botInstance) {
+      try {
+        const chat = await botInstance.getChat(ref);
+        if (!chat || !chat.id) throw new Error('kanal topilmadi');
+        if (chat.type && chat.type !== 'channel' && chat.type !== 'supergroup') return res.status(400).json({ error: "Bu kanal emas — to'lovlar kanali ID sini kiriting" });
+        id = String(chat.id); title = chat.title || '';
+      }
+      catch (e) { if (!id) return res.status(400).json({ error: "Kanal topilmadi. Botni kanalga admin qiling yoki kanal ID sini (-100...) kiriting." }); }
+    } else if (!id) return res.status(400).json({ error: "Bot ishlamayapti — kanal ID sini (-100...) kiriting" });
+    PAYMENT_CHANNEL = { id, title };
+    await firebasePatch('', { 'settings/payment': { channelId: id, channelTitle: title } });
+    console.log(`💳 To'lovlar kanali: ${title || id}`);
+    res.json(await paymentChannelStatus());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Admin: mijozlar fikrlari
 app.get('/api/admin/reviews', apiRateLimiter, verifyAdmin, async (req, res) => {
   try { res.json(await botFeatures.listAllReviews()); } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1982,7 +2034,8 @@ const assistant = createAssistant({
   getShopInfo: () => ({ botUsername, adminIds: ADMIN_IDS, adminContact: '@Jahongir_1220', appUrl: APP_URL }),
   getStorageInfo,
   dataDir: VOLUME_DIR ? path.join(VOLUME_DIR, '.data') : null,
-  onPaymentText: (text, source) => matchPaymentText(text, source),
+  onPaymentText: (text, source, key) => matchPaymentText(text, source, key),
+  getPaymentChannel: () => PAYMENT_CHANNEL.id ? chanKey(PAYMENT_CHANNEL.id) : '',
   notifyAdminsViaBot: async (text) => {
     if (!botInstance) return;
     await Promise.all(ADMIN_IDS.map(id => botInstance.sendMessage(id, text).catch(() => {})));
@@ -2427,7 +2480,11 @@ function initializeTelegramBot() {
     });
 
     bot.on('channel_post', (msg) => {
-      handlePaymentMessage(msg, { trusted: true });
+      const cid = String(msg.chat?.id || '');
+      if (isPaymentChannel(cid)) return handlePaymentMessage(msg, { trusted: true });
+      // Boshqa kanal — to'lov sifatida qabul qilinmaydi, faqat eslab qolamiz (admin panelda tanlash uchun)
+      seenChannels.set(cid, { id: cid, title: msg.chat?.title || '', username: msg.chat?.username || '', at: Date.now(), looksPayment: looksLikeCredit(msg.text || msg.caption || '') });
+      if (seenChannels.size > 10) seenChannels.delete(seenChannels.keys().next().value);
     });
 
     bot.on('callback_query', (query) => {
@@ -2503,10 +2560,45 @@ function amountsInText(text) {
   return found;
 }
 
+// Bank xabaridan faqat TUSHGAN pul summasini olamiz: qoldiq (💰, "balans"), sana/vaqt,
+// karta raqami va yechilgan pul (➖) qatorlari hisobga olinmaydi.
+const BALANCE_LINE_RE = /💰|balans|qoldiq|остаток|баланс|balance|dostupno|доступно/i;
+const DEBIT_LINE_RE = /➖|списан|spisan|pokupka|покупка|oplata|оплата|yechib|chiqim/i;
+const CREDIT_LINE_RE = /➕|^\s*\+\s*\d|пополн|popoln|зачисл|zachisl|to'ldirish|tushdi|kirim|приход/im;
+function looksLikeCredit(text) { return CREDIT_LINE_RE.test(String(text || '')); }
+function paymentAmounts(text) {
+  // Qatordagi shovqinni kesamiz: qoldiq so'zidan keyingi qism, karta raqami, sana va vaqt
+  const clean = l => l
+    .replace(new RegExp('(' + BALANCE_LINE_RE.source + ').*$', 'i'), '')
+    .replace(/\*+\s?\d{4}|\d{4,6}\s?\*{2,}\s?\d{0,4}|\b\d{16}\b/g, ' ')
+    .replace(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}\b/g, ' ')
+    .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, ' ');
+  const lines = String(text || '').split(/\n/);
+  const plusLines = lines.filter(l => /➕|^\s*\+\s*\d/.test(l));
+  if (plusLines.length) return amountsInText(plusLines.map(clean).join('\n'));
+  // ➕ belgisi yo'q (masalan, SMS): pul yechilgani haqidagi xabar bo'lsa — hech narsa
+  if (DEBIT_LINE_RE.test(text) && !CREDIT_LINE_RE.test(text)) return new Set();
+  return amountsInText(lines.filter(l => !DEBIT_LINE_RE.test(l) || CREDIT_LINE_RE.test(l)).map(clean).join('\n'));
+}
+
 const paymentLog = [];   // admin panel uchun oxirgi to'lov xabarlari
-async function matchPaymentText(text, source = 'unknown') {
+const seenPaymentKeys = new Set();   // bitta kanal xabarini bot ham, yordamchi ham ko'radi — bir marta ishlaymiz
+let paymentQueue = Promise.resolve();
+function matchPaymentText(text, source = 'unknown', dedupeKey = '') {
+  if (dedupeKey) {
+    if (seenPaymentKeys.has(dedupeKey)) return Promise.resolve([]);
+    seenPaymentKeys.add(dedupeKey);
+    if (seenPaymentKeys.size > 500) seenPaymentKeys.delete(seenPaymentKeys.values().next().value);
+  }
+  // Ketma-ket: ikki manba bir vaqtda bir buyurtmani ikki marta tasdiqlamasin
+  const run = () => matchPaymentTextNow(text, source);
+  const p = paymentQueue.then(run, run);
+  paymentQueue = p.catch(() => {});
+  return p;
+}
+async function matchPaymentTextNow(text, source) {
   if (!text || !/\d{4,}/.test(String(text).replace(/[\s., ]/g, ''))) return [];
-  const amounts = amountsInText(text);
+  const amounts = paymentAmounts(text);
   const orders = (await firebaseGet('orders')) || {};
   const now = Date.now();
   const matched = [];
@@ -2538,8 +2630,9 @@ function handlePaymentMessage(msg, { trusted = false } = {}) {
   const fromId = String(msg.from?.id || '');
   // Faqat ishonchli manbalar: admin (forward qilingan bank xabari) yoki kanal posti
   if (!trusted && !ADMIN_IDS.includes(fromId)) return;
-  const source = msg.chat?.type === 'channel' ? 'kanal' : (msg.forward_from || msg.forward_sender_name || msg.forward_origin ? 'admin forward' : 'admin');
-  matchPaymentText(text, source).then(list => {
+  const isChan = msg.chat?.type === 'channel';
+  const source = isChan ? "to'lov kanali (bot)" : (msg.forward_from || msg.forward_sender_name || msg.forward_origin ? 'admin forward' : 'admin');
+  matchPaymentText(text, source, isChan ? `ch:${chanKey(msg.chat.id)}:${msg.message_id}` : '').then(list => {
     if (msg.chat?.type === 'private' && botInstance && (list.length || source === 'admin forward')) {
       botInstance.sendMessage(msg.chat.id, list.length
         ? `✅ To'lov topildi va tasdiqlandi: ${list.map(m => m.orderNum).join(', ')}`

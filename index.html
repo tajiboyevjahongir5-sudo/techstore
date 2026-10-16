@@ -2647,6 +2647,13 @@ input[type="datetime-local"].form-input::-webkit-datetime-edit { padding: 0; }
 .st-top-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
 .st-top-bar span { display: block; height: 100%; border-radius: 3px; background: var(--grad); }
 .st-top-qty { font-size: 12px; font-weight: 800; color: var(--green); }
+.pc-status { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.pc-row { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; line-height: 1.4; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); }
+.pc-row b { font-weight: 700; }
+.pc-ok { color: #34d399; } .pc-bad { color: #f87171; } .pc-mid { color: #fbbf24; }
+.pc-sug { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(124,58,237,0.12); border: 1px dashed rgba(167,139,250,0.4); font-size: 12.5px; }
+.pc-sug .ot-btn { flex: 0 0 auto; width: auto; padding: 7px 14px; margin: 0; }
+.pc-sug span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m3-note { font-size: 11.5px; color: var(--text2); line-height: 1.45; margin: -4px 0 10px; }
 .m3-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
 .m3-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 9px 10px; }
@@ -4733,6 +4740,20 @@ body.modal-open {
           <span class="as-state" id="asState">…</span>
         </div>
 
+        <div class="settings-section card-green as-card pc-card">
+          <div class="settings-section-title">💳 TO'LOVLAR KANALI</div>
+          <div class="as-hint" style="margin:-4px 0 12px">Karta to'lovlari haqidagi bank xabarlari tushadigan kanal. Bot va yordamchi admin <b>faqat shu kanalni</b> kuzatadi: xabardagi <b>➕ tushgan summa</b> buyurtmaning unikal summasiga mos kelsa, buyurtma darhol tasdiqlanadi (qoldiq 💰 hisobga olinmaydi).</div>
+          <div class="form-group" style="margin-bottom:10px"><label class="form-label">Kanal ID yoki username</label><input class="form-input" id="payChanInput" placeholder="-1001234567890 yoki @kanal" maxlength="80" autocomplete="off"></div>
+          <div style="display:flex;gap:8px">
+            <button class="settings-save-btn btn-green" style="flex:1;margin:0" onclick="savePaymentChannel()"><i class="ti ti-device-floppy"></i> Saqlash</button>
+            <button class="settings-save-btn" style="width:auto;margin:0;padding:0 16px;background:rgba(255,255,255,0.07)" onclick="loadPaymentChannel()" title="Tekshirish"><i class="ti ti-history"></i></button>
+          </div>
+          <div id="payChanStatus" class="pc-status"></div>
+          <div id="payChanSuggest"></div>
+          <div class="fs-label" style="margin-top:12px">Kanaldan tasdiqlangan to'lovlar</div>
+          <div id="payChanLog" class="pay-log"><div class="st-empty">Hali xabar kelmadi</div></div>
+        </div>
+
         <div class="as-warn" id="asPersistWarn" style="display:none">
           <i class="ti ti-info-circle"></i>
           <div>Serverda <b>SESSION_SECRET</b> o'zgaruvchisi o'rnatilmagan. Sessiya faqat serverda saqlanadi va qayta deploy qilinganda akkauntni qayta ulash kerak bo'ladi.</div>
@@ -4879,11 +4900,13 @@ body.modal-open {
         <div class="settings-section card-green pay-auto" style="margin-top:14px;margin-bottom:0">
           <div class="settings-section-title">⚡ TO'LOVNI AVTOMATIK TEKSHIRISH</div>
           <div class="pay-intro">Har bir buyurtmaga unikal summa beriladi (masalan <b>18 500 003</b>). Shu summa yozilgan bank xabari quyidagi yo'llardan biri orqali kelsa — buyurtma <b>o'zi tasdiqlanadi</b>.</div>
-          <div class="pay-way"><span class="pay-num">1</span><div><b>Telefondagi SMS'ni avtomatik yuborish (eng qulay)</b><small>Karta SMS xabarlari keladigan Android telefonga "SMS Forwarder" (yoki shunga o'xshash "SMS to webhook") ilovasini o'rnating va quyidagi manzilni webhook sifatida kiriting. Har bir yangi SMS shu yerga yuboriladi.</small>
+          <div class="pay-way"><span class="pay-num">1</span><div><b>To'lovlar kanali (asosiy usul)</b><small>Bank xabarlari tushadigan kanalni <b>Yordamchi</b> bo'limida ulang — bot va yordamchi admin shu kanalni kuzatib, to'lov tushishi bilan buyurtmani tasdiqlaydi.</small>
+            <button class="ot-btn" style="width:100%;margin-top:8px" onclick="switchAdminTab(document.querySelectorAll('.admin-tab')[4],'adminAssistant')"><i class="ti ti-robot"></i> Kanalni sozlash</button></div></div>
+          <div class="pay-way"><span class="pay-num">2</span><div><b>Telefondagi SMS'ni avtomatik yuborish</b><small>Karta SMS xabarlari keladigan Android telefonga "SMS Forwarder" (yoki shunga o'xshash "SMS to webhook") ilovasini o'rnating va quyidagi manzilni webhook sifatida kiriting. Har bir yangi SMS shu yerga yuboriladi.</small>
             <div class="pay-url" id="payHookUrl">Yuklanmoqda...</div>
             <button class="ot-btn" style="width:100%;margin-top:8px" onclick="copyPayHook()"><i class="ti ti-copy"></i> Manzilni nusxalash</button></div></div>
-          <div class="pay-way"><span class="pay-num">2</span><div><b>Bank botini yordamchi akkauntga ulash</b><small>HUMO / Uzcard (CardXabar) kabi bank botlarini yordamchi akkauntda ishga tushiring — ular yuborgan to'lov xabarlarini yordamchi o'zi o'qib tekshiradi.</small></div></div>
-          <div class="pay-way"><span class="pay-num">3</span><div><b>Qo'lda forward qilish</b><small>Bank xabarini @bot ga yoki yordamchi akkauntga forward qiling — summasi mos buyurtma darhol tasdiqlanadi.</small></div></div>
+          <div class="pay-way"><span class="pay-num">3</span><div><b>Bank botini yordamchi akkauntga ulash</b><small>HUMO / Uzcard (CardXabar) kabi bank botlarini yordamchi akkauntda ishga tushiring — ular yuborgan to'lov xabarlarini yordamchi o'zi o'qib tekshiradi.</small></div></div>
+          <div class="pay-way"><span class="pay-num">4</span><div><b>Qo'lda forward qilish</b><small>Bank xabarini @bot ga yoki yordamchi akkauntga forward qiling — summasi mos buyurtma darhol tasdiqlanadi.</small></div></div>
           <div class="pay-note">🔒 Xaridorlar botga summa yozib o'zini tasdiqlay olmaydi — faqat admin va yuqoridagi manbalar hisobga olinadi.</div>
           <div class="fs-label" style="margin-top:14px">Oxirgi tekshirilgan xabarlar</div>
           <div id="payLog" class="pay-log"><div class="st-empty">Hali xabar kelmadi</div></div>
@@ -7569,7 +7592,7 @@ function switchAdminTab(btn, tabId) {
   if(tabId==='adminUsers') renderUsersList();
   if(tabId==='adminSettings') loadSettingsUI();
   if(tabId==='adminStats') loadAdminStats();
-  if(tabId==='adminAssistant') loadAssistantStatus(); else stopAssistantPolling();
+  if(tabId==='adminAssistant') { loadAssistantStatus(); loadPaymentChannel(); } else stopAssistantPolling();
 }
 
 function refreshAdminTab() {
@@ -7579,7 +7602,7 @@ function refreshAdminTab() {
   else if(tabId==='adminUsers') renderUsersList();
   else if(tabId==='adminSettings') loadSettingsUI();
   else if(tabId==='adminStats') loadAdminStats();
-  else if(tabId==='adminAssistant') loadAssistantStatus();
+  else if(tabId==='adminAssistant') { loadAssistantStatus(); loadPaymentChannel(); }
 }
 
 function renderAdminProducts() {
@@ -8255,6 +8278,47 @@ function renderTopProducts(paidOrders) {
       <div class="st-top-info"><div class="st-top-name">${escHtml(t.name)}</div><div class="st-top-bar"><span style="width:${t.qty / maxQ * 100}%"></span></div></div>
       <div class="st-top-qty">${t.qty} ta</div>
     </div>`).join('');
+}
+
+// ===== ADMIN: TO'LOVLAR KANALI =====
+function renderPaymentChannel(d) {
+  const inp = document.getElementById('payChanInput');
+  if (inp && document.activeElement !== inp) inp.value = d.id || '';
+  const st = document.getElementById('payChanStatus');
+  const rows = [];
+  if (!d.id) rows.push(`<div class="pc-row"><span class="pc-mid">⚠️</span><div>Kanal ulanmagan — to'lovlar kanaldan avtomatik tasdiqlanmaydi.<br><small style="color:var(--text2)">Botni kanalga <b>admin</b> qiling va kanalga istalgan xabar yozing — kanal pastda paydo bo'ladi, "Tanlash" ni bosing. Yoki kanal ID sini (-100...) kiriting.</small></div></div>`);
+  else {
+    rows.push(`<div class="pc-row"><span class="pc-ok">✓</span><div>Ulangan: <b>${escHtml(d.title || d.id)}</b> <small style="color:var(--text3)">${escHtml(d.id)}</small></div></div>`);
+    rows.push(d.bot === 'admin' ? `<div class="pc-row"><span class="pc-ok">✓</span><div><b>Bot</b> kanalda admin — xabarlarni ko'rib turadi</div></div>`
+      : `<div class="pc-row"><span class="pc-bad">✗</span><div><b>Bot</b> kanalda admin emas — kanal sozlamalarida botni administrator qilib qo'shing</div></div>`);
+    rows.push(d.assistant === 'member' ? `<div class="pc-row"><span class="pc-ok">✓</span><div><b>Yordamchi akkaunt</b> kanal a'zosi — u ham kuzatib turadi</div></div>`
+      : d.assistant === 'not_member' ? `<div class="pc-row"><span class="pc-mid">!</span><div><b>Yordamchi akkaunt</b> kanalda yo'q (ixtiyoriy) — qo'shsangiz, bot ishlamay qolsa ham to'lovlar tasdiqlanadi</div></div>`
+      : `<div class="pc-row"><span class="pc-mid">·</span><div><b>Yordamchi akkaunt</b> ulanmagan — to'lovlarni bot tekshiradi</div></div>`);
+  }
+  st.innerHTML = rows.join('');
+  document.getElementById('payChanSuggest').innerHTML = (d.suggestions || []).map(c =>
+    `<div class="pc-sug"><span>📢 ${escHtml(c.title || c.username || c.id)}${c.looksPayment ? ' · <b style="color:#34d399">to\'lov xabari</b>' : ''}</span><button class="ot-btn" onclick="savePaymentChannel('${escHtml(String(c.id))}')">Tanlash</button></div>`).join('');
+  const log = d.log || [];
+  document.getElementById('payChanLog').innerHTML = log.length ? log.map(l => `<div class="pay-log-row ${l.matched.length ? 'ok' : ''}">
+        <div class="pay-log-top"><b>${l.matched.length ? '✅ ' + escHtml(l.matched.join(', ')) : '— mos buyurtma yo\'q'}</b><span>${escHtml(l.source)} · ${new Date(l.at).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</span></div>
+        <div class="pay-log-text">${escHtml(l.text)}</div></div>`).join('') : `<div class="st-empty">Hali xabar kelmadi</div>`;
+}
+async function loadPaymentChannel() {
+  try {
+    const res = await fetch('/api/admin/payment-channel', { headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    if (!res.ok) throw new Error();
+    renderPaymentChannel(await res.json());
+  } catch (e) { const st = document.getElementById('payChanStatus'); if (st) st.innerHTML = `<div class="st-empty">Holatni yuklab bo'lmadi</div>`; }
+}
+async function savePaymentChannel(id) {
+  const val = id != null ? id : document.getElementById('payChanInput').value.trim();
+  try {
+    const res = await fetch('/api/admin/payment-channel', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' }, body: JSON.stringify({ channel: val }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Xatolik');
+    renderPaymentChannel(d);
+    showToast(d.id ? "To'lovlar kanali saqlandi" : "Kanal uzildi", '💳');
+  } catch (e) { showToast(e.message, '✗', 'var(--red)'); }
 }
 
 // ===== ADMIN: 3D MODELLAR =====

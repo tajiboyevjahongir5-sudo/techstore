@@ -739,6 +739,7 @@ function createAssistant(deps) {
     wrapClientSends(client);
     client.addEventHandler(onNewMessage, new NewMessage({ incoming: true }));
     client.addEventHandler(onOutgoing, new NewMessage({ outgoing: true }));
+    client.addEventHandler(onChannelPost, new NewMessage({}));
     client.addEventHandler(onPhoneCall, new Raw({ types: [Api.UpdatePhoneCall] }));
     const me = await client.getMe();
     config.account = {
@@ -1025,6 +1026,36 @@ function createAssistant(deps) {
     } catch (_) {}
   }
   const humanPause = new Map();
+
+  // ===== TO'LOVLAR KANALI =====
+  // Bank xabarlari tushadigan kanal (admin panelda sozlanadi). Yordamchi akkaunt shu kanal a'zosi bo'lsa,
+  // har bir yangi xabarni to'lov sifatida tekshiradi (bot ham kuzatadi — ikki marta tasdiqlanmaydi).
+  async function onChannelPost(event) {
+    try {
+      const msg = event.message;
+      const peer = msg && msg.peerId;
+      if (!peer || peer.className !== 'PeerChannel' || !deps.onPaymentText || !deps.getPaymentChannel) return;
+      const want = deps.getPaymentChannel();
+      const key = String(peer.channelId);
+      if (!want || key !== want) return;
+      const text = msg.message || '';
+      if (!text) return;
+      const list = await deps.onPaymentText(text, "to'lov kanali (yordamchi)", `ch:${key}:${msg.id}`);
+      if (list && list.length) log(`To'lov kanali: tasdiqlandi ${list.map(m => m.orderNum).join(', ')}`);
+    } catch (e) {
+      console.warn("Assistant: to'lov kanali xabarini tekshirishda xato:", e.message);
+    }
+  }
+  async function channelMembership(key) {
+    if (!client || state !== 'connected') return null;
+    try {
+      const entity = await client.getEntity(new Api.PeerChannel({ channelId: bigInt(String(key)) }));
+      await client.invoke(new Api.channels.GetParticipant({ channel: entity, participant: new Api.InputPeerSelf() }));
+      return 'member';
+    } catch (e) {
+      return 'not_member';
+    }
+  }
   function humanActive(chat) {
     const t = Math.max(chat.humanUntil || 0, humanPause.get(chat.id) || 0);
     return t > Date.now();
@@ -2591,10 +2622,10 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   }
 
   return {
-    geminiGenerate,
+    geminiGenerate, channelMembership,
     init, status, publicContact, sendToCustomer, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
     // Testlar uchun ichki funksiyalar
-    _internals: { getChat, processChat, executeTool, onPhoneCall, onNewMessage, onOutgoing, cleanNote, isMuted, systemPrompt, setClient: (c) => { wrapClientSends(c); client = c; }, setState: (s) => { state = s; } },
+    _internals: { getChat, processChat, executeTool, onPhoneCall, onNewMessage, onOutgoing, onChannelPost, cleanNote, isMuted, systemPrompt, setClient: (c) => { wrapClientSends(c); client = c; }, setState: (s) => { state = s; } },
   };
 }
 
