@@ -4141,6 +4141,9 @@ body.modal-open {
 }
 @media (min-width: 1024px) {
   :root { --dk-max: 1240px; --dk-side: max(32px, calc((100vw - 1240px) / 2)); --dk-nav: 72px; }
+  /* Telegram Desktop to'liq ekranda o'z "✕" va "⋮" tugmalarini sahifa ustiga chizadi (o'ng yuqori burchak) —
+     menyu paneli ular ostidan boshlanadi, tugmalar ortidagi joy panel foni bilan to'ladi */
+  html.tg-fs.tg-desk { --dk-top: max(48px, calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px))); }
   html, body { overflow: hidden; }
   .phone-shell { max-width: none; }
   *::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -4152,7 +4155,7 @@ body.modal-open {
   .tab-nav {
     display: flex !important;
     top: 0; bottom: auto; left: 0; right: 0; transform: none; width: auto; max-width: none;
-    height: var(--dk-nav); padding: 0 var(--dk-side); box-sizing: border-box;
+    height: calc(var(--dk-nav) + var(--dk-top, 0px)); padding: var(--dk-top, 0px) var(--dk-side) 0; box-sizing: border-box;
     border-radius: 0; border-top: none; border-bottom: 1px solid rgba(167, 139, 250, 0.16);
     align-items: center; justify-content: flex-end; gap: 6px;
     background: rgba(8, 8, 28, 0.78); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
@@ -4173,7 +4176,7 @@ body.modal-open {
 
   /* --- Har bir sahifa: markazda, keng --- */
   .screen.active {
-    padding-top: calc(var(--dk-nav) + 24px);
+    padding-top: calc(var(--dk-nav) + var(--dk-top, 0px) + 24px);
     padding-bottom: 56px;
     padding-left: var(--dk-side);
     padding-right: var(--dk-side);
@@ -4209,7 +4212,7 @@ body.modal-open {
   .cmp-fab { right: var(--dk-side); bottom: 28px; }
 
   /* --- Mahsulot sahifasi: chapda rasm, o'ngda ma'lumot --- */
-  #detail.screen.active { padding-top: calc(var(--dk-nav) + 16px); display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 40px; align-content: start; padding-bottom: 140px; }
+  #detail.screen.active { padding-top: calc(var(--dk-nav) + var(--dk-top, 0px) + 16px); display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 40px; align-content: start; padding-bottom: 140px; }
   #detail .pd-topbar, body.in-tg #detail .pd-topbar { grid-column: 1 / -1; margin: 0; transform: none; opacity: 1; pointer-events: auto; background: transparent; border: none; backdrop-filter: none; }
   #detail .pd-topbar-title { opacity: 1; transform: none; font-size: 15px; color: var(--text2); }
   #detail .pd-hero, body.in-tg #detail .pd-hero { grid-column: 1; grid-row: 2; margin: 0; align-self: start; }
@@ -4263,7 +4266,7 @@ body.modal-open {
   #adminSettings > * { break-inside: avoid; display: inline-block; width: 100%; }
 
   /* --- Bildirishnoma va 3D oyna --- */
-  .toast { top: calc(var(--dk-nav) + 16px); }
+  .toast { top: calc(var(--dk-nav) + var(--dk-top, 0px) + 16px); }
 }
 @media (min-width: 1024px) and (hover: hover) {
   .cat-chip, .profile-menu-item, .pd-sim, .prod-card, .tab-btn { cursor: pointer; }
@@ -11505,6 +11508,7 @@ function initTelegramExtras() {
     // Kompyuterda (Telegram Desktop / Web) kichik oynada ochilsa — katta oynaga o'tamiz,
     // shunda kompyuterga moslashgan keng ko'rinish chiqadi. Foydalanuvchi o'chirib qo'ysa, eslab qolamiz.
     const desktop = ['tdesktop', 'macos', 'weba', 'webk', 'web', 'unigram'].includes(String(tg.platform || '').toLowerCase());
+    document.documentElement.classList.toggle('tg-desk', desktop);
     let optOut = false; try { optOut = localStorage.getItem('ts_nofs') === '1'; } catch (e) {}
     if (desktop && !optOut && !tg.isFullscreen && window.innerWidth < 1024) {
       autoFs = true;
