@@ -833,6 +833,13 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   box-shadow: 0 4px 10px rgba(107, 127, 255, 0.3);
 }
 
+/* Savatga qo'shish — logo gradienti, neon nur, savat belgisi */
+.add-btn:not(.added) { background: linear-gradient(135deg, #59a8ff 0%, #7b6cff 40%, #b05cf6 72%, #f45cc6 100%) !important;
+  box-shadow: 0 4px 14px rgba(124, 92, 255, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.18) inset, 0 1px 0 rgba(255, 255, 255, 0.35) inset !important; }
+.add-btn { position: relative; overflow: hidden; }
+.add-btn i { color: #fff; font-size: 1.15em; filter: drop-shadow(0 1px 2px rgba(40, 10, 90, 0.5)); }
+.add-btn::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(160deg, rgba(255,255,255,.35), transparent 45%); pointer-events: none; }
+.prod-card .add-btn { width: 34px; height: 34px; }
 .add-btn.added {
   background: linear-gradient(135deg, #10B981, #059669) !important;
   box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6), 0 4px 12px rgba(16, 185, 129, 0.4) !important;
@@ -6346,7 +6353,7 @@ function renderProducts(list, opts = {}) {
             <div class="prod-price">${priceStr}</div>
             ${oldPriceStr?`<div style="font-size:10px;color:var(--text3);text-decoration:line-through">${oldPriceStr}</div>`:''}
           </div>
-          <button class="add-btn" onclick="addToCartById(event,${p.id},this)"><i class="ti ti-plus" style="color:#fff"></i></button>
+          <button class="add-btn" onclick="addToCartById(event,${p.id},this)"><i class="ti ti-shopping-cart-plus"></i></button>
         </div>
       </div>`;
     card.addEventListener('click', (e) => {
@@ -7014,7 +7021,7 @@ function addToCartById(e, id, btn) {
     btn.innerHTML = `<i class="ti ti-check" style="color:#fff"></i>`;
     btn._resetTimer = setTimeout(() => {
       btn.classList.remove('added');
-      btn.innerHTML = `<i class="ti ti-plus" style="color:#fff"></i>`;
+      btn.innerHTML = `<i class="ti ti-shopping-cart-plus"></i>`;
     }, 1300);
   }
 
@@ -7854,7 +7861,7 @@ function showFavorites() {
           <div class="prod-brand">${p.brand}</div>
           <div class="prod-name">${p.name}</div>
           <div class="prod-footer"><div class="prod-price" style="font-size:12px">${formatPrice(p.price)}</div>
-          <button class="add-btn" onclick="event.stopPropagation();addProductToCart(products.find(x=>x.id==${p.id}))"><i class="ti ti-plus" style="color:#fff"></i></button></div>
+          <button class="add-btn" onclick="event.stopPropagation();addProductToCart(products.find(x=>x.id==${p.id}))"><i class="ti ti-shopping-cart-plus"></i></button></div>
         </div>
       </div>`).join('')}</div>`;
   }
@@ -10507,6 +10514,7 @@ const SVG_ICONS = {
   'box': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3"/><path d="M12 12l8-4.5"/><path d="M12 12v9"/><path d="M12 12L4 7.5"/></svg>',
   'upload': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>',
   'home': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12L12 5l7 7"/><path d="M5 12v7a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-7"/></svg>',
+  'shopping-cart-plus': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2 3h3l2.4 11.6a2 2 0 002 1.6h8.4a2 2 0 002-1.6L21 8"/><path d="M14 4v6M11 7h6"/></svg>',
   'shopping-cart': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M17 19m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>',
   'coin': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1" /><path d="M12 6v2m0 8v2" /></svg>',
   'user': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
@@ -11382,7 +11390,7 @@ function miniCard(p, extra = '') {
   return `<div class="pd-sim hs-card${out ? ' is-out' : ''}" data-id="${p.id}" onclick="openDetail(${p.id})">
     <div class="pd-sim-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy">` : prodIcon(p)}${p.discount > 0 ? `<span class="hs-disc">-${p.discount}%</span>` : ''}${extra}</div>
     <div class="pd-sim-info"><div class="pd-sim-name">${escText(p.name)}</div>
-      <div class="pd-sim-row"><div class="pd-sim-price">${String(Math.round(p.price)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0')} <small>so'm</small></div>${out ? '' : `<button class="add-btn hs-add" aria-label="Savatga qo'shish" onclick="addToCartById(event,${p.id},this)"><i class="ti ti-plus" style="color:#fff"></i></button>`}</div></div>
+      <div class="pd-sim-row"><div class="pd-sim-price">${String(Math.round(p.price)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0')} <small>so'm</small></div>${out ? '' : `<button class="add-btn hs-add" aria-label="Savatga qo'shish" onclick="addToCartById(event,${p.id},this)"><i class="ti ti-shopping-cart-plus"></i></button>`}</div></div>
   </div>`;
 }
 function renderHomeSections() {
