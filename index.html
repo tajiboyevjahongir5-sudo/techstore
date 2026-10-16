@@ -2637,6 +2637,18 @@ input[type="datetime-local"].form-input { min-width: 0; width: 100%; font-size: 
 .st-top-bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
 .st-top-bar span { display: block; height: 100%; border-radius: 3px; background: var(--grad); }
 .st-top-qty { font-size: 12px; font-weight: 800; color: var(--green); }
+.m3-note { font-size: 11.5px; color: var(--text2); line-height: 1.45; margin: -4px 0 10px; }
+.m3-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+.m3-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 9px 10px; }
+.m3-info { flex: 1; min-width: 0; }
+.m3-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m3-st { font-size: 11px; color: var(--text2); margin-top: 3px; line-height: 1.35; }
+.m3-badge { display: inline-block; padding: 2px 7px; border-radius: 8px; font-size: 10.5px; font-weight: 700; margin-right: 4px; }
+.m3-ok { background: rgba(16,185,129,0.18); color: #34d399; } .m3-bad { background: rgba(239,68,68,0.16); color: #f87171; }
+.m3-wait { background: rgba(167,139,250,0.16); color: #c4b5fd; } .m3-off { background: rgba(255,255,255,0.08); color: var(--text2); }
+.m3-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.m3-btn { width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #fff; cursor: pointer; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); }
+.m3-btn:active { transform: scale(0.9); }
 .st-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 10px; }
 .st-revs { display: flex; flex-direction: column; gap: 10px; }
 .st-rev { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 10px 12px; }
@@ -3962,6 +3974,9 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
 .v3d-spin { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: #a78bfa; animation: spin 0.9s linear infinite; }
 .v3d-glhost { position: absolute; inset: 0; opacity: 0; transition: opacity .5s ease; pointer-events: none; }
 .v3d-glhost.on { opacity: 1; }
+.v3d-mv { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .6s ease; }
+.v3d-mv.on { opacity: 1; pointer-events: auto; }
+.v3d-mv model-viewer { width: 100%; height: 100%; background: transparent; --poster-color: transparent; --progress-bar-color: transparent; outline: none; }
 .v3d-glhost canvas { width: 100%; height: 100%; display: block; }
 .v3d-obj { transition: opacity .5s ease; }
 .v3d-hspin { display: none; width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); border-top-color: #a78bfa; animation: spin .9s linear infinite; }
@@ -4077,6 +4092,7 @@ body.modal-open {
       <div class="v3d-shadow" id="v3dShadow"></div>
       <div class="v3d-float"><div class="v3d-obj" id="v3dObj"></div></div>
       <div class="v3d-glhost" id="v3dGLHost"></div>
+      <div class="v3d-mv" id="v3dMV"></div>
       <div class="v3d-load" id="v3dLoad"></div>
     </div>
     <div class="v3d-hint" id="v3dHint"><i class="ti ti-hand-finger"></i><span class="v3d-hspin"></span><span id="v3dHintTxt">Barmoq bilan aylantiring</span></div>
@@ -4463,6 +4479,11 @@ body.modal-open {
       <!-- PRODUCTS TAB -->
       <div id="adminProducts" style="display:none">
         <button class="add-prod-btn" onclick="openAddModal()"><i class="ti ti-plus" style="font-size:18px"></i> Yangi mahsulot qo'shish</button>
+        <div class="st-card m3-card">
+          <div class="st-head"><div class="st-title">🧊 3D modellar (AI)</div><div class="st-sub" id="m3Summary"></div></div>
+          <div class="m3-note" id="m3Note">TRELLIS har bir mahsulot rasmidan 3D model yasaydi, Gemini sifatini 1–10 baholaydi. 7 va undan yuqorisi mijozga avtomatik ko'rsatiladi.</div>
+          <div id="m3List" class="m3-list"></div>
+        </div>
         <div class="admin-prod-list" id="adminProdList"></div>
       </div>
 
@@ -6083,7 +6104,7 @@ function openDetail(id) {
   currentDetailId = id;
   // Joriy mahsulot rasmlarini zoom uchun saqlash
   document.getElementById('detailHeaderName').textContent = p.name;
-  document.getElementById('pdHero3d').classList.toggle('show', !!(p.cutout || p.image || (p.images && p.images.length)));
+  document.getElementById('pdHero3d').classList.toggle('show', !!(p.model3d || p.cutout || p.image || (p.images && p.images.length)));
 
   // === GALEREYA ===
   // Barcha rasmlarni yig'amiz (images array + image fallback)
@@ -7382,7 +7403,7 @@ function switchAdminTab(btn, tabId) {
   const wrap = document.querySelector('#admin .admin-wrap');
   if (wrap) wrap.scrollTop = 0;
   if(tabId==='adminOrders') loadAdminOrders();
-  if(tabId==='adminProducts') renderAdminProducts();
+  if(tabId==='adminProducts') { renderAdminProducts(); loadModels3d(); }
   if(tabId==='adminUsers') renderUsersList();
   if(tabId==='adminSettings') loadSettingsUI();
   if(tabId==='adminStats') loadAdminStats();
@@ -7392,7 +7413,7 @@ function switchAdminTab(btn, tabId) {
 function refreshAdminTab() {
   const tabId = currentAdminTab || 'adminOrders';
   if(tabId==='adminOrders') loadAdminOrders();
-  else if(tabId==='adminProducts') renderAdminProducts();
+  else if(tabId==='adminProducts') { renderAdminProducts(); loadModels3d(); }
   else if(tabId==='adminUsers') renderUsersList();
   else if(tabId==='adminSettings') loadSettingsUI();
   else if(tabId==='adminStats') loadAdminStats();
@@ -8072,6 +8093,54 @@ function renderTopProducts(paidOrders) {
       <div class="st-top-info"><div class="st-top-name">${escHtml(t.name)}</div><div class="st-top-bar"><span style="width:${t.qty / maxQ * 100}%"></span></div></div>
       <div class="st-top-qty">${t.qty} ta</div>
     </div>`).join('');
+}
+
+// ===== ADMIN: 3D MODELLAR =====
+const M3_STATUS = {
+  ready: ['m3-ok', "Mijozga ko'rsatilmoqda"], rejected: ['m3-bad', 'Sifat past — yashirilgan'], unchecked: ['m3-wait', 'Baholanmagan — tasdiqlang'],
+  working: ['m3-wait', 'Yasalmoqda…'], queued: ['m3-wait', 'Navbatda'], rebuild: ['m3-wait', 'Qayta yasash navbatida'],
+  failed: ['m3-bad', 'Xatolik'], unsuitable: ['m3-off', 'Rasm 3D uchun yaroqsiz'], noimage: ['m3-off', "Rasm yo'q"],
+};
+async function loadModels3d() {
+  const el = document.getElementById('m3List'); if (!el) return;
+  try {
+    const res = await fetch('/api/admin/models3d', { headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const note = document.getElementById('m3Note');
+    if (!d.enabled) { note.innerHTML = "⚠️ Railway'da <b>HF_TOKEN</b> o'rnatilmagan — 3D modellar yasalmayapti."; }
+    else if (d.pausedUntil) { note.innerHTML = `⏸ Hugging Face bepul GPU limiti tugadi. ${new Date(d.pausedUntil).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })} dan keyin o'zi davom etadi.`; }
+    const shown = d.items.filter(i => i.visible).length;
+    document.getElementById('m3Summary').textContent = `${shown}/${d.items.length} tayyor`;
+    el.innerHTML = d.items.map(i => {
+      const [cls, label] = i.hidden ? ['m3-off', 'Siz yashirgansiz'] : (i.status === 'rejected' && i.approved) ? ['m3-ok', 'Siz tasdiqlagansiz'] : (M3_STATUS[i.status] || ['m3-off', i.status || '—']);
+      const extra = [i.score != null ? `Baho: ${i.score}/10` : '', i.reason || i.error || ''].filter(Boolean).join(' · ');
+      const btns = [
+        i.preview ? `<div class="m3-btn" title="Ko'rish" onclick="previewModel3d('${i.preview}', ${JSON.stringify(escHtml(i.name)).replace(/"/g, '&quot;')})"><i class="ti ti-eye"></i></div>` : '',
+        i.preview ? (i.visible ? `<div class="m3-btn" title="Yashirish" onclick="model3dAction(${JSON.stringify(String(i.id)).replace(/"/g, '&quot;')},'hide')"><i class="ti ti-x"></i></div>`
+                               : `<div class="m3-btn" title="Mijozga ko'rsatish" onclick="model3dAction(${JSON.stringify(String(i.id)).replace(/"/g, '&quot;')},'show')"><i class="ti ti-check"></i></div>`) : '',
+        i.status !== 'noimage' && i.status !== 'working' ? `<div class="m3-btn" title="Qayta yasash" onclick="model3dAction(${JSON.stringify(String(i.id)).replace(/"/g, '&quot;')},'rebuild')"><i class="ti ti-history"></i></div>` : '',
+      ].join('');
+      return `<div class="m3-row"><div class="m3-info"><div class="m3-name">${escHtml(decodeEntities(i.name || ''))}</div>
+        <div class="m3-st"><span class="m3-badge ${cls}">${label}</span>${escHtml(extra)}</div></div><div class="m3-btns">${btns}</div></div>`;
+    }).join('') || `<div class="st-empty">Mahsulotlar yo'q</div>`;
+    applyIconFallback(el);
+  } catch (e) {
+    el.innerHTML = `<div class="st-empty">3D holatini yuklab bo'lmadi</div>`;
+  }
+}
+async function model3dAction(pid, act) {
+  if (act === 'rebuild' && !(await confirmAsync("3D model qaytadan yasalsinmi? (rasm tekshiruvisiz, bepul GPU limitidan foydalanadi)"))) return;
+  try {
+    const res = await fetch(`/api/admin/models3d/${encodeURIComponent(pid)}/${act}`, { method: 'POST', headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Xatolik');
+    showToast(act === 'hide' ? '3D model yashirildi' : act === 'show' ? "3D model mijozlarga ko'rsatiladi" : 'Navbatga qo\'yildi', '🧊');
+    loadModels3d();
+  } catch (e) { showToast(e.message, '✗', 'var(--red)'); }
+}
+function previewModel3d(src, name) {
+  open3dView({ preview: { model3d: src, name } });
 }
 
 async function loadAdminReviews() {
@@ -10429,10 +10498,12 @@ const v3dGL = {
 };
 
 // ===== "3D" KO'RINISH: fonsiz (AI bilan qirqilgan) mahsulot rasmi, barmoq / giroskop bilan aylantiriladi =====
-const v3d = { rx: 0, ry: 0, tx: 0, ty: 0, drag: null, raf: 0, idle: 0, gyro: null, zoom: 1, tzoom: 1, pinch: null };
-function open3dView() {
-  const p = products.find(x => x.id === currentDetailId);
+const v3d = { rx: 0, ry: 0, tx: 0, ty: 0, drag: null, raf: 0, idle: 0, gyro: null, zoom: 1, tzoom: 1, pinch: null, session: 0, mv: false };
+function open3dView(opts = {}) {
+  const p = opts.preview ? { id: '__preview', name: opts.preview.name, model3d: opts.preview.model3d } : products.find(x => x.id === currentDetailId);
   if (!p) return;
+  const session = ++v3d.session;
+  v3dStopMV();
   const el = document.getElementById('v3d'), obj = document.getElementById('v3dObj'), load = document.getElementById('v3dLoad');
   document.getElementById('v3dName').textContent = p.name;
   obj.innerHTML = ''; obj.style.opacity = '0';
@@ -10447,11 +10518,13 @@ function open3dView() {
   try { tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
   const photo = (p.images && p.images[0]) || p.image;
   const srcs = [p.cutout, photo].filter(Boolean);
+  if (p.model3d) v3dStartMV(p, session);
   const tryLoad = i => {
-    if (i >= srcs.length) { load.innerHTML = '<span style="font-size:72px">' + (p.emoji || '📦') + '</span>'; document.getElementById('v3dShadow').style.display = 'none'; return; }
+    if (v3d.mv) return;
+    if (i >= srcs.length) { if (!p.model3d) { load.innerHTML = '<span style="font-size:72px">' + (p.emoji || '📦') + '</span>'; document.getElementById('v3dShadow').style.display = 'none'; } return; }
     const img = new Image();
     img.onload = () => {
-      if (!el.classList.contains('open') || currentDetailId !== p.id) return;
+      if (!el.classList.contains('open') || v3d.session !== session || v3d.mv) return;
       const cut = srcs[i] === p.cutout;
       const u = String(srcs[i]).replace(/"/g, '%22');
       const mask = cut ? ' style="-webkit-mask-image:url(&quot;' + u + '&quot;);mask-image:url(&quot;' + u + '&quot;)"' : ' style="border-radius:22px"';
@@ -10464,7 +10537,7 @@ function open3dView() {
       const sh = document.getElementById('v3dShadow');
       sh.style.top = 'calc(50% + ' + Math.round(rh / 2 + 4) + 'px)'; sh.style.bottom = 'auto'; sh.style.width = Math.round(rw * 0.8) + 'px';
       load.style.display = 'none'; obj.style.opacity = '1';
-      if (cut && p.depth && v3dGL.supported()) v3dStartGL(p, srcs[i]);
+      if (cut && p.depth && !p.model3d && v3dGL.supported()) v3dStartGL(p, srcs[i], session);
     };
     img.onerror = () => tryLoad(i + 1);
     img.src = srcs[i];
@@ -10478,16 +10551,17 @@ function v3dSetHint(kind) {
   const ru = uiLang === 'ru';
   const el = document.getElementById('v3dHintTxt');
   el.textContent = kind === 'loading' ? (ru ? 'Создаём 3D-модель…' : '3D model tayyorlanmoqda…')
+    : kind === 'mv' ? (ru ? '360° — вращайте пальцем · ИИ-модель, задняя сторона примерная' : "360° aylantiring · AI modeli, orqa tomoni taxminiy")
     : kind === 'gl' ? (ru ? 'Вращайте пальцем · щипок — масштаб' : 'Barmoq bilan aylantiring · ikki barmoq — kattalashtirish')
     : (ru ? 'Вращайте пальцем' : 'Barmoq bilan aylantiring');
   document.getElementById('v3dHint').classList.toggle('loading', kind === 'loading');
 }
-async function v3dStartGL(p, colorSrc) {
+async function v3dStartGL(p, colorSrc, session) {
   const host = document.getElementById('v3dGLHost');
   v3dSetHint('loading');
   try {
     const ok = await v3dGL.load(colorSrc, p.depth, host);
-    if (!ok || !document.getElementById('v3d').classList.contains('open') || currentDetailId !== p.id) { if (!ok) v3dSetHint('hand'); return; }
+    if (!ok || !document.getElementById('v3d').classList.contains('open') || v3d.session !== session || v3d.mv) { if (!ok) v3dSetHint('hand'); else v3dGL.dispose(); return; }
     host.classList.add('on');
     document.getElementById('v3dObj').style.opacity = '0';
     v3dSetHint('gl');
@@ -10496,8 +10570,58 @@ async function v3dStartGL(p, colorSrc) {
     v3dGL.dispose(); v3dSetHint('hand');
   }
 }
+// AI (TRELLIS) yasagan haqiqiy .glb model — Google <model-viewer> bilan 360°
+let mvScript = null;
+function loadModelViewer() {
+  if (window.customElements && customElements.get('model-viewer')) return Promise.resolve();
+  if (!mvScript) mvScript = new Promise((res, rej) => {
+    const sc = document.createElement('script'); sc.type = 'module';
+    sc.src = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js';
+    sc.onload = () => customElements.whenDefined('model-viewer').then(res); sc.onerror = () => { mvScript = null; rej(new Error('model-viewer')); };
+    document.head.appendChild(sc);
+  });
+  return mvScript;
+}
+async function v3dStartMV(p, session) {
+  v3dSetHint('loading');
+  try {
+    await loadModelViewer();
+    if (v3d.session !== session || !document.getElementById('v3d').classList.contains('open')) return;
+    const host = document.getElementById('v3dMV');
+    const mv = document.createElement('model-viewer');
+    const attrs = { src: p.model3d, alt: p.name, 'camera-controls': '', 'auto-rotate': '', 'auto-rotate-delay': '1200', 'rotation-per-second': '24deg',
+      'shadow-intensity': '1.1', 'shadow-softness': '0.9', exposure: '1.05', 'environment-image': 'neutral', 'interaction-prompt': 'none',
+      'touch-action': 'none', 'disable-pan': '', 'camera-orbit': '25deg 75deg auto', 'min-camera-orbit': 'auto auto 60%', 'max-camera-orbit': 'auto auto 160%' };
+    Object.entries(attrs).forEach(([k, v]) => mv.setAttribute(k, v));
+    mv.addEventListener('load', () => {
+      if (v3d.session !== session) return;
+      v3d.mv = true;
+      v3dGL.dispose();
+      host.classList.add('on');
+      document.getElementById('v3dObj').style.opacity = '0';
+      document.getElementById('v3dGLHost').classList.remove('on');
+      document.getElementById('v3dShadow').style.display = 'none';
+      document.getElementById('v3dLoad').style.display = 'none';
+      v3dSetHint('mv');
+    });
+    mv.addEventListener('error', () => { if (v3d.session === session) { v3dStopMV(); v3dSetHint('hand'); v3dFallbackGL(p, session); if (p.id === '__preview') showToast("3D modelni ochib bo'lmadi", '✗', 'var(--red)'); } });
+    host.appendChild(mv);
+  } catch (e) {
+    if (v3d.session === session) { v3dSetHint('hand'); v3dFallbackGL(p, session); }
+  }
+}
+// AI modeli ochilmasa — chuqurlik xaritasi bo'yicha 3D ko'rinishga o'tamiz
+function v3dFallbackGL(p, session) {
+  if (p.cutout && p.depth && v3dGL.supported() && !v3dGL.ready) v3dStartGL(p, p.cutout, session);
+}
+function v3dStopMV() {
+  v3d.mv = false;
+  const host = document.getElementById('v3dMV');
+  if (host) { host.classList.remove('on'); host.innerHTML = ''; }
+}
 function close3dView() {
   document.getElementById('v3d').classList.remove('open');
+  v3dStopMV(); v3d.session++;
   v3dGL.dispose(); v3dGL.token++;
   cancelAnimationFrame(v3d.raf); v3dGyroOff(); v3d.drag = null;
 }
@@ -10518,7 +10642,7 @@ function v3dTick(t) {
   const clamp = (v, a) => Math.max(-a, Math.min(a, v));
   const pdist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   const down = e => {
-    if (!e.target.closest || !e.target.closest('#v3dStage')) return;
+    if (v3d.mv || !e.target.closest || !e.target.closest('#v3dStage')) return;
     if (e.touches && e.touches.length === 2) { v3d.pinch = { d: pdist(e.touches), z: v3d.tzoom }; v3d.drag = null; return; }
     const pt = e.touches ? e.touches[0] : e;
     v3d.gyro = null; v3dGyroOff();

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const compression = require('compression');
 const { createAssistant, CATEGORY_ENUM } = require('./assistant');
+const { createModel3D } = require('./model3d');
 
 // ===== SAQLASH JOYI =====
 // Railway'da Volume (doimiy disk) ulangan bo'lsa, barcha ma'lumotlar o'sha yerda saqlanadi va
@@ -677,7 +678,7 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 
 // Server fayllari va maxfiy ma'lumotlar statik tarzda berilmasin
-const PRIVATE_FILES = new Set(['/server.js', '/assistant.js', '/bot-features.js', '/cutout.js', '/cutout-worker.js', '/db.json', '/package.json', '/package-lock.json']);
+const PRIVATE_FILES = new Set(['/server.js', '/assistant.js', '/bot-features.js', '/cutout.js', '/cutout-worker.js', '/model3d.js', '/db.json', '/package.json', '/package-lock.json']);
 app.use((req, res, next) => {
   if (PRIVATE_FILES.has(req.path) || req.path.startsWith('/.') || req.path.startsWith('/node_modules')) {
     return res.status(404).end();
@@ -979,6 +980,7 @@ function publicProduct(p, now = Date.now(), ratings = null) {
   const ck = cutoutKey(p);
   out.cutout = ck ? `/api/cutout/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
   out.depth = ck ? `/api/depth/${encodeURIComponent(p.id)}?v=${ck.key.split('_').pop()}` : null;
+  out.model3d = model3d.publicInfo(p);
   const first = imgs[0];
   out.image = first ? (isDataImg(first) ? imgUrl(p.id, 0, first, 480) : first) : (isDataImg(p.image) ? null : p.image || null);
   return out;
@@ -1153,6 +1155,34 @@ async function getDepthMap(p) {
   }
   return cutoutJobs.get(jk);
 }
+
+// Haqiqiy 3D model (TRELLIS + Gemini nazorati) — HF_TOKEN o'rnatilgan bo'lsa ishlaydi
+const model3d = createModel3D({
+  dir: path.join(CUTOUT_DIR, 'models3d'),
+  getProducts,
+  imageKey: p => { const k = cutoutKey(p); return k ? k.key : null; },
+  loadImageSource: p => loadImageSource(cutoutKey(p).src),
+  gemini: (parts, opts) => assistant.geminiGenerate(parts, opts),
+});
+app.get('/api/model3d/:file', async (req, res) => {
+  const pid = String(req.params.file).replace(/\.glb$/i, '');
+  const f = model3d.fileFor(pid);
+  if (!f) return res.status(404).end();
+  res.setHeader('Content-Type', 'model/gltf-binary');
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+  fs.createReadStream(f).pipe(res);
+});
+app.get('/api/admin/models3d', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try { res.json(await model3d.list()); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/models3d/:pid/:action(hide|show|rebuild)', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    if (req.params.action === 'rebuild' && !process.env.HF_TOKEN) return res.status(400).json({ error: "Railway'da HF_TOKEN o'rnatilmagan" });
+    const ok = model3d.action(req.params.pid, req.params.action);
+    if (!ok) return res.status(404).json({ error: '3D model topilmadi' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 app.get('/api/depth/:pid', async (req, res) => {
   try {
@@ -2532,6 +2562,7 @@ app.listen(PORT, async () => {
   setTimeout(sweepConfirmedOrders, 20000);
   setInterval(sweepConfirmedOrders, 60000);
   setTimeout(prewarmCutouts, 30000);
+  model3d.start();
   setInterval(() => restoreExpiredDiscounts().catch(() => {}), 60000);
   botFeatures.startSchedulers();
   

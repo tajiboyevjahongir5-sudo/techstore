@@ -2432,7 +2432,37 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     }
   }
 
+  // Boshqa modullar uchun: Gemini'ga rasm/video + matn yuborish (masalan, 3D model sifatini baholash)
+  async function geminiGenerate(parts, { json = false } = {}) {
+    const key = aiKeyFor('gemini');
+    if (!key) return { error: 'no_key' };
+    const models = ['gemini-flash-latest', ...GEMINI_FALLBACK_MODELS.filter(m => m !== 'gemini-flash-latest')];
+    const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0, ...(json ? { responseMimeType: 'application/json' } : {}) } };
+    for (const model of models) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(120000),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          console.warn(`🤖 Gemini (${model}) ${res.status} ${(data?.error?.message || '').slice(0, 120)}`);
+          if (res.status === 401 || res.status === 403) return { error: 'api' };
+          continue;
+        }
+        const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
+        if (text) return { text, model };
+      } catch (e) {
+        console.warn(`🤖 Gemini (${model}) ${e.name === 'TimeoutError' ? 'timeout' : e.message}`);
+      }
+    }
+    return { error: 'busy' };
+  }
+
   return {
+    geminiGenerate,
     init, status, publicContact, sendToCustomer, sendCode, verifyCode, verifyPassword, disconnect, updateSettings, listModels, testAI,
     // Testlar uchun ichki funksiyalar
     _internals: { getChat, processChat, executeTool, onPhoneCall, onNewMessage, setClient: (c) => { client = c; }, setState: (s) => { state = s; } },
