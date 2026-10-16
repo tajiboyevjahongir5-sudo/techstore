@@ -219,7 +219,11 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .wm { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.035em; line-height: 1.1; white-space: nowrap; filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.35)); }
 .wm1 { background: linear-gradient(180deg, #ffffff 30%, #d9ddff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .wm2 { background: linear-gradient(90deg, #59a8ff 0%, #7b6cff 30%, #b05cf6 62%, #f45cc6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.pd-sim-img .hs-add { position: absolute; right: 8px; bottom: 8px; z-index: 2; width: 32px; height: 32px; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.12); }
+.pd-sim.hs-card { width: 162px; }
+.pd-sim-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 5px; margin-top: 5px; }
+.pd-sim-row .pd-sim-price { margin-top: 0; white-space: normal; line-height: 1.2; min-width: 0; }
+.pd-sim-row .pd-sim-price small { font-size: 10px; font-weight: 600; opacity: .8; white-space: nowrap; }
+.hs-add { width: 30px; height: 30px; flex-shrink: 0; font-size: 14px; }
 
 .header-right {
   display: flex;
@@ -11362,8 +11366,9 @@ function pushRecent(id) {
 function miniCard(p, extra = '') {
   const out = isOutOfStock(p);
   return `<div class="pd-sim hs-card${out ? ' is-out' : ''}" data-id="${p.id}" onclick="openDetail(${p.id})">
-    <div class="pd-sim-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy">` : (p.emoji || '📦')}${p.discount > 0 ? `<span class="hs-disc">-${p.discount}%</span>` : ''}${extra}${out ? '' : `<button class="add-btn hs-add" aria-label="Savatga qo'shish" onclick="addToCartById(event,${p.id},this)"><i class="ti ti-plus" style="color:#fff"></i></button>`}</div>
-    <div class="pd-sim-info"><div class="pd-sim-name">${escText(p.name)}</div><div class="pd-sim-price">${formatPrice(p.price)}</div></div>
+    <div class="pd-sim-img">${p.image ? `<img src="${p.image}" alt="" loading="lazy">` : (p.emoji || '📦')}${p.discount > 0 ? `<span class="hs-disc">-${p.discount}%</span>` : ''}${extra}</div>
+    <div class="pd-sim-info"><div class="pd-sim-name">${escText(p.name)}</div>
+      <div class="pd-sim-row"><div class="pd-sim-price">${String(Math.round(p.price)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0')} <small>so'm</small></div>${out ? '' : `<button class="add-btn hs-add" aria-label="Savatga qo'shish" onclick="addToCartById(event,${p.id},this)"><i class="ti ti-plus" style="color:#fff"></i></button>`}</div></div>
   </div>`;
 }
 function renderHomeSections() {
