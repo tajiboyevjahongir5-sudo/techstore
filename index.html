@@ -2608,7 +2608,7 @@ input[type="datetime-local"].form-input { min-width: 0; width: 100%; font-size: 
 .pay-way b { font-size: 13px; display: block; margin-bottom: 3px; }
 .pay-way small { font-size: 11.5px; color: var(--text2); line-height: 1.5; display: block; }
 .pay-num { width: 24px; height: 24px; border-radius: 50%; background: var(--grad); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.pay-url { margin-top: 8px; font: 600 11px monospace; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px dashed var(--glass-border); word-break: break-all; color: var(--green); }
+.pay-url { font: 600 11px monospace; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px dashed var(--glass-border); word-break: break-all; color: var(--green); }
 .pay-note { font-size: 11.5px; color: var(--text2); background: rgba(255,255,255,0.04); border-radius: 10px; padding: 9px 11px; margin-top: 4px; }
 .pay-log { display: flex; flex-direction: column; gap: 8px; }
 .pay-log-row { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 9px 11px; }
@@ -2645,7 +2645,7 @@ input[type="datetime-local"].form-input { min-width: 0; width: 100%; font-size: 
 .st-rev-del { margin-left: auto; width: 30px; height: 30px; }
 .st-rev-prod { font-size: 11px; color: var(--text3); margin-top: 2px; }
 .st-rev-text { font-size: 12px; color: var(--text2); margin-top: 6px; line-height: 1.45; }
-.st-rev-photo { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
+.st-rev-photo { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; }
 .ship-form { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 16px; padding: 12px; margin-bottom: 10px; }
 .ship-title { font-size: 13px; font-weight: 800; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .ship-form .rv-photo { height: 110px; margin-bottom: 10px; }
@@ -3849,7 +3849,7 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
 .pd-rev-who span { font-size: 11px; color: #f5a623; letter-spacing: 1px; }
 .pd-rev-who span i { font-style: normal; color: var(--text3); }
 .pd-rev-badge { font-size: 10px; font-weight: 700; color: var(--green); background: rgba(52,199,89,0.12); padding: 4px 8px; border-radius: 10px; white-space: nowrap; display: flex; align-items: center; gap: 3px; }
-.pd-rev-text { font-size: 13px; line-height: 1.5; color: var(--text2); margin-top: 8px; white-space: pre-wrap; word-break: break-word; }
+.pd-rev-text { font-size: 13px; line-height: 1.5; color: var(--text2); white-space: pre-wrap; word-break: break-word; }
 .pd-rev-photo { width: 100%; max-height: 260px; object-fit: cover; border-radius: 12px; margin-top: 10px; cursor: zoom-in; }
 .pd-similar { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 2px 20px 6px; scroll-snap-type: x mandatory; }
 .pd-similar::-webkit-scrollbar { display: none; }
@@ -3931,6 +3931,36 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
   transition: transform .2s ease, background .2s ease;
 }
 .pd-hero-fav:active { transform: scale(0.88); }
+.pd-hero-3d {
+  position: absolute; left: 17px; bottom: 14px; z-index: 6;
+  display: none; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 14px;
+  font-family: inherit; font-size: 12.5px; font-weight: 700; line-height: 1; color: #fff; cursor: pointer;
+  background: rgba(10, 10, 30, 0.55); border: 1px solid rgba(167,139,250,0.55);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 18px rgba(124,58,237,0.35);
+}
+.pd-hero-3d.show { display: inline-flex; }
+.pd-hero-3d:active { transform: scale(0.92); }
+.pd-hero-3d .ti { font-size: 16px; color: #c4b5fd; }
+.v3d { position: fixed; inset: 0; z-index: 9000; display: none; flex-direction: column; background: radial-gradient(120% 80% at 50% 38%, #2a1b5e 0%, #120d2b 45%, #07060f 100%); touch-action: none; user-select: none; -webkit-user-select: none; }
+.v3d.open { display: flex; animation: v3dIn .35s ease; }
+@keyframes v3dIn { from { opacity: 0; } to { opacity: 1; } }
+.v3d-top { display: flex; align-items: center; gap: 12px; padding: calc(14px + var(--tg-safe-top, 0px)) 16px 8px; color: #fff; }
+.v3d-top b { flex: 1; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v3d-close { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; cursor: pointer; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18); }
+.v3d-stage { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; perspective: 1100px; overflow: hidden; }
+.v3d-glow { position: absolute; width: 70vmin; height: 70vmin; border-radius: 50%; background: radial-gradient(circle, rgba(139,92,246,0.45), rgba(59,130,246,0.12) 55%, transparent 70%); filter: blur(10px); pointer-events: none; }
+.v3d-float { animation: v3dFloat 5s ease-in-out infinite; transform-style: preserve-3d; }
+@keyframes v3dFloat { 0%,100% { transform: translateY(-6px); } 50% { transform: translateY(8px); } }
+.v3d-obj { position: relative; width: min(78vw, 420px); height: min(58vh, 460px); transform-style: preserve-3d; will-change: transform; transition: opacity .3s ease; }
+.v3d-obj img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.v3d-obj .v3d-depth { transform: translateZ(-16px); filter: brightness(0.3) blur(1px); opacity: .85; }
+.v3d-obj .v3d-main { transform: translateZ(18px); filter: drop-shadow(0 18px 30px rgba(0,0,0,0.55)); }
+.v3d-sheen { position: absolute; inset: 0; transform: translateZ(19px); pointer-events: none; mix-blend-mode: screen; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+.v3d-shadow { position: absolute; bottom: 8%; width: min(54vw, 300px); height: 26px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,0.7), transparent); filter: blur(6px); pointer-events: none; }
+.v3d-load { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 12px; color: rgba(255,255,255,0.75); font-size: 13px; }
+.v3d-spin { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: #a78bfa; animation: spin 0.9s linear infinite; }
+.v3d-hint { display: flex; align-items: center; justify-content: center; gap: 6px; color: rgba(255,255,255,0.6); font-size: 12.5px; padding: 10px 16px calc(22px + var(--tg-safe-bottom, 0px)); }
 .pd-hero-fav.fav-on { color: var(--red); background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); }
 .pd-hero-fav.fav-pop { animation: favPop .45s cubic-bezier(0.34,1.56,0.64,1); }
 
@@ -4032,6 +4062,17 @@ body.modal-open {
 <div class="phone-shell" id="app">
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
+  <!-- "3D" KO'RINISH -->
+  <div class="v3d" id="v3d">
+    <div class="v3d-top"><b id="v3dName"></b><div class="v3d-close" onclick="close3dView()"><i class="ti ti-x"></i></div></div>
+    <div class="v3d-stage" id="v3dStage">
+      <div class="v3d-glow"></div>
+      <div class="v3d-shadow" id="v3dShadow"></div>
+      <div class="v3d-float"><div class="v3d-obj" id="v3dObj"></div></div>
+      <div class="v3d-load" id="v3dLoad"></div>
+    </div>
+    <div class="v3d-hint"><i class="ti ti-hand-finger"></i><span>Barmoq bilan aylantiring</span></div>
+  </div>
 
   <nav class="tab-nav">
     <button class="tab-btn active" onclick="showTab('home')"><i class="ti ti-home"></i>Asosiy</button>
@@ -4097,6 +4138,7 @@ body.modal-open {
       </div>
       <div class="pd-hero-badge" id="pdHeroBadge" style="display:none"></div>
       <div class="pd-hero-fav" id="pdHeroFav" onclick="event.stopPropagation();toggleFavDetail()" title="Sevimlilar"><i class="ti ti-heart"></i></div>
+      <button class="pd-hero-3d" id="pdHero3d" onclick="event.stopPropagation();open3dView()"><i class="ti ti-3d-cube-sphere"></i><span>3D ko'rinish</span></button>
     </div>
     <div class="pd-thumbs" id="pdThumbs"></div>
 
@@ -4867,6 +4909,14 @@ body.modal-open {
           <div style="flex:1">
             <div class="profile-menu-label">Do'stlarni taklif qilish</div>
             <div style="font-size:11px;color:var(--text2);margin-top:2px" id="refMenuSub">Shaxsiy havolangizni ulashing</div>
+          </div>
+          <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
+        </div>
+        <div class="profile-menu-item" onclick="toggleLang()">
+          <div class="profile-menu-icon blue"><span style="font-size:18px">🌐</span></div>
+          <div style="flex:1">
+            <div class="profile-menu-label">Til / Язык</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px" id="langLabel">O'zbekcha</div>
           </div>
           <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
         </div>
@@ -5698,6 +5748,7 @@ async function sendBotMessage(chatId, text) {
 // ===== DATA =====
 
 function showTab(id) {
+  if (typeof close3dView === 'function' && document.getElementById('v3d').classList.contains('open')) close3dView();
   if (id === 'address') {
     const curCity = document.getElementById('addrCity').value || 'Toshkent shahri';
     onViloyatChange(curCity);
@@ -5963,11 +6014,45 @@ function applyFilters() {
   filterProducts();
 }
 
+// ===== AQLLI QIDIRUV: kirill/lotin, xato yozilish, sinonimlar =====
+const CYR2LAT = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'j',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'x',ц:'ts',ч:'ch',ш:'sh',щ:'sh',ъ:'',ы:'i',ь:'',э:'e',ю:'yu',я:'ya',ў:'o',қ:'q',ғ:'g',ҳ:'h' };
+const SEARCH_ALIASES = {
+  ayfon: 'iphone', aifon: 'iphone', iphon: 'iphone', ayfoni: 'iphone', aypad: 'ipad', aypod: 'airpods', eyrpods: 'airpods', airpod: 'airpods',
+  samsung: 'samsung', samsunk: 'samsung', galaksi: 'galaxy', galaxi: 'galaxy', ksiomi: 'xiaomi', syaomi: 'xiaomi', shaomi: 'xiaomi', redmi: 'xiaomi',
+  makbuk: 'macbook', macbuk: 'macbook', noutbuk: 'kompyuterlar', notebook: 'kompyuterlar', noutbuklar: 'kompyuterlar', laptop: 'kompyuterlar', kompyuter: 'kompyuterlar',
+  telefon: 'telefonlar', telefonlar: 'telefonlar', smartfon: 'telefonlar', phone: 'telefonlar',
+  naushnik: 'audio', naushniki: 'audio', quloqchin: 'audio', quloqchinlar: 'audio', headphones: 'audio', kolonka: 'audio',
+  soat: 'aksessuarlar', chasy: 'aksessuarlar', watch: 'watch', sichqoncha: 'aksessuarlar', mishka: 'aksessuarlar',
+  televizor: 'smart tv', tv: 'smart tv', televizori: 'smart tv', dron: 'dronlar', kamera: 'kameralar', pleystation: 'playstation', pleystayshn: 'playstation', ps5: 'playstation 5',
+};
+function normSearch(str) {
+  return String(str || '').toLowerCase().replace(/[а-яёўқғҳ]/g, ch => CYR2LAT[ch] ?? ch).replace(/[ʻʼ'`‘’]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function editDistLe1(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, diff = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++diff > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return diff + (a.length - i) + (b.length - j) <= 1;
+}
+function productMatchesQuery(p, q) {
+  const hay = normSearch(`${p.name} ${p.brand} ${p.cat} ${(p.specs || []).map(x => x[1]).join(' ')}`);
+  const words = hay.split(' ');
+  return normSearch(q).split(' ').filter(Boolean).every(w0 => {
+    const w = SEARCH_ALIASES[w0] || w0;
+    if (hay.includes(w)) return true;
+    return w.length >= 4 && words.some(hw => hw.length >= 3 && (editDistLe1(w, hw) || (hw.startsWith(w.slice(0, 4)) && Math.abs(hw.length - w.length) <= 2)));
+  });
+}
+
 function filterProducts(quick) {
-  const q = document.getElementById('searchInput').value.toLowerCase();
+  const q = document.getElementById('searchInput').value;
   const filtered = products.filter(p => {
     const matchCat = currentCat==='all' || p.cat===currentCat;
-    const matchQ = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+    const matchQ = !q.trim() || productMatchesQuery(p, q);
     return matchCat && matchQ;
   });
   renderProducts(applyFilterState(filtered), { quick: !!quick });
@@ -5990,6 +6075,7 @@ function openDetail(id) {
   currentDetailId = id;
   // Joriy mahsulot rasmlarini zoom uchun saqlash
   document.getElementById('detailHeaderName').textContent = p.name;
+  document.getElementById('pdHero3d').classList.toggle('show', !!(p.cutout || p.image || (p.images && p.images.length)));
 
   // === GALEREYA ===
   // Barcha rasmlarni yig'amiz (images array + image fallback)
@@ -9680,7 +9766,9 @@ const SVG_ICONS = {
   'shopping-cart': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M17 19m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>',
   'coin': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1" /><path d="M12 6v2m0 8v2" /></svg>',
   'user': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
-  'heart': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 13.572L12 21l-7.5-7.428A5 5 0 1112 7.006a5 5 0 117.5 6.572z"/></svg>',
+  '3d-cube-sphere': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17.6l-2 -1.1v-2.5"/><path d="M4 10v-2.5l2 -1.1"/><path d="M10 4.1l2 -1.1l2 1.1"/><path d="M18 6.4l2 1.1v2.5"/><path d="M20 14v2.5l-2 1.12"/><path d="M14 19.9l-2 1.1l-2 -1.1"/><path d="M12 12l2 -1.1"/><path d="M18 8.6l2 -1.1"/><path d="M12 12l0 2.5"/><path d="M12 18.5l0 2.5"/><path d="M12 12l-2 -1.12"/><path d="M6 8.6l-2 -1.1"/></svg>',
+  'hand-finger': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13v-8.5a1.5 1.5 0 0 1 3 0v7.5"/><path d="M11 11.5v-2a1.5 1.5 0 1 1 3 0v2.5"/><path d="M14 10.5a1.5 1.5 0 0 1 3 0v1.5"/><path d="M17 11.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47"/></svg>',
+'heart': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 13.572L12 21l-7.5-7.428A5 5 0 1112 7.006a5 5 0 117.5 6.572z"/></svg>',
   'heart-filled': '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 13.572L12 21l-7.5-7.428A5 5 0 1112 7.006a5 5 0 117.5 6.572z"/></svg>',
   'arrow-left': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>',
   'arrow-right': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>',
@@ -10137,8 +10225,157 @@ async function initFirebaseAndLoad() {
   await loadData();
   filterProducts();
   initTelegramExtras();
+  if (uiLang === 'ru' || (!localStorage.getItem('ts_lang') && /^ru/.test(tg?.initDataUnsafe?.user?.language_code || ''))) { uiLang = 'ru'; }
+  applyLang();
   openProductFromLink();
 }
+
+// ===== RUS TILI: mijoz ekranlaridagi matnlar lug'at orqali tarjima qilinadi =====
+const I18N_RU = {"Asosiy": "Главная", "Savat": "Корзина", "Profil": "Профиль", "Barchasi": "Все", "Mahsulotlar": "Товары", "Topilmadi": "Не найдено", "Tavsiya": "Рекомендуем", "📱 Telefonlar": "📱 Телефоны", "Telefonlar": "Телефоны", "Kompyuterlar": "Компьютеры", "Aksessuarlar": "Аксессуары", "Kameralar": "Камеры", "O'yinlar": "Игры", "Dronlar": "Дроны", "Planshetlar": "Планшеты", "Soatlar": "Часы", "Telegram foydalanuvchi": "Пользователь Telegram", "3D ko'rinish": "3D вид", "Barmoq bilan aylantiring": "Вращайте пальцем", "💻 Kompyuterlar": "💻 Компьютеры", "🎧 Audio": "🎧 Аудио", "⌨️ Aksessuarlar": "⌨️ Аксессуары", "📷 Kameralar": "📷 Камеры", "🎮 O'yinlar": "🎮 Игры", "🚁 Dronlar": "🚁 Дроны", "📺 Smart TV": "📺 Smart TV", "🆕 Yangi qo'shilganlar": "🆕 Новинки", "🔥 Ko'p sotilganlar": "🔥 Хиты продаж", "👀 Yaqinda ko'rganlaringiz": "👀 Вы недавно смотрели", "⏰ Chegirma tugayapti": "⏰ Скидка заканчивается", "Ko'rish": "Смотреть", "Hali baholanmagan": "Пока без оценок", "Hali baholanmagan — xarid qilib birinchi bo'lib baho bering": "Пока без оценок — купите и оцените первым", "Tekin": "Бесплатная", "yetkazish": "доставка", "Xavfsiz": "Безопасная", "to'lov": "оплата", "Savol": "Задать", "berish": "вопрос", "Do'stlarga ulashish": "Поделиться с друзьями", "Rasm va havola bilan chiroyli xabar": "Красивое сообщение с фото и ссылкой", "Solishtirishga qo'shish": "Добавить к сравнению", "Solishtirish": "Сравнение", "Tavsif": "Описание", "Xususiyatlar": "Характеристики", "O'xshash mahsulotlar": "Похожие товары", "Mijozlar fikri": "Отзывы покупателей", "Ko'proq o'qish": "Читать далее", "Savatga qo'shish": "В корзину", "Savatga o'tish": "Перейти в корзину", "Variantni tanlang": "Выберите вариант", "Omborda bor": "Есть в наличии", "Tugagan": "Нет в наличии", "🔔 Kelganda xabar bering": "🔔 Сообщить о поступлении", "Kelganda xabar beramiz ✓": "Сообщим о поступлении ✓", "Xarid qilgan": "Купил(а)", "Savat bo'sh": "Корзина пуста", "Hali hech narsa qo'shmadingiz. Mahsulotlarni ko'ring va savatga qo'shing.": "Вы ещё ничего не добавили. Посмотрите товары и добавьте в корзину.", "Xarid qilish": "За покупками", "Yetkazib berish": "Доставка", "Bepul": "Бесплатно", "Jami": "Итого", "Manzil kiritish": "Указать адрес", "Yetkazib berish 🚚": "Доставка 🚚", "Manzil ma'lumotlari": "Данные адреса", "Viloyat": "Область", "Tuman": "Район", "BTS topshirish punkti": "Пункт выдачи BTS", "Telefon raqami": "Номер телефона", "Tuman tanlang": "Выберите район", "Avval viloyatni tanlang": "Сначала выберите область", "Avval tumanni tanlang": "Сначала выберите район", "To'lovga o'tish": "Перейти к оплате", "To'lov": "Оплата", "Karta ma'lumotlari": "Данные карты", "Karta raqami": "Номер карты", "Nusxa": "Копировать", "To'lov summasi": "Сумма оплаты", "DIQQAT! AYNAN SHU SUMMANI O'TKAZING": "ВНИМАНИЕ! ПЕРЕВЕДИТЕ ИМЕННО ЭТУ СУММУ", "To'lovingiz avtomatik tasdiqlanishi uchun kartaga aynan yuqoridagi summani o'tkazishingiz kerak.": "Чтобы оплата подтвердилась автоматически, переведите на карту точно указанную сумму.", "To'lovni qildim, buyurtmani tasdiqlash": "Я оплатил(а), подтвердить заказ", "Buyurtma qabul qilindi!": "Заказ принят!", "Bot to'lovingizni avtomatik ravishda tekshirmoqda. To'lov tasdiqlangandan so'ng sizga Telegram orqali xabar boradi.": "Бот автоматически проверяет оплату. После подтверждения вы получите сообщение в Telegram.", "Holati": "Статус", "To'lov kutilmoqda (Avto-tekshirish)": "Ожидается оплата (автопроверка)", "Bosh sahifaga qaytish": "На главную", "Buyurtma": "Заказы", "Sevimli": "Избранное", "Do'stlar": "Друзья", "Buyurtmalarim": "Мои заказы", "Sevimlilar": "Избранное", "Admin bilan bog'lanish": "Связаться с админом", "Mahsulot sotmoqchi yoki taklifingiz bormi?": "Хотите продать товар или есть предложение?", "Do'stlarni taklif qilish": "Пригласить друзей", "Shaxsiy havolangizni ulashing": "Поделитесь личной ссылкой", "Bosh ekranga qo'shish": "Добавить на главный экран", "Do'konni ilovadek bir bosishda oching": "Открывайте магазин в одно касание", "To'liq ekran rejimi": "Полноэкранный режим", "Oddiy rejimga qaytish": "Обычный режим", "Dasturchi haqida": "О разработчике", "Til / Язык": "Til / Язык", "Sevimlilar bo'sh": "Избранное пусто", "Yoqtirgan mahsulotlaringizni yurak belgisini bosib sevimlilarga qo'shing.": "Добавляйте понравившиеся товары, нажимая на сердечко.", "Mahsulotlarga o'tish": "К товарам", "Filtr va saralash": "Фильтры и сортировка", "Tozalash": "Сбросить", "Saralash": "Сортировка", "Arzonroq": "Дешевле", "Qimmatroq": "Дороже", "Reyting": "Рейтинг", "Yangilar": "Новинки", "Chegirma": "Скидки", "Narx (mln so'm)": "Цена (млн сум)", "Brend": "Бренд", "Faqat chegirmadagilar": "Только со скидкой", "Chegirmasi bor mahsulotlar": "Товары со скидкой", "Faqat mavjudlari": "Только в наличии", "Tugagan mahsulotlarni yashirish": "Скрыть отсутствующие", "3 mln gacha": "до 3 млн", "3–10 mln": "3–10 млн", "10–20 mln": "10–20 млн", "20 mln+": "20 млн+", "Do'stlaringizni taklif qiling": "Пригласите друзей", "Do'stlaringizga TechStore'ni tavsiya qiling — ular ham original texnikani ishonchli va qulay xarid qilsin.": "Порекомендуйте TechStore друзьям — пусть тоже покупают оригинальную технику надёжно и удобно.", "Nusxa olish": "Копировать", "Ulashish": "Поделиться", "do'stingiz sizning havolangiz orqali qo'shildi": "друзей пришли по вашей ссылке", "Mahsulotni baholang": "Оцените товар", "Baholang": "Оцените", "Rasm qo'shish": "Добавить фото", "Fikrni yuborish": "Отправить отзыв", "Yomon": "Плохо", "O'rtacha emas": "Ниже среднего", "Yaxshi": "Хорошо", "Juda yaxshi": "Очень хорошо", "Ajoyib! 😍": "Отлично! 😍", "Berildi": "Оформлен", "Tasdiqlandi": "Подтверждён", "Yo'lda": "В пути", "Yetdi": "Доставлен", "Jami to'lov": "Итого к оплате", "Sizning bahoingiz": "Ваша оценка", "Tekshirilmoqda": "Проверяется", "Yo'lda 🚚": "В пути 🚚", "Yetib keldi": "Доставлен", "Rad etildi": "Отклонён", "BTS cheki": "Чек BTS", "Baholash": "Оценить", "To'lov tekshirilmoqda": "Оплата проверяется", "Jo'natishga tayyorlanmoqda": "Готовится к отправке", "Buyurtmangiz yo'lda": "Ваш заказ в пути", "To'lov tasdiqlanmadi": "Оплата не подтверждена", "BTS orqali jo'natilgach, chek shu yerda ko'rinadi.": "После отправки через BTS здесь появится чек.", "Qo'lingizga tekkach, \"Yetib keldi\" tugmasini bosing.": "Когда получите, нажмите «Доставлен».", "Buyurtmalar yo'q": "Заказов нет", "Siz hali hech narsa buyurtma bermagansiz.": "Вы ещё ничего не заказывали.", "Yopish": "Закрыть", "Narx": "Цена", "Omborda": "Наличие", "Kategoriya": "Категория", "Qo'shish": "Добавить", "Hali baho yo'q": "Пока без оценки", "Bor": "Есть", "Mahsulot qidirish...": "Поиск товаров...", "Mahsulot sizga yoqdimi? Fikringizni yozing...": "Понравился товар? Напишите отзыв...", "dan": "от", "gacha": "до", "Savatga qo'shildi": "Добавлено в корзину", "Savatdan olib tashlandi": "Удалено из корзины", "Rang yoki xotira hajmini tanlang": "Выберите цвет или объём памяти", "Bu mahsulot hozircha tugagan": "Этого товара пока нет в наличии", "Bu variant hozircha tugagan": "Этого варианта пока нет"};
+const I18N_RU_PATTERNS = [[/^🔥 -(\d+)% chegirma$/, "🔥 -$1% скидка"],[/^🔥 (\d+) ta qoldi$/, "🔥 осталось $1 шт"],[/^(\d+) ta sharh$/, "отзывов: $1"],[/^Mahsulotlar \((\d+)\)$/, "Товары ($1)"],[/^(\d+) ta mahsulotni ko'rsatish$/, "Показать $1 товаров"],[/^Buyurtma (#\d+)$/, "Заказ $1"],[/^Omborda faqat (\d+) ta bor$/, "В наличии только $1 шт"],[/^Shoshiling! Faqat (\d+) ta qoldi$/, "Спешите! Осталось $1 шт"],[/^(\d+) dona · (.+)$/, "$1 шт · $2"],[/^Chegirma tugashiga:$/, "До конца скидки:"]];
+let uiLang = (() => { try { return localStorage.getItem('ts_lang') || 'uz'; } catch (e) { return 'uz'; } })();
+const I18N_SKIP = '#admin, #adminLock, #addModal, #editModal, #chekModal, #confirmModal, script, style, .prod-name, .prod-brand, .pd-sim-name, .detail-name, .cart-item-name, .oc-item-name, .pd-rev-text, .pd-desc';
+function trRu(text) {
+  const t = text.trim();
+  if (!t) return null;
+  if (Object.prototype.hasOwnProperty.call(I18N_RU, t)) return text.replace(t, I18N_RU[t]);
+  for (const [re, rep] of I18N_RU_PATTERNS) if (re.test(t)) return text.replace(t, t.replace(re, rep));
+  if (/so'm/.test(t) && /^[\d\s.,+\-−–~≈MKmk×x·]*so'm[\s.,)]*$|\d\s*so'm/.test(t)) return text.replace(/so'm/g, 'сум');
+  return null;
+}
+function i18nNode(node) {
+  if (node.nodeType === 3) {
+    const el = node.parentElement;
+    if (!el || el.closest(I18N_SKIP)) return;
+    if (uiLang === 'ru') {
+      if (node.__uz !== undefined && node.nodeValue === node.__ru) return;
+      const r = trRu(node.nodeValue);
+      if (r !== null) { node.__uz = node.nodeValue; node.__ru = r; node.nodeValue = r; }
+    } else if (node.__uz !== undefined && node.nodeValue === node.__ru) {
+      node.nodeValue = node.__uz; node.__uz = undefined;
+    }
+    return;
+  }
+  if (node.nodeType !== 1 || node.closest(I18N_SKIP)) return;
+  if (node.placeholder !== undefined && node.getAttribute('placeholder')) {
+    if (uiLang === 'ru') { if (!node.dataset.phUz) { const r = trRu(node.placeholder); if (r !== null) { node.dataset.phUz = node.placeholder; node.placeholder = r; } } }
+    else if (node.dataset.phUz) { node.placeholder = node.dataset.phUz; delete node.dataset.phUz; }
+  }
+  const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  let n; while ((n = w.nextNode())) { if (n !== node) { if (n.nodeType === 1) { if (n.matches && n.matches('[placeholder]')) i18nNode(n); } else i18nNode(n); } }
+}
+let i18nObserver = null;
+function applyLang() {
+  document.documentElement.lang = uiLang === 'ru' ? 'ru' : 'uz';
+  i18nNode(document.body);
+  if (!i18nObserver) {
+    i18nObserver = new MutationObserver(muts => {
+      if (uiLang !== 'ru') return;
+      for (const m of muts) {
+        if (m.type === 'characterData') i18nNode(m.target);
+        else m.addedNodes.forEach(n => i18nNode(n));
+      }
+    });
+    i18nObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  const lbl = document.getElementById('langLabel');
+  if (lbl) lbl.textContent = uiLang === 'ru' ? 'Русский' : "O'zbekcha";
+}
+function toggleLang() {
+  uiLang = uiLang === 'ru' ? 'uz' : 'ru';
+  try { localStorage.setItem('ts_lang', uiLang); } catch (e) {}
+  if (uiLang === 'uz') { i18nNode(document.body); filterProducts(true); }
+  applyLang();
+  if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+}
+
+// ===== "3D" KO'RINISH: fonsiz (AI bilan qirqilgan) mahsulot rasmi, barmoq / giroskop bilan aylantiriladi =====
+const v3d = { rx: 0, ry: 0, tx: 0, ty: 0, drag: null, raf: 0, idle: 0, gyro: null };
+function open3dView() {
+  const p = products.find(x => x.id === currentDetailId);
+  if (!p) return;
+  const el = document.getElementById('v3d'), obj = document.getElementById('v3dObj'), load = document.getElementById('v3dLoad');
+  document.getElementById('v3dName').textContent = p.name;
+  obj.innerHTML = ''; obj.style.opacity = '0';
+  const shd = document.getElementById('v3dShadow'); shd.style.display = ''; shd.style.top = ''; shd.style.bottom = ''; shd.style.width = '';
+  load.style.display = 'flex';
+  load.innerHTML = '<div class="v3d-spin"></div><span>' + (uiLang === 'ru' ? 'Подготовка...' : 'Tayyorlanmoqda...') + '</span>';
+  el.classList.add('open');
+  try { tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
+  const photo = (p.images && p.images[0]) || p.image;
+  const srcs = [p.cutout, photo].filter(Boolean);
+  const tryLoad = i => {
+    if (i >= srcs.length) { load.innerHTML = '<span style="font-size:72px">' + (p.emoji || '📦') + '</span>'; document.getElementById('v3dShadow').style.display = 'none'; return; }
+    const img = new Image();
+    img.onload = () => {
+      if (!el.classList.contains('open') || currentDetailId !== p.id) return;
+      const cut = srcs[i] === p.cutout;
+      const u = String(srcs[i]).replace(/"/g, '%22');
+      const mask = cut ? ' style="-webkit-mask-image:url(&quot;' + u + '&quot;);mask-image:url(&quot;' + u + '&quot;)"' : ' style="border-radius:22px"';
+      obj.innerHTML = (cut ? '<img class="v3d-depth" src="' + u + '" alt="">' : '') +
+        '<img class="v3d-main" src="' + u + '" alt=""' + (cut ? '' : ' style="border-radius:22px;object-fit:cover"') + '>' +
+        '<div class="v3d-sheen" id="v3dSheen"' + mask + '></div>';
+      // Soya mahsulotning pastki chetiga yopishsin (rasm nisbatiga qarab)
+      const bw = obj.clientWidth, bh = obj.clientHeight, ar = (img.naturalWidth || 1) / (img.naturalHeight || 1);
+      const rh = cut ? Math.min(bh, bw / ar) : bh, rw = cut ? Math.min(bw, bh * ar) : bw;
+      const sh = document.getElementById('v3dShadow');
+      sh.style.top = 'calc(50% + ' + Math.round(rh / 2 + 4) + 'px)'; sh.style.bottom = 'auto'; sh.style.width = Math.round(rw * 0.8) + 'px';
+      load.style.display = 'none'; obj.style.opacity = '1';
+    };
+    img.onerror = () => tryLoad(i + 1);
+    img.src = srcs[i];
+  };
+  tryLoad(0);
+  v3d.rx = v3d.ry = v3d.tx = v3d.ty = 0; v3d.idle = performance.now();
+  cancelAnimationFrame(v3d.raf); v3d.raf = requestAnimationFrame(v3dTick);
+  v3dGyroOn();
+}
+function close3dView() {
+  document.getElementById('v3d').classList.remove('open');
+  cancelAnimationFrame(v3d.raf); v3dGyroOff(); v3d.drag = null;
+}
+function v3dTick(t) {
+  if (!document.getElementById('v3d').classList.contains('open')) return;
+  // Qo'l tegmasa — sekin o'z-o'zidan chayqaladi
+  if (!v3d.drag && !v3d.gyro && t - v3d.idle > 1500) { v3d.ty = Math.sin(t / 1400) * 28; v3d.tx = Math.sin(t / 2100) * 6; }
+  v3d.rx += (v3d.tx - v3d.rx) * 0.12; v3d.ry += (v3d.ty - v3d.ry) * 0.12;
+  document.getElementById('v3dObj').style.transform = 'rotateX(' + v3d.rx.toFixed(2) + 'deg) rotateY(' + v3d.ry.toFixed(2) + 'deg)';
+  document.getElementById('v3dShadow').style.transform = 'translateX(' + (v3d.ry * 1.6).toFixed(1) + 'px) scaleX(' + (1 - Math.abs(v3d.ry) / 160).toFixed(3) + ')';
+  const sheen = document.getElementById('v3dSheen');
+  if (sheen) sheen.style.background = 'linear-gradient(' + (110 + v3d.ry * 2).toFixed(0) + 'deg, transparent 30%, rgba(255,255,255,' + (0.06 + Math.abs(v3d.ry) / 150).toFixed(3) + ') 50%, transparent 70%)';
+  v3d.raf = requestAnimationFrame(v3dTick);
+}
+(function () {
+  const clamp = (v, a) => Math.max(-a, Math.min(a, v));
+  const down = e => {
+    if (!e.target.closest || !e.target.closest('#v3dStage')) return;
+    const pt = e.touches ? e.touches[0] : e;
+    v3d.gyro = null; v3dGyroOff();
+    v3d.drag = { x: pt.clientX, y: pt.clientY, rx: v3d.rx, ry: v3d.ry };
+  };
+  const move = e => {
+    if (!v3d.drag) return;
+    const pt = e.touches ? e.touches[0] : e;
+    v3d.ty = clamp(v3d.drag.ry + (pt.clientX - v3d.drag.x) * 0.35, 55);
+    v3d.tx = clamp(v3d.drag.rx - (pt.clientY - v3d.drag.y) * 0.25, 30);
+    if (e.cancelable) e.preventDefault();
+  };
+  const up = () => { if (v3d.drag) { v3d.drag = null; v3d.idle = performance.now(); } };
+  const bind = () => {
+    const el = document.getElementById('v3d'); if (!el) return;
+    el.addEventListener('touchstart', down, { passive: true }); el.addEventListener('touchmove', move, { passive: false }); el.addEventListener('touchend', up);
+    el.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+})();
+function v3dOrient(e) {
+  if (v3d.drag || e.gamma == null) return;
+  if (!v3d.gyro) { v3d.gyro = { b: e.beta, g: e.gamma }; return; }
+  v3d.ty = Math.max(-45, Math.min(45, (e.gamma - v3d.gyro.g) * 1.4));
+  v3d.tx = Math.max(-25, Math.min(25, -(e.beta - v3d.gyro.b) * 0.9));
+}
+function v3dGyroOn() { v3d.gyro = null; try { window.addEventListener('deviceorientation', v3dOrient); } catch (e) {} }
+function v3dGyroOff() { try { window.removeEventListener('deviceorientation', v3dOrient); } catch (e) {} }
 
 // ===== BOSH SAHIFA BO'LIMLARI =====
 function getRecentIds() {
