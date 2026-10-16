@@ -224,6 +224,51 @@ const SPECS_SCHEMA = {
   },
 };
 
+const CUSTOMER_EXTRA_TOOL_DEFS = {
+  create_order: {
+    name: 'create_order',
+    description: "Xaridor uchun shu chatning o'zida buyurtma rasmiylashtiradi. FAQAT xaridor mahsulot(lar), soni, telefon raqami va to'liq manzilini (viloyat, tuman, BTS punkti) aytib bo'lgach VA sen unga yakuniy ro'yxat + summani ko'rsatib, u 'ha/tasdiqlayman' degandan keyin chaqir. Natijada to'lov uchun karta va aniq summa qaytadi.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              product_id: { type: 'integer' },
+              variant_id: { type: 'string', description: "Mahsulotda variantlar (rang/xotira) bo'lsa — tanlangan variant ID si" },
+              qty: { type: 'integer' },
+            },
+            required: ['product_id'],
+            additionalProperties: false,
+          },
+        },
+        phone: { type: 'string', description: 'Xaridor telefon raqami' },
+        address: { type: 'string', description: "To'liq manzil: viloyat, tuman, BTS punkti (yoki ko'cha/uy)" },
+        customer_name: { type: 'string', description: "Qabul qiluvchi ismi (aytgan bo'lsa)" },
+      },
+      required: ['items', 'phone', 'address'],
+      additionalProperties: false,
+    },
+  },
+  my_orders: {
+    name: 'my_orders',
+    description: "Shu xaridorning buyurtmalari va holati (to'lov kutilmoqda/tasdiqlandi/yo'lda/yetib keldi).",
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  notify_when_available: {
+    name: 'notify_when_available',
+    description: "Tugagan mahsulot omborga qayta kelganda xaridorga xabar berish uchun ro'yxatga yozadi.",
+    input_schema: { type: 'object', properties: { product_id: { type: 'integer' } }, required: ['product_id'], additionalProperties: false },
+  },
+  remember_customer: {
+    name: 'remember_customer',
+    description: "Xaridor haqida keyingi suhbatlar uchun muhim qisqa eslatma saqlaydi: nimaga qiziqqan, byudjeti, afzal ko'rgan brend, ismi, shahri. Har muhim yangi ma'lumotda chaqir (bir jumla).",
+    input_schema: { type: 'object', properties: { note: { type: 'string' } }, required: ['note'], additionalProperties: false },
+  },
+};
+
 const NEW_ADMIN_TOOL_DEFS = {
   get_order: {
     name: 'get_order',
@@ -280,6 +325,50 @@ const NEW_ADMIN_TOOL_DEFS = {
         confirm: { type: 'boolean' },
       },
       required: ['text', 'confirm'],
+      additionalProperties: false,
+    },
+  },
+  bulk_update_products: {
+    name: 'bulk_update_products',
+    description: "Bir nechta mahsulotni birdaniga o'zgartiradi (brend, kategoriya, nom bo'yicha yoki ID lar ro'yxati). Chegirma: narx shuncha foizga tushadi, eski narx chizilgan holda ko'rinadi va discount_until kelganda narx avtomatik eskisiga qaytadi. Avval confirm=false bilan chaqir — nechta va qaysi mahsulotlar o'zgarishini adminga ko'rsatib tasdiq so'ra, keyin confirm=true.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        brand: { type: 'string' },
+        category: { type: 'string', enum: CATEGORY_ENUM },
+        query: { type: 'string', description: "Nomida shu so'z bor mahsulotlar" },
+        product_ids: { type: 'array', items: { type: 'integer' } },
+        discount_percent: { type: 'integer', description: "Chegirma foizi (1-90); 0 — chegirmani olib tashlash (narx eskisiga qaytadi)" },
+        discount_until: { type: 'string', description: 'Chegirma tugash vaqti ISO formatda (masalan 2026-10-20T23:59:00+05:00)' },
+        price_change_percent: { type: 'number', description: "Narxni foizga o'zgartirish: 5 — 5% oshirish, -3 — 3% kamaytirish (chegirmasiz)" },
+        stock: { type: 'integer', description: "Ombordagi sonini shu qiymatga qo'yish; -1 — cheklanmagan" },
+        confirm: { type: 'boolean' },
+      },
+      required: ['confirm'],
+      additionalProperties: false,
+    },
+  },
+  post_to_channel: {
+    name: 'post_to_channel',
+    description: "Mahsulotni do'kon Telegram kanaliga rasm, chiroyli matn va 'Sotib olish' tugmasi bilan joylaydi. text berilmasa, o'zing mahsulot ma'lumotidan qisqa jozibali post yoz va text sifatida ber (faqat haqiqiy ma'lumot).",
+    input_schema: {
+      type: 'object',
+      properties: { product_id: { type: 'integer' }, text: { type: 'string', description: 'Post matni (narx avtomatik qo\'shiladi)' } },
+      required: ['product_id'],
+      additionalProperties: false,
+    },
+  },
+  set_away_mode: {
+    name: 'set_away_mode',
+    description: "Admin vaqtincha yo'qligini belgilaydi: yordamchi xaridorlarga buni rost aytadi (buyurtma qabul qilinadi, jo'natish admin qaytgach), admin qaytganda yo'qligi davomidagi buyurtmalar bo'yicha hisobot yuboradi. off=true — rejimni o'chirish.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        until: { type: 'string', description: 'Qaytish vaqti ISO formatda' },
+        hours: { type: 'number', description: 'Yoki necha soatga' },
+        note: { type: 'string', description: "Xaridorlarga aytiladigan sabab (ixtiyoriy, masalan: 'safardaman')" },
+        off: { type: 'boolean' },
+      },
       additionalProperties: false,
     },
   },
@@ -479,12 +568,12 @@ const TOOL_DEFS = {
   },
 };
 
-Object.assign(TOOL_DEFS, NEW_ADMIN_TOOL_DEFS);
+Object.assign(TOOL_DEFS, NEW_ADMIN_TOOL_DEFS, CUSTOMER_EXTRA_TOOL_DEFS);
 
 const ADMIN_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'add_product', 'update_product', 'delete_product',
   'list_orders', 'update_order_status', 'get_stats', 'list_users', 'list_customer_chats', 'send_message_to_customer', 'message_customers',
   ...Object.keys(NEW_ADMIN_TOOL_DEFS)];
-const CUSTOMER_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'notify_admin'];
+const CUSTOMER_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'notify_admin', ...Object.keys(CUSTOMER_EXTRA_TOOL_DEFS)];
 
 function buildTools(names) {
   const tools = names.map(n => ({ ...TOOL_DEFS[n] }));
@@ -635,6 +724,14 @@ function createAssistant(deps) {
 
   async function init() {
     await loadConfig();
+    setInterval(() => {
+      const a = config.away;
+      if (a && a.until <= Date.now()) {
+        config.away = null;
+        persist().catch(() => {});
+        reportAwaySummary(a).catch(e => console.warn('Assistant: qaytish hisobotida xato:', e.message));
+      }
+    }, 5 * 60e3).unref?.();
     if (!secrets.session || !config.apiId || !config.apiHash) return;
     state = 'connecting';
     try {
@@ -1061,13 +1158,15 @@ function createAssistant(deps) {
     return { blocks, plain: plain.join('\n') };
   }
 
-  function systemPrompt(role) {
+  function systemPrompt(role, chat) {
     const shop = deps.getShopInfo();
     const shopHandle = shop.botUsername ? '@' + shop.botUsername : '';
     const shopLines = [
       `Do'kon: TechStore — elektronika internet-do'koni (Telegram Mini App).`,
       shop.botUsername ? `Buyurtma berish: @${shop.botUsername} botiga kirib /start bosing va "Do'konni ochish" tugmasi orqali Mini App'da savatga qo'shib rasmiylashtiring (havola: https://t.me/${shop.botUsername}).` : '',
       `To'lov: karta orqali o'tkazma, to'lov avtomatik tekshiriladi va buyurtma tasdiqlanadi.`,
+      `Buyurtmani xaridor xohlasa shu chatning o'zida ham rasmiylashtirish mumkin (create_order).`,
+      config.away && config.away.until > Date.now() ? `DIQQAT: admin ${new Date(config.away.until).toISOString().slice(0, 16).replace('T', ' ')} gacha (UTC) yo'q${config.away.note ? ' — ' + config.away.note : ''}. Buyurtmalar qabul qilinadi, jo'natish admin qaytgach bo'ladi — xaridorga shuni rost ayt.` : '',
       shop.adminContact ? `Jonli admin bilan aloqa: ${shop.adminContact}` : '',
       config.extraInstructions ? `Admin qo'shimcha ko'rsatmalari va do'kon haqida ma'lumot:\n${config.extraInstructions}` : '',
     ].filter(Boolean).join('\n');
@@ -1122,14 +1221,26 @@ Admin bilan ishlash qoidalari:
 - Hisobot ("bugun qancha sotdik", "haftalik hisobot") — sales_report; "nima tugayapti" — low_stock_products; "omborda 5 ta qoldi" — update_product stock bilan.
 - Hammaga reklama/yangilik — broadcast_message: avval confirm=false, adminga matn va odamlar sonini aytib tasdiq so'ra, keyin confirm=true.
 - Fikrlar — list_reviews / delete_review.
+- "Apple'ga ertagacha 10% chegirma", "hamma narxni 3% oshir", "Audio bo'limini 5 tadan omborga yoz" — bulk_update_products (avval confirm=false, ro'yxatni ko'rsatib tasdiq so'ra).
+- "Shuni kanalga joyla" — post_to_channel (text'ni o'zing mahsulotning haqiqiy ma'lumotidan qisqa va jozibali yoz).
+- "Men 2 kun yo'qman" / "qaytdim" — set_away_mode.
 - Admin topshiriq bersa, tushunganingcha darhol bajar — "hozir yo'q" deb rad etma. Avval tegishli asbob bilan haqiqiy ma'lumotni tekshir (xaridorlar ro'yxati uchun list_customer_chats). Topshiriq noaniq bo'lsa, bitta qisqa aniqlashtiruvchi savol ber.
 - Raqamlar va statistika (foydalanuvchilar, buyurtmalar, daromad) haqida so'ralsa, HAR DOIM avval get_stats (yoki list_users, list_orders) ni chaqir va faqat natijadagi aniq raqamlarni ayt. Raqamlarni batafsil ko'rsat (masalan: jami, bugun qo'shilgan, bot/Mini App orqali, buyurtma berganlar).
 - Bilmagan narsangni to'qib chiqarma va taxminiy tushuntirish berma. Ma'lumotda biror narsa bo'lmasa, aniq ayt: nima hisoblanadi va nima hisoblanmaydi (get_stats natijasidagi note'ga tayan).`;
     }
 
-    return `Sen TechStore do'konining xodimisan — xaridorlar bilan yozishadigan, samimiy va bilimdon sotuv maslahatchisi. Hozir sen bilan XARIDOR yozishmoqda.
+    const memo = chat && chat.notes && chat.notes.length ? `\n\nBu xaridor haqida oldingi suhbatlardan eslatmalar:\n- ${chat.notes.join('\n- ')}` : '';
+    return memo ? customerPrompt() + memo : customerPrompt();
+    function customerPrompt() { return `Sen TechStore do'konining xodimisan — xaridorlar bilan yozishadigan, samimiy va bilimdon sotuv maslahatchisi. Hozir sen bilan XARIDOR yozishmoqda.
 
 ${common}
+
+Buyurtma va xizmatlar:
+- Xaridor sotib olmoqchi bo'lsa — shu yerda rasmiylashtirishni taklif qil: mahsulot (variant bo'lsa — rang/xotira), soni, telefon va manzilni (viloyat, tuman, BTS punkti) navbatma-navbat so'ra. Keyin yakuniy ro'yxat va summani ko'rsatib tasdiq so'ra, "ha" desa create_order chaqir va karta + aniq summani yoz.
+- Xaridor rasm yuborib "shundan bormi?" desa — rasmdagi mahsulotni aniqla (brend, model), list_products bilan qidir va bor bo'lsa taklif qil, bo'lmasa eng o'xshashini tavsiya qil yoki rost "yo'q" de.
+- Mahsulot tugagan bo'lsa — "kelganda xabar beraymi?" deb so'ra va rozi bo'lsa notify_when_available chaqir.
+- Xaridor buyurtmasi haqida so'rasa — my_orders.
+- Xaridor haqida muhim narsani bilsang (qiziqishi, byudjeti, shahri) — remember_customer bilan saqla; quyidagi eslatmalardan foydalanib suhbatni davom ettir.
 
 Qanday muloqot qilasan:
 - Tirik odamdek, sodda va iliq yoz: oddiy so'zlar, rasmiy ohangsiz. Hazilga hazil bilan javob berish, minnatdorchilik bildirish odatiy. Shablon va rasmiy iboralardan qoch, "Sizga qanday yordam bera olaman?" ni har xabarda takrorlama.
@@ -1153,7 +1264,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
 - Faqat BITTA qisqa jumla yoz va do'konni ko'rsat. Masalan: "Bu mavzuda yordam bera olmayman 🙂 Do'konimizdagi mahsulotlar haqida so'rashingiz mumkin: ${shopHandle || 'do\'kon boti'}"
 - Shunday xabarlar ketma-ket kelsa ham shu mazmundagi bitta qisqa jumla bilan javob ber, gapni ko'paytirma.
 
-"Sen kimsan?", "Kimsiz?", "Kim bilan gaplashyapman?" kabi savollarga — o'zingni chiroyli va qisqa tanishtir: TechStore do'konining yordamchi adminisan, mahsulotlar, narxlar va buyurtma bo'yicha yordam berasan, do'kon esa ${shopHandle || 'botimizda'}. Masalan: "Men TechStore do'konining yordamchi adminiman 👋 Mahsulotlar, narxlar va buyurtma bo'yicha yordam beraman. Do'konimiz: ${shopHandle || 'botimizda'}"`;
+"Sen kimsan?", "Kimsiz?", "Kim bilan gaplashyapman?" kabi savollarga — o'zingni chiroyli va qisqa tanishtir: TechStore do'konining yordamchi adminisan, mahsulotlar, narxlar va buyurtma bo'yicha yordam berasan, do'kon esa ${shopHandle || 'botimizda'}. Masalan: "Men TechStore do'konining yordamchi adminiman 👋 Mahsulotlar, narxlar va buyurtma bo'yicha yordam beraman. Do'konimiz: ${shopHandle || 'botimizda'}"`; }
   }
 
   // ----- Asboblarni bajarish -----
@@ -1349,6 +1460,108 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         log(`${sentTo.length} ta xaridorga xabar yuborildi`);
         return { sent: sentTo.length, recipients: sentTo, failed };
       }
+      case 'create_order': {
+        if (chat.role !== 'customer' || !store.createOrder) return { error: 'Mavjud emas' };
+        const items = (input.items || []).slice(0, 10).map(it => ({ id: it.product_id, variant: it.variant_id || undefined, qty: Math.max(1, Math.min(20, parseInt(it.qty) || 1)) }));
+        const phone = String(input.phone || '').trim();
+        if (String(phone).replace(/\D/g, '').length < 9) return { error: "Telefon raqami to'liq emas — xaridordan so'ra" };
+        if (String(input.address || '').trim().length < 8) return { error: "Manzil to'liq emas — viloyat, tuman va BTS punktini so'ra" };
+        const r = await store.createOrder({
+          items, userId: chat.id, phone, addr: String(input.address).trim(),
+          userName: input.customer_name || chat.name, source: 'yordamchi',
+        });
+        if (r.error) return r;
+        stats.actions++;
+        log(`Chatda buyurtma: ${r.orderNum} — ${chat.name} (${fmtSum(r.amount)})`);
+        return {
+          success: true, order: r.orderNum, items: r.order.items.map(i => `${i.name} × ${i.qty}`), amount_to_pay: r.amount,
+          amount_formatted: fmtSum(r.amount), card_number: r.card?.number, card_owner: r.card?.owner,
+          note: "Xaridorga aytgin: kartaga AYNAN shu summani (oxirgi raqamlari bilan) o'tkazsin — shunda to'lov avtomatik tasdiqlanadi. To'lov tasdiqlangach bot orqali xabar boradi, buyurtmani 'Buyurtmalarim'da kuzatish mumkin.",
+        };
+      }
+      case 'my_orders': {
+        const all = Object.entries((await store.listOrders()) || {}).map(([id, o]) => ({ id, ...o })).filter(o => o && String(o.userId) === String(chat.id));
+        all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        const label = { pending: "to'lov kutilmoqda", confirmed: "to'lov tasdiqlandi, jo'natishga tayyorlanmoqda", paid: 'tasdiqlandi', shipped: "BTS orqali yo'lda", delivered: 'yetib kelgan', rejected: 'rad etilgan' };
+        return { count: all.length, orders: all.slice(0, 5).map(o => ({ order: o.orderNum || '#' + o.id, products: o.products, total: o.total, status: label[o.status] || o.status, created: o.createdAt ? new Date(o.createdAt).toISOString().slice(0, 10) : null, ship_note: o.fulfillment?.shipNote || undefined })) };
+      }
+      case 'notify_when_available': {
+        if (!store.addToWaitlist) return { error: 'Mavjud emas' };
+        const p = await store.getProduct(input.product_id);
+        if (!p) return { error: 'Mahsulot topilmadi' };
+        await store.addToWaitlist(p.id, chat.id, 'assistant');
+        log(`Kutish ro'yxati: ${chat.name} → ${p.name}`);
+        return { success: true, product: p.name, note: "Omborga kelishi bilan xabar beriladi" };
+      }
+      case 'remember_customer': {
+        const note = String(input.note || '').trim().slice(0, 200);
+        if (!note) return { error: "Bo'sh eslatma" };
+        chat.notes = [...(chat.notes || []).filter(n => n !== note), note].slice(-8);
+        persistChatMemory(chat);
+        return { saved: true };
+      }
+      case 'bulk_update_products': {
+        let list = await store.listProducts();
+        if (Array.isArray(input.product_ids) && input.product_ids.length) list = list.filter(p => input.product_ids.map(String).includes(String(p.id)));
+        if (input.brand) list = list.filter(p => String(p.brand).toLowerCase() === String(input.brand).toLowerCase());
+        if (input.category) list = list.filter(p => p.cat === input.category);
+        if (input.query) { const q = String(input.query).toLowerCase(); list = list.filter(p => String(p.name).toLowerCase().includes(q)); }
+        const hasChange = typeof input.discount_percent === 'number' || typeof input.price_change_percent === 'number' || Number.isInteger(input.stock);
+        if (!hasChange) return { error: "Nima o'zgarishini ayt: discount_percent, price_change_percent yoki stock" };
+        if (!list.length) return { error: 'Mos mahsulot topilmadi' };
+        if (list.length > 200) return { error: 'Juda ko\'p mahsulot — filtrni toraytiring' };
+        const until = input.discount_until ? Date.parse(input.discount_until) || null : null;
+        const plan = list.map(p => {
+          const regular = Number(p.regularPrice) || Number(p.price);
+          const patch = {};
+          if (typeof input.discount_percent === 'number') {
+            const d = Math.max(0, Math.min(90, Math.round(input.discount_percent)));
+            if (d === 0) { patch.price = regular; patch.discount = 0; patch.discountUntil = null; patch.regularPrice = null; }
+            else { patch.price = Math.round(regular * (1 - d / 100) / 1000) * 1000; patch.discount = d; patch.regularPrice = regular; patch.discountUntil = until; }
+          }
+          if (typeof input.price_change_percent === 'number') {
+            const k = 1 + Math.max(-90, Math.min(300, input.price_change_percent)) / 100;
+            patch.price = Math.max(1000, Math.round((patch.price || Number(p.price)) * k / 1000) * 1000);
+            if (p.regularPrice && typeof input.discount_percent !== 'number') patch.regularPrice = Math.round(Number(p.regularPrice) * k / 1000) * 1000;
+          }
+          if (Number.isInteger(input.stock)) patch.stock = input.stock < 0 ? null : input.stock;
+          return { p, patch };
+        });
+        const preview = plan.slice(0, 25).map(({ p, patch }) => `${p.name}: ${patch.price ? fmtSum(p.price) + ' → ' + fmtSum(patch.price) : ''}${patch.discount ? ` (-${patch.discount}%)` : ''}${patch.stock !== undefined ? ` ombor: ${patch.stock === null ? 'cheklanmagan' : patch.stock}` : ''}`);
+        if (!input.confirm) return { needs_confirmation: true, count: plan.length, preview, note: "Adminga ro'yxatni ko'rsatib tasdiq so'ra" };
+        let ok = 0; const failed = [];
+        for (const { p, patch } of plan) {
+          const r = await store.updateProduct(p.id, patch);
+          if (r && r.error) failed.push(`${p.name}: ${r.error}`); else ok++;
+        }
+        stats.actions++;
+        log(`Ommaviy o'zgartirish: ${ok} ta mahsulot`);
+        return { updated: ok, failed };
+      }
+      case 'post_to_channel': {
+        if (!store.postToChannel) return { error: 'Mavjud emas' };
+        const r = await store.postToChannel(input.product_id, input.text || '');
+        if (r.error) return r;
+        stats.actions++;
+        log(`Kanalga post: ${r.product}`);
+        return r;
+      }
+      case 'set_away_mode': {
+        if (input.off) {
+          const was = config.away;
+          config.away = null;
+          await persist();
+          if (was) reportAwaySummary(was).catch(() => {});
+          return { away: false };
+        }
+        let until = input.until ? Date.parse(input.until) : NaN;
+        if (isNaN(until) && input.hours) until = Date.now() + Number(input.hours) * 3600e3;
+        if (isNaN(until) || until <= Date.now()) return { error: "Qaytish vaqtini ayt (masalan 'ertaga kechgacha' yoki necha soat)" };
+        config.away = { since: Date.now(), until, note: String(input.note || '').slice(0, 120) };
+        await persist();
+        log(`Dam olish rejimi: ${new Date(until).toISOString().slice(0, 16)} gacha`);
+        return { away: true, until: new Date(until).toISOString() };
+      }
       case 'get_order': {
         const id = String(input.order_id || '').replace(/^#/, '');
         const o = store.getOrder ? await store.getOrder(id) : null;
@@ -1524,6 +1737,18 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     return true;
   }
 
+  // Admin qaytganda: yo'qligida tushgan buyurtmalar bo'yicha qisqa hisobot
+  async function reportAwaySummary(away) {
+    const orders = Object.values((await store().listOrders()) || {}).filter(o => o && (o.createdAt || 0) >= away.since);
+    const paid = orders.filter(o => ['confirmed', 'paid', 'shipped', 'delivered'].includes(o.status));
+    const toShip = orders.filter(o => o.status === 'confirmed' || o.status === 'paid');
+    const sum = paid.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const text = `👋 Xush kelibsiz! Siz yo'qligingizda:\n🛒 Buyurtmalar: ${orders.length} ta (to'langan: ${paid.length})\n💰 Tushum: ${fmtSum(sum)}\n` +
+      (toShip.length ? `📦 Jo'natilishi kerak: ${toShip.map(o => o.orderNum).join(', ')}` : '📦 Jo\'natilishi kerak bo\'lgan buyurtma yo\'q');
+    await notifyAdmins(text);
+  }
+  function store() { return deps.store; }
+
   async function notifyAdmins(text) {
     // Avval yordamchi akkaunt orqali (admin bilan suhbat mavjud bo'lsa), bo'lmasa bot orqali
     let sent = false;
@@ -1691,7 +1916,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       ? { type: 'image_url', image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` } }
       : { type: 'text', text: b.text });
     const messages = [
-      { role: 'system', content: systemPrompt(chat.role) },
+      { role: 'system', content: systemPrompt(chat.role, chat) },
       ...chat.history.map(h => ({ role: h.role, content: h.content })),
       { role: 'user', content: userContent },
     ];
@@ -1784,7 +2009,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   async function runClaude(chat, userBlocks) {
     const ai = getAnthropic();
     const tools = buildTools(chat.role === 'admin' ? ADMIN_TOOLS : CUSTOMER_TOOLS);
-    const system = [{ type: 'text', text: systemPrompt(chat.role), cache_control: { type: 'ephemeral' } }];
+    const system = [{ type: 'text', text: systemPrompt(chat.role, chat), cache_control: { type: 'ephemeral' } }];
     // Oldingi turlar faqat matn ko'rinishida saqlanadi; joriy tur ichida esa javoblar
     // o'zgartirilmasdan (append-only) qaytariladi.
     const messages = [...chat.history.map(h => ({ role: h.role, content: h.content })), { role: 'user', content: userBlocks }];
@@ -2050,6 +2275,30 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     }
   }
 
+  // ----- Xaridor xotirasi (server qayta ishga tushsa ham suhbat va eslatmalar saqlanadi) -----
+  const memTimers = new Map();
+  function persistChatMemory(chat) {
+    if (!deps.store.saveChatMemory || chat.role !== 'customer') return;
+    clearTimeout(memTimers.get(chat.id));
+    memTimers.set(chat.id, setTimeout(() => {
+      memTimers.delete(chat.id);
+      deps.store.saveChatMemory(chat.id, { notes: chat.notes || [], history: chat.history.slice(-16), name: chat.name, at: Date.now() })
+        .catch(e => console.warn('Assistant: xotirani saqlab bo\'lmadi:', e.message));
+    }, 3000));
+  }
+  async function loadChatMemory(chat) {
+    if (chat.memLoaded) return;
+    chat.memLoaded = true;
+    if (!deps.store.loadChatMemory || chat.role !== 'customer') return;
+    const m = await deps.store.loadChatMemory(chat.id).catch(() => null);
+    if (!m) return;
+    chat.notes = Array.isArray(m.notes) ? m.notes.slice(-8) : [];
+    if (!chat.history.length && Array.isArray(m.history) && Date.now() - (m.at || 0) < 30 * 86400e3) {
+      chat.history = m.history.filter(h => h && (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string');
+      while (chat.history.length && chat.history[0].role !== 'user') chat.history.shift();
+    }
+  }
+
   async function processChat(chat) {
     if (chat.processing || !client) return;
     if (!chat.pending.length) return;
@@ -2074,6 +2323,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       }
 
       await client.markAsRead(chat.peer, msgs[msgs.length - 1]).catch(() => {});
+      await loadChatMemory(chat);
 
       if (!aiReady()) {
         if (chat.role === 'admin') {
@@ -2117,6 +2367,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
       chat.history.push({ role: 'assistant', content: (reply || '…') + (actions.length ? `\n[Bajarilgan amallar: ${actions.join('; ')}]` : '') });
       if (chat.history.length > MAX_HISTORY) chat.history.splice(0, chat.history.length - MAX_HISTORY);
       while (chat.history.length && chat.history[0].role !== 'user') chat.history.shift();
+      persistChatMemory(chat);
     } catch (e) {
       console.error('Assistant AI error:', e);
       const msg = e instanceof Anthropic.AuthenticationError ? 'AI kaliti noto\'g\'ri'

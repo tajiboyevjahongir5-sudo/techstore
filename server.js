@@ -923,22 +923,9 @@ app.get('/api/public-settings', apiRateLimiter, (req, res) => {
 });
 
 // Suffix hisoblash API
-app.get('/api/unique-suffix', apiRateLimiter, (req, res) => {
+app.get('/api/unique-suffix', apiRateLimiter, async (req, res) => {
   const price = parseInt(req.query.price) || 0;
-  
-  const usedSuffixes = new Set(
-    pendingPayments
-      .filter(p => p.amount >= price && p.amount <= price + 100)
-      .map(p => p.amount - price)
-  );
-  
-  let suffix = Math.floor(Math.random() * 100) + 1;
-  let tries = 0;
-  while (usedSuffixes.has(suffix) && tries < 100) {
-    suffix = (suffix % 100) + 1;
-    tries++;
-  }
-  
+  const suffix = await uniqueSuffixFor(price);
   res.json({ suffix, amount: price + suffix });
 });
 
@@ -1300,92 +1287,94 @@ app.get('/api/orders/:orderId', apiRateLimiter, async (req, res) => {
 });
 
 // Yangi buyurtma yaratish va to'lovni ro'yxatga olish
-app.post('/api/orders', apiRateLimiter, async (req, res) => {
-  const { amount, userId, userName, orderNum, phone, addr, items, basePrice, suffix, chekImg } = req.body;
-  if (!amount || !userId || !orderNum || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: "Noto'g'ri buyurtma ma'lumotlari" });
-  }
+// ===== BUYURTMA YARATISH (Mini App va yordamchi admin uchun umumiy) =====
+// Buyurtma raqami serverda beriladi (ikki xaridorga bir xil raqam tushmasin), narx va ombor bazadan tekshiriladi,
+// to'lovni avtomatik aniqlash uchun summaga unikal qo'shimcha (suffix) qo'shiladi.
+let orderNumChain = Promise.resolve();
+function nextOrderNumber() {
+  const run = orderNumChain.then(async () => {
+    const orders = (await firebaseGet('orders')) || {};
+    const meta = (await firebaseGet('meta/orderCounter')) || 0;
+    const maxExisting = Object.keys(orders).map(k => parseInt(k)).filter(n => !isNaN(n)).reduce((a, b) => Math.max(a, b), 1042);
+    const next = Math.max(maxExisting, Number(meta) || 0) + 1;
+    await firebasePatch('meta', { orderCounter: next });
+    return next;
+  });
+  orderNumChain = run.catch(() => {});
+  return run;
+}
 
-  // 1) Narxni bazadan qayta tekshirish (Price tampering mudofaasi)
-  let dbProducts = [];
-  try {
-    dbProducts = await getProducts();
-  } catch(e) {
-    console.error("Failed to fetch products for verification:", e);
-    return res.status(500).json({ error: "Mahsulotlar narxini tekshirishda xatolik yuz berdi" });
+async function uniqueSuffixFor(base) {
+  const orders = (await firebaseGet('orders')) || {};
+  const used = new Set(Object.values(orders).filter(o => o && o.status === 'pending').map(o => Number(o.total)));
+  pendingPayments.forEach(p => used.add(Number(p.amount)));
+  for (let tries = 0; tries < 400; tries++) {
+    const suffix = Math.floor(Math.random() * (tries < 200 ? 99 : 999)) + 1;
+    if (!used.has(base + suffix)) return suffix;
   }
+  return Math.floor(Math.random() * 999) + 1;
+}
 
-  let calculatedBaseTotal = 0;
+// Mahsulot (va variant) narxi hamda ombordagi soni
+function itemPriceAndStock(prod, variantId) {
+  if (variantId && Array.isArray(prod.variants)) {
+    const v = prod.variants.find(x => String(x.id) === String(variantId));
+    if (!v) return { error: `"${plainText(prod.name)}" uchun tanlangan variant topilmadi` };
+    return { price: Number(v.price) || prod.price, stock: (v.stock === null || v.stock === undefined || v.stock === '') ? null : Number(v.stock), label: `${plainText(prod.name)} (${plainText(v.name)})`, variant: v };
+  }
+  return { price: prod.price, stock: (prod.stock === null || prod.stock === undefined || prod.stock === '') ? null : Number(prod.stock), label: plainText(prod.name) };
+}
+
+async function createOrder({ items, userId, userName, phone, addr, chekImg = null, suffix, amount, source = 'miniapp' }) {
+  if (!userId || !Array.isArray(items) || !items.length) return { error: "Noto'g'ri buyurtma ma'lumotlari" };
+  const dbProducts = await getProducts();
+  let base = 0;
+  const clean = [];
   for (const item of items) {
     const dbProd = dbProducts.find(p => p && String(p.id) === String(item.id));
-    if (!dbProd) {
-      return res.status(400).json({ error: `Mahsulot topilmadi: ${item.name}` });
+    if (!dbProd) return { error: `Mahsulot topilmadi: ${plainText(item.name || item.id)}` };
+    const qty = Math.max(1, Math.min(99, Number(item.qty) || 1));
+    const ps = itemPriceAndStock(dbProd, item.variant);
+    if (ps.error) return { error: ps.error };
+    if (ps.stock !== null && ps.stock < qty) {
+      return { error: ps.stock <= 0 ? `"${ps.label}" hozircha tugagan.` : `"${ps.label}" dan faqat ${ps.stock} ta qoldi.` };
     }
-    if (dbProd.stock !== null && dbProd.stock !== undefined && Number(dbProd.stock) < (Number(item.qty) || 1)) {
-      return res.status(400).json({ error: Number(dbProd.stock) <= 0
-        ? `"${plainText(dbProd.name)}" hozircha tugagan. Savatdan olib tashlang.`
-        : `"${plainText(dbProd.name)}" dan faqat ${dbProd.stock} ta qoldi.` });
-    }
-    // `price` — xaridor to'laydigan sotuv narxi (ilovada ham shunday ko'rsatiladi);
-    // `discount` faqat eski (chizilgan) narxni ko'rsatish uchun: eski narx = price / (1 - discount/100)
-    calculatedBaseTotal += dbProd.price * (item.qty || 1);
+    base += ps.price * qty;
+    clean.push({ id: String(dbProd.id), name: sanitizeInput(ps.label), qty, price: ps.price, ...(item.variant ? { variant: String(item.variant) } : {}) });
   }
-
-  const cleanSuffix = Number(suffix || 0);
-  const expectedAmount = calculatedBaseTotal + cleanSuffix;
-  const cleanAmount = Number(amount);
-
-  if (Math.abs(expectedAmount - cleanAmount) > 100) {
-    console.warn(`⚠️ Security: Price tampering attempt! Expected: ${expectedAmount}, Got: ${cleanAmount}`);
-    return res.status(400).json({ error: "Buyurtma summasi mos kelmadi. Narxlar o'zgargan bo'lishi mumkin. Iltimos, sahifani yangilang." });
+  let sfx = Number(suffix);
+  if (!sfx || sfx < 0 || sfx > 1000) sfx = await uniqueSuffixFor(base);
+  const total = base + sfx;
+  if (amount !== undefined && Math.abs(Number(amount) - total) > 100) {
+    return { error: "Buyurtma summasi mos kelmadi. Narxlar o'zgargan bo'lishi mumkin. Iltimos, sahifani yangilang.", tampered: true };
   }
-
-  // Sanitise fields
-  const cleanUserName = sanitizeInput(userName || 'Foydalanuvchi');
-  const cleanOrderNum = sanitizeInput(orderNum);
-  const cleanPhone = sanitizeInput(phone || '');
-  const cleanAddr = sanitizeInput(addr || '');
-
-  // Eski kutilayotgan to'lovlarni o'chirish (tozalash)
-  for (let i = pendingPayments.length - 1; i >= 0; i--) {
-    if (pendingPayments[i].amount === cleanAmount) {
-      await deletePendingPaymentFromDb(pendingPayments[i]);
-    }
-  }
-
-  const newPayment = {
-    amount: cleanAmount,
-    userId: String(userId),
-    userName: cleanUserName,
-    orderNum: cleanOrderNum,
-    phone: cleanPhone,
-    addr: cleanAddr,
-    ts: Date.now()
+  const num = await nextOrderNumber();
+  const orderNum = '#' + num;
+  const order = {
+    orderNum, products: clean.map(i => i.name).join(', '), total, basePrice: base, suffix: sfx,
+    addr: sanitizeInput(addr || ''), phone: sanitizeInput(phone || ''), status: 'pending',
+    userId: String(userId), userName: sanitizeInput(userName || 'Foydalanuvchi'),
+    chekImg: chekImg && typeof chekImg === 'string' ? chekImg : null,
+    items: clean, source, createdAt: Date.now(),
   };
+  await firebasePut(`orders/${num}`, order);
+  firebaseDelete(`carts/${String(userId)}`).catch(() => {});
+  await registerPendingPaymentInDb({ amount: total, userId: String(userId), userName: order.userName, orderNum, phone: order.phone, addr: order.addr, ts: Date.now() });
+  return { orderNum, id: String(num), amount: total, base, suffix: sfx, order };
+}
 
+app.post('/api/orders', apiRateLimiter, async (req, res) => {
+  const { amount, userName, phone, addr, items, suffix, chekImg } = req.body || {};
+  // Telegram ichida foydalanuvchi ID'si imzolangan initData'dan olinadi
+  const tgUser = userFromInitData(req);
+  const userId = tgUser ? String(tgUser.id) : String(req.body?.userId || '');
   try {
-    // 1) Firebase-da buyurtmani saqlash
-    await firebasePut(`orders/${cleanOrderNum.replace('#','')}`, {
-      orderNum: cleanOrderNum,
-      products: items.map(i => sanitizeInput(i.name)).join(', '),
-      total: cleanAmount,
-      basePrice: calculatedBaseTotal,
-      suffix: cleanSuffix,
-      addr: cleanAddr,
-      phone: cleanPhone,
-      status: 'pending',
-      userId: String(userId),
-      userName: cleanUserName,
-      chekImg: chekImg && typeof chekImg === 'string' ? chekImg : null,
-      items: items.map(i => ({ id: String(i.id), name: sanitizeInput(i.name), qty: Math.max(1, Number(i.qty) || 1) })),
-      createdAt: Date.now()
-    });
-    firebaseDelete(`carts/${String(userId)}`).catch(() => {});
-
-    // 2) Kutilayotgan to'lovni Firebase va local xotirada saqlash
-    await registerPendingPaymentInDb(newPayment);
-
-    res.json({ success: true, orderNum: cleanOrderNum, amount: cleanAmount });
+    const r = await createOrder({ items, userId, userName, phone, addr, chekImg, suffix, amount });
+    if (r.error) {
+      if (r.tampered) console.warn(`⚠️ Security: summa mos kelmadi (user ${userId})`);
+      return res.status(400).json({ error: r.error });
+    }
+    res.json({ success: true, orderNum: r.orderNum, amount: r.amount });
   } catch (e) {
     console.error("Order processing error:", e);
     res.status(500).json({ error: "Buyurtmani qayta ishlashda xatolik yuz berdi: " + e.message });
@@ -1595,6 +1584,8 @@ function buildProduct(body) {
       emoji: body.emoji ? sanitizeInput(body.emoji) : null,
       stock,
       discountUntil: parsedDiscount > 0 ? discountUntil : null,
+      // Vaqtinchalik chegirmada asl narx — muddat tugaganda narx shunga qaytadi
+      regularPrice: parsedDiscount > 0 && Number(body.regularPrice) > parsedPrice ? Math.round(Number(body.regularPrice)) : null,
       sold: Number(body.sold) || 0,
       image: mainImage,
       images: cleanImages.length ? cleanImages : (mainImage ? [mainImage] : [])
@@ -1630,6 +1621,8 @@ async function updateProduct(id, data) {
   if (result?.product && before) {
     // Narx tushsa — sevimlilariga qo'shganlarga xabar
     botFeatures.onProductUpdated(before, result.product).catch(e => console.warn('Narx xabari xatosi:', e.message));
+    // Omborga qayta kelsa — kutayotganlarga xabar
+    if (!hasStock(before) && hasStock(result.product)) notifyWaitlist(result.product).catch(e => console.warn('Kutish ro\'yxati xatosi:', e.message));
   }
   return result;
 }
@@ -1910,9 +1903,82 @@ const assistant = createAssistant({
     deleteReview: (pid, rid) => botFeatures.deleteReview(pid, rid),
     broadcast: (opts) => botFeatures.broadcastText(opts),
     remindPending: (hours) => remindPendingPayments(hours),
+    postToChannel: (pid, text) => postProductToChannel(pid, text),
+    createOrder: async (opts) => { const r = await createOrder(opts); return r.error ? r : { ...r, card: { number: CARD_NUMBER, owner: CARD_OWNER } }; },
+    addToWaitlist: (pid, uid, via) => addToWaitlist(pid, uid, via),
+    saveChatMemory: (uid, data) => firebasePut(`chatMemory/${uid}`, data),
+    loadChatMemory: (uid) => firebaseGet(`chatMemory/${uid}`),
     countNewUsers: async (from, to) => Object.values((await firebaseGet('users')) || {}).filter(u => u && (u.joinedAt || 0) >= from && (u.joinedAt || 0) <= to).length,
   }
 });
+
+// ===== KANALGA MAHSULOT POSTI =====
+async function postProductToChannel(pid, text) {
+  if (!botInstance) return { error: 'Bot ishlamayapti' };
+  if (!SHOP_CHANNEL) return { error: "Kanal sozlanmagan: admin panel → Sozlamalar → Telegram kanal'ga kanal username'ini kiriting va botni kanalga admin qiling" };
+  const p = (await getProducts()).find(x => String(x.id) === String(pid));
+  if (!p) return { error: 'Mahsulot topilmadi' };
+  const name = plainText(p.name);
+  const old = p.discount > 0 ? Math.round(p.price / (1 - p.discount / 100)) : 0;
+  const caption =
+    (text ? escHtml(plainText(text)).slice(0, 700) + '\n\n' : `<b>${escHtml(name)}</b>\n\n`) +
+    `💰 <b>${fmtSom(p.price)}</b>${old ? ` <s>${fmtSom(old)}</s> (−${p.discount}%)` : ''}\n` +
+    `🚚 BTS orqali yetkazib berish\n\n👇 Buyurtma berish uchun tugmani bosing`;
+  const markup = { inline_keyboard: [[{ text: '🛍 Sotib olish', url: `https://t.me/${botUsername}?start=p_${p.id}` }]] };
+  const src = (Array.isArray(p.images) && p.images[0]) || p.image;
+  const chat = '@' + SHOP_CHANNEL;
+  try {
+    let msg;
+    if (src) {
+      const buf = await loadImageSource(src).catch(() => null);
+      msg = buf ? await botInstance.sendPhoto(chat, buf, { caption, parse_mode: 'HTML', reply_markup: markup }, { filename: 'mahsulot.jpg', contentType: 'image/jpeg' })
+        : await botInstance.sendMessage(chat, caption, { parse_mode: 'HTML', reply_markup: markup });
+    } else {
+      msg = await botInstance.sendMessage(chat, caption, { parse_mode: 'HTML', reply_markup: markup });
+    }
+    return { posted: true, product: name, link: `https://t.me/${SHOP_CHANNEL}/${msg.message_id}` };
+  } catch (e) {
+    return { error: `Kanalga yuborib bo'lmadi: ${e.message}. Bot kanalda admin ekanini tekshiring.` };
+  }
+}
+
+// Vaqtinchalik chegirma muddati tugasa — narx asl holiga qaytadi
+async function restoreExpiredDiscounts() {
+  const now = Date.now();
+  const list = await getProducts();
+  const expired = list.filter(p => p && p.regularPrice && p.discountUntil && p.discountUntil <= now);
+  for (const p of expired) {
+    await updateProduct(p.id, { price: p.regularPrice, discount: 0, discountUntil: null, regularPrice: null }).catch(() => {});
+    console.log(`⏰ Chegirma tugadi: ${plainText(p.name)} — narx ${fmtSom(p.regularPrice)} ga qaytdi`);
+  }
+}
+
+// ===== "KELGANDA XABAR BERING" =====
+async function addToWaitlist(pid, uid, via = 'miniapp') {
+  await firebasePatch(`waitlist/${pid}`, { [String(uid)]: { via, at: Date.now() } });
+}
+function hasStock(p) { return p && (p.stock === null || p.stock === undefined || p.stock === '' || Number(p.stock) > 0); }
+async function notifyWaitlist(product) {
+  const list = (await firebaseGet(`waitlist/${product.id}`)) || {};
+  const ids = Object.keys(list);
+  if (!ids.length) return 0;
+  await firebaseDelete(`waitlist/${product.id}`);
+  const name = plainText(product.name);
+  let sent = 0;
+  for (const uid of ids) {
+    const text = `🎉 Xushxabar! Siz kutgan ${name} yana sotuvda — ${fmtSom(product.price)}.\n\nOmborda soni cheklangan, xohlasangiz shu yerning o'zida buyurtma rasmiylashtirib beraman 😊`;
+    const html = `🎉 <b>Xushxabar!</b> Siz kutgan <b>${escHtml(name)}</b> yana sotuvda — <b>${fmtSom(product.price)}</b>.\n\nSoni cheklangan, shoshiling 👇`;
+    let ok = false;
+    if (list[uid]?.via === 'assistant') ok = await assistant.sendToCustomer({ userId: uid, text }).catch(() => false);
+    if (!ok && botInstance) {
+      ok = await botInstance.sendMessage(uid, html, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: "🛍 Ko'rish", web_app: { url: `${APP_URL}?product=${product.id}` } }]] } }).then(() => true).catch(() => false);
+    }
+    if (ok) sent++;
+    await new Promise(r => setTimeout(r, 80));
+  }
+  console.log(`🔔 ${name} omborga keldi — ${sent}/${ids.length} kishiga xabar berildi`);
+  return sent;
+}
 
 // To'lovi kutilayotgan buyurtmalarga muloyim eslatma (bir buyurtmaga bir marta)
 async function remindPendingPayments(hours = 1) {
@@ -2014,6 +2080,17 @@ app.get('/api/me/referrals', apiRateLimiter, async (req, res) => {
     const users = (await firebaseGet('users')) || {};
     const count = Object.values(users).filter(u => u && String(u.referredBy || '') === String(user.id)).length;
     res.json({ count });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/me/waitlist/:pid', apiRateLimiter, async (req, res) => {
+  const user = userFromInitData(req);
+  if (!user) return res.status(401).json({ error: 'auth' });
+  try {
+    const p = (await getProducts()).find(x => String(x.id) === String(req.params.pid));
+    if (!p) return res.status(404).json({ error: 'Mahsulot topilmadi' });
+    await addToWaitlist(p.id, user.id, 'miniapp');
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2379,6 +2456,7 @@ app.listen(PORT, async () => {
   setTimeout(sweepConfirmedOrders, 20000);
   setInterval(sweepConfirmedOrders, 60000);
   setTimeout(prewarmCutouts, 30000);
+  setInterval(() => restoreExpiredDiscounts().catch(() => {}), 60000);
   botFeatures.startSchedulers();
   
   console.log(`👑 Admin IDs: ${ADMIN_IDS.join(', ') || 'belgilanmagan'}`);

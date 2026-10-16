@@ -2565,7 +2565,7 @@ input[type="datetime-local"].form-input { min-width: 0; width: 100%; font-size: 
 .form-row .form-input { min-width: 0; width: 100%; }
 .cart-item-price { white-space: nowrap; }
 #profile { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
-.detail-add-btn.is-out { filter: grayscale(1); opacity: .6; }
+.detail-add-btn.is-out { filter: none; opacity: 1; background: linear-gradient(135deg, #f59e0b, #f97316) !important; box-shadow: 0 6px 18px rgba(249,115,22,0.35) !important; }
 .pd-stock { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 10px; margin: -6px 0 14px; }
 .pd-stock.out { background: rgba(245,91,91,0.12); color: var(--red); }
 .pd-stock.low { background: rgba(255,122,69,0.12); color: #ff7a45; }
@@ -6218,7 +6218,28 @@ function updateDetailCartBtn() {
   const out = isOutOfStock(products.find(x => x.id === currentDetailId));
   btn.classList.toggle('in-cart', inCart);
   btn.classList.toggle('is-out', out && !inCart);
-  btn.querySelector('span').textContent = inCart ? "Savatga o'tish" : out ? 'Tugagan' : "Savatga qo'shish";
+  const waiting = out && waitlistIds.has(currentDetailId);
+  btn.querySelector('span').textContent = inCart ? "Savatga o'tish" : out ? (waiting ? 'Kelganda xabar beramiz ✓' : '🔔 Kelganda xabar bering') : "Savatga qo'shish";
+  btn.classList.toggle('is-wait', out && !inCart);
+}
+
+// Tugagan mahsulot: "Kelganda xabar bering"
+const waitlistIds = new Set((() => { try { return JSON.parse(localStorage.getItem('ts_waitlist') || '[]'); } catch (e) { return []; } })());
+async function subscribeWaitlist(p) {
+  if (waitlistIds.has(p.id)) { showToast("Kelishi bilan Telegram orqali xabar beramiz", '🔔', 'var(--accent)'); return; }
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData) { showToast("Bu imkoniyat Telegram ichida ishlaydi", 'ℹ️', 'var(--text2)'); return; }
+  try {
+    const res = await fetch(`/api/me/waitlist/${encodeURIComponent(p.id)}`, { method: 'POST', headers: { 'X-Telegram-Init-Data': initData } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Xatolik');
+    waitlistIds.add(p.id);
+    try { localStorage.setItem('ts_waitlist', JSON.stringify([...waitlistIds])); } catch (e) {}
+    updateDetailCartBtn();
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    showToast("Yaxshi! Omborga kelishi bilan xabar beramiz", '🔔', 'var(--green)');
+  } catch (e) {
+    showToast(e.message, '✗', 'var(--red)');
+  }
 }
 
 // Chegirma tugashiga ortga sanoq
@@ -6347,6 +6368,7 @@ function addToCartFromDetail() {
   const btn = document.getElementById('pdAddBtn');
   // Ikkinchi bosishda savatga o'tamiz
   if (cart.some(c => c.id === p.id)) { showTab('cart'); return; }
+  if (isOutOfStock(p)) { subscribeWaitlist(p); return; }
   if (!addProductToCart(p)) { if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error'); return; }
   updateDetailCartBtn();
   if (btn) { btn.classList.remove('bump'); void btn.offsetWidth; btn.classList.add('bump'); }
@@ -6805,8 +6827,8 @@ async function sendPayment() {
   const tgUser  = tg?.initDataUnsafe?.user || null;
   const phone   = document.getElementById('addrPhone').value.trim();
 
-  const orderNum = '#' + orderCounter++;
-  const uniqueAmt = currentUniqueAmount || cart.reduce((s,c)=>s+c.price*c.qty, 0);
+  let orderNum = '#' + orderCounter++;
+  let uniqueAmt = currentUniqueAmount || cart.reduce((s,c)=>s+c.price*c.qty, 0);
   const orderItems = [...cart];
   const addrCity     = document.getElementById('addrCity').value;
   const addrDistrict = document.getElementById('addrDistrict').value.trim();
@@ -6830,19 +6852,21 @@ async function sendPayment() {
         orderNum: orderNum,
         phone: phone,
         addr: addr,
-        items: orderItems.map(item => ({ id: item.id, name: item.name, price: item.price, qty: item.qty })),
+        items: orderItems.map(item => ({ id: item.id, name: item.name, price: item.price, qty: item.qty, variant: item.variant || undefined })),
         basePrice: currentBasePrice,
         suffix: suffix,
         chekImg: currentChekBase64
       })
     });
     
-    if (!res.ok) {
-      throw new Error("Server buyurtmani qabul qilmadi");
-    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Server buyurtmani qabul qilmadi");
+    // Buyurtma raqami va summa serverda beriladi
+    if (data.orderNum) orderNum = data.orderNum;
+    if (data.amount) uniqueAmt = data.amount;
   } catch (e) {
     console.error('Order submission failed:', e);
-    showToast('Buyurtma yuborishda xatolik yuz berdi','✗','var(--red)');
+    showToast(e.message || 'Buyurtma yuborishda xatolik yuz berdi','✗','var(--red)');
     btn.innerHTML = '<i class="ti ti-circle-check" style="font-size:18px"></i> Qayta urinib ko\'rish';
     btn.disabled = false;
     return;
