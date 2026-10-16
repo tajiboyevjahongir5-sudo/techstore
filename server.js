@@ -1253,11 +1253,12 @@ function defaultBanner(p) {
   const d = DEFAULT_BANNERS[p.id];
   return d && String(p.name || '').trim().toLowerCase() === d[0].toLowerCase() ? d[1] : '';
 }
+const { removeUniformBackground } = require('./cutout');
 function bannerKey(p) {
   const ck = cutoutKey(p);
   const src = p.bannerImage || defaultBanner(p);
   if (!src && !ck) return null;
-  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v2').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
+  return { src, key: `${p.id}_b${crypto.createHash('sha1').update('v3').update(String(src).slice(0, 4096)).update(String(src.length)).update(ck ? ck.key : '').digest('hex').slice(0, 12)}` };
 }
 function ffRaw(args, input) {
   return new Promise((resolve, reject) => {
@@ -1325,6 +1326,12 @@ async function getBannerImage(p) {
         if (k.src) {
           try {
             const src = await loadImageSource(k.src);
+            // Oq/kulrang bir xil fon (yoki shaffof chet ichidagi oq karta) — chetdan to'ldirib aniq olib tashlaymiz
+            const ub = await removeUniformBackground(src).catch(() => null);
+            if (ub) {
+              const v = await judgeCutout(ub.buffer, p);
+              if (!v || v.score >= BANNER_PASS) return save(ub.buffer, { ok: true, from: 'banner-white', score: v?.score ?? null, issues: v?.issues });
+            }
             const info = await alphaInfo(src).catch(() => null);
             if (info && info.transparent) return save(await transparentToWebp(src, info.box), { ok: true, from: 'banner' });
             const r = await runCutoutWorker(src);
@@ -1337,7 +1344,13 @@ async function getBannerImage(p) {
         // 2) Asosiy mahsulot surati (kattaroq o'lchamda) — fonini kesamiz va Gemini tekshiradi
         const ck = cutoutKey(p);
         if (!ck) return save(null, { ok: false, why: why || "rasm yo'q" });
-        const r = await runCutoutWorker(await loadHiRes(ck.src));
+        const photo = await loadHiRes(ck.src);
+        const ub = await removeUniformBackground(photo).catch(() => null);
+        if (ub) {
+          const v = await judgeCutout(ub.buffer, p);
+          if (!v || v.score >= BANNER_PASS) return save(ub.buffer, { ok: true, from: 'photo-white', score: v?.score ?? null, issues: v?.issues });
+        }
+        const r = await runCutoutWorker(photo);
         if (r.coverage && (r.coverage > 0.82 || r.coverage < 0.03)) return save(null, { ok: false, from: 'photo', why: (why ? why + '; ' : '') + 'mahsulot suratida aniq ajralmadi' });
         const v = await judgeCutout(r.buffer, p);
         const ok = !v || v.score >= BANNER_PASS;
@@ -1374,7 +1387,7 @@ async function judgeCutout(buf, p) {
     const r = await assistant.geminiGenerate([
       { inline_data: { mime_type: 'image/jpeg', data: jpg.toString('base64') } },
       { text: `Bu "${p.name}" mahsulotining fonini AI olib tashlagan rasmi (kulrang fon — shaffof joy). U do'kon bannerida ko'rsatiladi. ` +
-        `Qat'iy baholang: mahsulot to'liq va aniq ajratilganmi; atrofida eski fondan qoldiq (tutun, rangli dog'lar, soya, stol, qo'l, boshqa narsalar) yo'qmi; chetlari toza va tiniqmi (xira emasmi); mahsulotning biror qismi kesilib ketmaganmi. ` +
+        `Qat'iy baholang: mahsulot to'liq va aniq ajratilganmi; atrofida eski fondan qoldiq (oq yoki rangli to'rtburchak fon/quti, tutun, rangli dog'lar, soya, stol, qo'l, boshqa narsalar) yo'qmi; chetlari toza va tiniqmi (xira emasmi); mahsulotning biror qismi kesilib ketmaganmi. ` +
         `Faqat JSON: {"score": 1-10, "issues": "qisqa, o'zbekcha"}` },
     ], { json: true });
     if (!r || r.error || !r.text) return null;
