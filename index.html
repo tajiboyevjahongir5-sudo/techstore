@@ -639,8 +639,6 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .profile-menu-icon.i3-box { background: rgba(124, 92, 255, 0.12); }
 .profile-menu-icon.i3-box::after { display: none; }
 .pm-svg { width: 24px; height: 24px; filter: drop-shadow(0 2px 6px rgba(167,139,250,.55)); }
-.pm-ava { padding: 0; overflow: hidden; border-radius: 50%; box-shadow: 0 0 0 2px rgba(167,139,250,.55), 0 4px 12px rgba(124,92,255,.4); }
-.pm-ava img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 .i3-grad { color: #c4b5fd !important; filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.6)); }
 .i3-lock { width: 84px; height: 84px; filter: drop-shadow(0 10px 26px rgba(124, 92, 255, 0.55)); }
 .i3-toast { width: 22px; height: 22px; margin: -4px 0; filter: none; }
@@ -5596,7 +5594,7 @@ input, textarea, select, button { font-family: inherit; }
           <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
         </div>
         <div class="profile-menu-item" onclick="openDevModal()">
-          <div class="profile-menu-icon i3-box pm-ava"><img src="dev.webp" alt=""></div>
+          <div class="profile-menu-icon i3-box"><svg class="pm-svg" viewBox="0 0 24 24" fill="none" stroke="url(#pmg3)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="pmg3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg></div>
           <div class="profile-menu-label">Dasturchi haqida</div>
           <i class="ti ti-chevron-right" style="color:rgba(255,255,255,0.2);font-size:16px"></i>
         </div>
