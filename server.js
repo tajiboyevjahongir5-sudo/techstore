@@ -560,7 +560,7 @@ async function handleConfirmedOrder(orderId) {
       `📦 <b>${escStored(o.num)}</b> buyurtmangiz haqidagi ma'lumot adminga jo'natildi. Tez orada buyurtmangiz <b>BTS pochta</b> orqali siz tanlagan manzilga yetib boradi.` +
       (o.addr ? `\n📍 ${escStored(o.addr)}` : '') +
       `\n\n<i>TechStore — ishonchli xarid</i> 💜`;
-    const via = await messageCustomer(order, { text, html, sticker: 'accepted' });
+    const via = await messageCustomer(order, { text, html, sticker: 'paid' });
 
     await firebasePatch(`orders/${orderId}`, {
       fulfillment: { ...(order.fulfillment || {}), adminNotifiedAt: Date.now(), adminMessages, customerNotifiedVia: via || null },
@@ -2572,16 +2572,28 @@ const assistant = createAssistant({
 // stickers/*.png (512×512) bot orqali Telegram stiker to'plamiga aylantiriladi; egasi — birinchi admin.
 // Bot xaridorga muhim paytlarda (salom, buyurtma qabul qilindi, yo'lda, yetkazildi) shu stikerlarni yuboradi.
 const STORE_STICKERS = [
-  { key: 'hello', file: '01-salom.png', emoji: ['👋', '😊'] },
-  { key: 'new', file: '02-yangi.png', emoji: ['🆕', '📱'] },
-  { key: 'sale', file: '03-chegirma.png', emoji: ['🔥', '💸'] },
-  { key: 'accepted', file: '04-qabul.png', emoji: ['📦', '✅'] },
-  { key: 'shipping', file: '05-yolda.png', emoji: ['🚚', '📦'] },
-  { key: 'congrats', file: '06-muborak.png', emoji: ['🎉', '🥳'] },
-  { key: 'thanks', file: '07-rahmat.png', emoji: ['🙏', '💜'] },
-  { key: 'good', file: '08-zor.png', emoji: ['👍', '🔥'] },
-  { key: 'soon', file: '09-tezorada.png', emoji: ['⏳', '⌚'] },
-  { key: 'logo', file: '10-logo.png', emoji: ['🛍', '💜'] },
+  { key: 'hello', file: '01-salom.png', emoji: ['👋'] },
+  { key: 'hello_reply', file: '02-vaalaykum.png', emoji: ['🤗'] },
+  { key: 'thanks', file: '03-rahmat.png', emoji: ['💜'] },
+  { key: 'wait', file: '04-sabr.png', emoji: ['🙏'] },
+  { key: 'checking', file: '05-tekshirilmoqda.png', emoji: ['🔎'] },
+  { key: 'pay_wait', file: '06-tolov-kutilmoqda.png', emoji: ['⏳'] },
+  { key: 'paid', file: '07-tolov-qabul.png', emoji: ['✅'] },
+  { key: 'send_receipt', file: '08-chek.png', emoji: ['🧾'] },
+  { key: 'send_address', file: '09-manzil.png', emoji: ['📍'] },
+  { key: 'send_phone', file: '10-raqam.png', emoji: ['📞'] },
+  { key: 'accepted', file: '11-buyurtma-qabul.png', emoji: ['📦'] },
+  { key: 'shipping', file: '12-yolda.png', emoji: ['🚚'] },
+  { key: 'congrats', file: '13-yetkazildi.png', emoji: ['🎉'] },
+  { key: 'in_stock', file: '14-omborda-bor.png', emoji: ['👍'] },
+  { key: 'out_of_stock', file: '15-tugagan.png', emoji: ['❌'] },
+  { key: 'soon', file: '16-tez-orada.png', emoji: ['⌛'] },
+  { key: 'sale', file: '17-chegirma.png', emoji: ['🔥'] },
+  { key: 'new', file: '18-yangi.png', emoji: ['🆕'] },
+  { key: 'five_min', file: '19-5daqiqa.png', emoji: ['⏱'] },
+  { key: 'gift', file: '20-muborak.png', emoji: ['🎁'] },
+  { key: 'question', file: '21-savol.png', emoji: ['❓'] },
+  { key: 'bye', file: '22-salomat.png', emoji: ['🤝'] },
 ];
 let stickerCache = null;   // { name, ids: { key: file_id } }
 const stickerSetName = () => `techstore_by_${String(botUsername || '').toLowerCase()}`;
