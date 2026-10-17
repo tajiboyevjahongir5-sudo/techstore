@@ -2604,6 +2604,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .cmp-best { color: var(--green); }
 .cmp-foot { margin-top: 12px; }
 .cmp-foot .ot-btn { width: 100%; }
+#ordersHistory .screen-header { position: relative; }
 .oh-tabs { display: flex; gap: 6px; margin: 0 20px 14px; padding: 4px; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
 .oh-tab { flex: 1; height: 40px; border: none; border-radius: 12px; background: transparent; color: var(--text2); font: 700 14px 'Manrope', sans-serif; display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; }
 .oh-tab b { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; background: rgba(255,255,255,0.1); font-size: 11.5px; display: inline-flex; align-items: center; justify-content: center; }
@@ -7829,16 +7830,18 @@ function setOrdersFilter(f) { ordersFilter = f; renderServerOrders(); }
 function renderServerOrders() {
   const el = document.getElementById('ordersHistContent');
   const tabs = document.getElementById('ohTabs');
-  const active = myOrdersCache.filter(o => ORDER_ACTIVE.has(o.status || 'pending'));
+  // Rad etilgan buyurtmalar ro'yxatda ko'rsatilmaydi
+  const shown = myOrdersCache.filter(o => o.status !== 'rejected');
+  const active = shown.filter(o => ORDER_ACTIVE.has(o.status || 'pending'));
   if (tabs) {
-    tabs.style.display = myOrdersCache.length ? '' : 'none';
+    tabs.style.display = shown.length ? '' : 'none';
     if (!ordersFilter) ordersFilter = active.length ? 'active' : 'all';
     document.getElementById('ohActiveN').textContent = active.length;
-    document.getElementById('ohAllN').textContent = myOrdersCache.length;
+    document.getElementById('ohAllN').textContent = shown.length;
     tabs.querySelectorAll('.oh-tab').forEach(b => b.classList.toggle('active', b.dataset.f === ordersFilter));
   }
-  const list = ordersFilter === 'active' ? active : myOrdersCache;
-  if (myOrdersCache.length && !list.length) {
+  const list = ordersFilter === 'active' ? active : shown;
+  if (shown.length && !list.length) {
     el.className = '';
     el.innerHTML = `<div class="empty-state">
       <div class="empty-icon"><img class="i3 i3-empty" src="icons/check.webp" alt=""></div>
@@ -7848,7 +7851,7 @@ function renderServerOrders() {
     </div>`;
     return;
   }
-  if (!myOrdersCache.length) {
+  if (!shown.length) {
     el.className = '';
     el.innerHTML = `<div class="empty-state">
       <div class="empty-icon"><img class="i3 i3-empty" src="icons/orders.webp" alt=""></div>
@@ -8053,7 +8056,7 @@ function showFavorites() {
 
 // ===== PROFILE COUNTS =====
 function updateProfileCounts() {
-  document.getElementById('profileOrderCount').textContent = myOrdersCache.length || orders.length;
+  document.getElementById('profileOrderCount').textContent = myOrdersCache.filter(o => o.status !== 'rejected').length || orders.length;
   document.getElementById('profileFavCount').textContent = favorites.size;
 }
 
