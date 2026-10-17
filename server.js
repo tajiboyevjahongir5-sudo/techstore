@@ -2795,6 +2795,18 @@ app.get('/api/me/ref-qr', apiRateLimiter, async (req, res) => {
     res.end(png);
   } catch (e) { res.status(500).end(); }
 });
+let refShareFid = null;
+async function refShareFileId(uid) {
+  if (refShareFid) return refShareFid;
+  const saved = await firebaseGet('meta/refShareFileId').catch(() => null);
+  if (typeof saved === 'string' && saved) return (refShareFid = saved);
+  // Bir marta yuklaymiz: foydalanuvchining o'ziga jim yuborib, file_id ni olamiz va xabarni darhol o'chiramiz
+  const m = await botInstance.sendPhoto(uid, fs.createReadStream(path.join(__dirname, 'welcome.jpg')), { disable_notification: true });
+  botInstance.deleteMessage(uid, m.message_id).catch(() => {});
+  const fid = m.photo && m.photo.length ? m.photo[m.photo.length - 1].file_id : null;
+  if (fid) { refShareFid = fid; firebasePatch('meta', { refShareFileId: fid }).catch(() => {}); }
+  return fid;
+}
 // Do'stga yuboriladigan tayyor xabar: banner rasm + matn + "Do'konni ochish" tugmasi (shaxsiy havola bilan)
 app.post('/api/me/ref-share', apiRateLimiter, async (req, res) => {
   const user = userFromInitData(req);
@@ -2803,8 +2815,10 @@ app.post('/api/me/ref-share', apiRateLimiter, async (req, res) => {
   try {
     const link = `https://t.me/${botUsername}?start=ref_${user.id}`;
     const caption = `🛍 <b>TechStore</b> — original texnika onlayn do'koni\n\n📱 Smartfon, 💻 noutbuk, 🎧 quloqchin va boshqa gadjetlar\n🚚 O'zbekiston bo'ylab BTS orqali tekin yetkazib berish\n🛡 Xavfsiz to'lov · avtomatik tasdiqlash\n💬 24/7 yordamchi\n\n${escHtml(user.first_name || "Do'stingiz")} sizga tavsiya qildi 👇`;
+    // Rasm URL orqali emas, Telegram'ga bir marta yuklangan file_id orqali — har doim ko'rinadi
+    const fileId = await refShareFileId(user.id).catch(e => { console.warn('Ulashish rasmi:', e.message); return null; });
     const img = `${APP_URL}/welcome.jpg`;
-    const result = { type: 'photo', id: `ref${user.id}`, photo_url: img, thumbnail_url: img, caption, parse_mode: 'HTML',
+    const result = { type: 'photo', id: `ref${user.id}`, ...(fileId ? { photo_file_id: fileId } : { photo_url: img, thumbnail_url: img }), caption, parse_mode: 'HTML',
       reply_markup: { inline_keyboard: [[{ text: "🛍 Do'konni ochish", url: link }]] } };
     const prepared = await botInstance._request('savePreparedInlineMessage', { form: {
       user_id: user.id, result: JSON.stringify(result), allow_user_chats: true, allow_group_chats: true, allow_channel_chats: true, allow_bot_chats: false } });
