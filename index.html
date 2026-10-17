@@ -7900,6 +7900,7 @@ const ORDER_STATUS_UI = {
   shipped: { text: "Yo'lda", color: 'var(--accent)', step: 2 },
   delivered: { text: 'Yetib keldi', color: 'var(--green)', step: 3 },
   rejected: { text: 'Rad etildi', color: 'var(--red)', step: 0 },
+  cancelled: { text: 'Bekor qilindi', color: 'var(--red)', step: 0 },
 };
 
 // Jarayondagi: to'lov kutilmoqda, tasdiqlangan (jo'natishga tayyorlanmoqda), yo'lda
@@ -7910,7 +7911,7 @@ function renderServerOrders() {
   const el = document.getElementById('ordersHistContent');
   const tabs = document.getElementById('ohTabs');
   // Rad etilgan buyurtmalar ro'yxatda ko'rsatilmaydi
-  const shown = myOrdersCache.filter(o => o.status !== 'rejected');
+  const shown = myOrdersCache.filter(o => o.status !== 'rejected' && o.status !== 'cancelled');
   const active = shown.filter(o => ORDER_ACTIVE.has(o.status || 'pending'));
   if (tabs) {
     tabs.style.display = shown.length ? '' : 'none';
@@ -8169,7 +8170,7 @@ function showFavorites() {
 
 // ===== PROFILE COUNTS =====
 function updateProfileCounts() {
-  document.getElementById('profileOrderCount').textContent = myOrdersCache.filter(o => o.status !== 'rejected').length || orders.length;
+  document.getElementById('profileOrderCount').textContent = myOrdersCache.filter(o => o.status !== 'rejected' && o.status !== 'cancelled').length || orders.length;
   document.getElementById('profileFavCount').textContent = favorites.size;
 }
 
@@ -8634,6 +8635,9 @@ async function loadAdminOrders() {
         } else if (o.status === 'rejected') {
           statusClass = 'status-proc';
           statusText = 'Rad etildi';
+        } else if (o.status === 'cancelled') {
+          statusClass = 'status-proc';
+          statusText = 'Mijoz bekor qildi';
         }
         
         row.innerHTML = `

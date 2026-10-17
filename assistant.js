@@ -289,6 +289,14 @@ const CUSTOMER_EXTRA_TOOL_DEFS = {
       summary: { type: 'string', description: 'Admin uchun bir jumla: nima qildi' },
     }, required: ['kind', 'summary'], additionalProperties: false },
   },
+  cancel_my_order: {
+    name: 'cancel_my_order',
+    description: "Xaridorning HALI TO'LANMAGAN buyurtmasini bekor qiladi. Faqat xaridor aniq bekor qilmoqchi ekanini aytgandan VA sen 'Rostdan bekor qilaymi?' deb so'rab, u tasdiqlagandan keyin chaqir. To'langan buyurtmani bekor qilib bo'lmaydi — u holda notify_admin.",
+    input_schema: { type: 'object', properties: {
+      order: { type: 'string', description: "Buyurtma raqami (masalan 1043). Xaridorda bitta to'lanmagan buyurtma bo'lsa — bo'sh qoldir" },
+      reason: { type: 'string', description: "Xaridor aytgan sabab (bo'lsa)" },
+    }, additionalProperties: false },
+  },
   remember_customer: {
     name: 'remember_customer',
     description: "Xaridor haqida keyingi suhbatlar uchun muhim qisqa eslatma saqlaydi: nimaga qiziqqan, byudjeti, afzal ko'rgan brend, ismi, shahri. Har muhim yangi ma'lumotda chaqir (bir jumla).",
@@ -296,7 +304,44 @@ const CUSTOMER_EXTRA_TOOL_DEFS = {
   },
 };
 
+const STICKER_KEYS = {
+  hello: "Assalomu alaykum (suhbat boshida salomlashganda)", hello_reply: "Vaalaykum assalom (xaridor salom bersa)", thanks: 'Rahmat!',
+  wait: 'Sabr qiling...', checking: "Tekshirib ko'ramiz", pay_wait: "To'lov kutilmoqda", paid: "To'lov qabul qilindi",
+  send_receipt: 'Chekni yuboring', send_address: 'Manzilingizni yuboring', send_phone: 'Raqamingizni yuboring',
+  accepted: 'Buyurtmangiz qabul qilindi', shipping: "Buyurtmangiz yo'lda", congrats: 'Yetkazib berildi', in_stock: 'Omborda bor',
+  out_of_stock: 'Hozircha tugagan', soon: 'Tez orada keladi', sale: 'Chegirma!', new: 'Yangi mahsulot', five_min: '5 daqiqa',
+  gift: 'Xaridingiz muborak', question: 'Savolingiz bormi?', bye: "Salomat bo'ling (xayrlashganda)",
+};
+const SHARED_TOOL_DEFS = {
+  recommend_products: {
+    name: 'recommend_products',
+    description: "Xaridorning maqsadi va byudjetiga mos, OMBORDA BOR mahsulotlarni tanlab beradi (eng mosi birinchi). Natijadan 2-3 tasini tanlab, har birini haqiqiy xususiyatlari asosida nega mosligini qisqa tushuntir. Maqsad yoki byudjet noma'lum bo'lsa — avval bitta savol bilan so'ra.",
+    input_schema: { type: 'object', properties: {
+      purpose: { type: 'string', description: "Nima uchun kerak: o'yin, o'qish, ish, kamera/surat, sovg'a, sport, musiqa va h.k. (xaridor so'zlari bilan)" },
+      budget_max: { type: 'integer', description: "Eng ko'p narx, so'mda" },
+      budget_min: { type: 'integer', description: "Eng kam narx, so'mda (aytgan bo'lsa)" },
+      category: { type: 'string', enum: CATEGORY_ENUM },
+      type: { type: 'string', enum: TYPE_ENUM, description: 'Mahsulot turi (aniq bo\'lsa)' },
+    }, additionalProperties: false },
+  },
+  compare_products: {
+    name: 'compare_products',
+    description: "2-4 ta mahsulotni yonma-yon solishtiradi: narx, mavjudligi, reyting va har bir xususiyat qatorma-qator. Javobda faqat natijadagi haqiqiy farqlarni ayt va xaridor maqsadiga qarab qaysi biri kimga mosligini qisqa xulosa qil. Natijada yo'q xususiyatni o'ylab topma.",
+    input_schema: { type: 'object', properties: { product_ids: { type: 'array', items: { type: 'integer' }, description: '2-4 ta mahsulot ID si (avval list_products bilan top)' } }, required: ['product_ids'], additionalProperties: false },
+  },
+  send_sticker: {
+    name: 'send_sticker',
+    description: "Shu chatga do'konning stikerini yuboradi. Kamdan-kam va o'rinli ishlat: salomlashganda, buyurtma rasmiylashtirilgach (chek/to'lov), xayrlashganda yoki muhim yangilikda. Bir javobda ko'pi bilan bitta; ketma-ket xabarlarda emas. Stiker matnli javob o'rnini bosmaydi.",
+    input_schema: { type: 'object', properties: { sticker: { type: 'string', enum: Object.keys(STICKER_KEYS), description: Object.entries(STICKER_KEYS).map(([k, v]) => `${k} — ${v}`).join('; ') } }, required: ['sticker'], additionalProperties: false },
+  },
+};
+
 const NEW_ADMIN_TOOL_DEFS = {
+  weekly_insights: {
+    name: 'weekly_insights',
+    description: "Tahlil: mijozlar so'ragan, lekin do'konda yo'q mahsulotlar; ko'p ko'rilgan-u sotilmagan mahsulotlar; eng ko'p sotilganlar; mijozlarning eng ko'p beradigan savollari; savdo oldingi davr bilan solishtirilgan. 'Haftalik tahlil', 'nima olib kelay', 'mijozlar nima so'rayapti' kabi savollarda.",
+    input_schema: { type: 'object', properties: { days: { type: 'integer', description: 'Davr, kun (standart 7)' } }, additionalProperties: false },
+  },
   unmute_customer: {
     name: 'unmute_customer',
     description: "Vaqtincha to'xtatilgan (bloklangan) xaridor bilan suhbatni qayta yoqadi. user_id bo'lmasa — to'xtatilganlar ro'yxatini qaytaradi.",
@@ -604,12 +649,12 @@ const TOOL_DEFS = {
   },
 };
 
-Object.assign(TOOL_DEFS, NEW_ADMIN_TOOL_DEFS, CUSTOMER_EXTRA_TOOL_DEFS);
+Object.assign(TOOL_DEFS, NEW_ADMIN_TOOL_DEFS, CUSTOMER_EXTRA_TOOL_DEFS, SHARED_TOOL_DEFS);
 
 const ADMIN_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'add_product', 'update_product', 'delete_product',
   'list_orders', 'update_order_status', 'get_stats', 'list_users', 'list_customer_chats', 'send_message_to_customer', 'message_customers',
-  ...Object.keys(NEW_ADMIN_TOOL_DEFS)];
-const CUSTOMER_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'notify_admin', ...Object.keys(CUSTOMER_EXTRA_TOOL_DEFS)];
+  ...Object.keys(NEW_ADMIN_TOOL_DEFS), ...Object.keys(SHARED_TOOL_DEFS)];
+const CUSTOMER_TOOLS = ['list_products', 'get_product', 'send_product_photo', 'notify_admin', ...Object.keys(CUSTOMER_EXTRA_TOOL_DEFS), ...Object.keys(SHARED_TOOL_DEFS)];
 
 function buildTools(names) {
   const tools = names.map(n => ({ ...TOOL_DEFS[n] }));
@@ -1167,6 +1212,7 @@ function createAssistant(deps) {
       chat.lastText = (msg.message || (msg.photo ? '[rasm]' : '[media]')).slice(0, 120);
       chat.pending.push(msg);
       if (role === 'admin') stats.adminMessages++; else stats.customerMessages++;
+      if (role === 'customer' && msg.message && msg.message.length >= 4 && deps.onCustomerQuestion) { try { deps.onCustomerQuestion(msg.message); } catch (_) {} }
 
       clearTimeout(chat.timer);
       chat.timer = setTimeout(() => processChat(chat).catch(e => console.error('Assistant processChat:', e)),
@@ -1416,6 +1462,7 @@ ${TYPES_GUIDE}
 - Hammaga reklama/yangilik — broadcast_message: avval confirm=false, adminga matn va odamlar sonini aytib tasdiq so'ra, keyin confirm=true.
 - Fikrlar — list_reviews / delete_review.
 - "Apple'ga ertagacha 10% chegirma", "hamma narxni 3% oshir", "Audio bo'limini 5 tadan omborga yoz" — bulk_update_products (avval confirm=false, ro'yxatni ko'rsatib tasdiq so'ra).
+- "Haftalik tahlil", "nima olib kelay?", "mijozlar nima so'rayapti?" — weekly_insights; natijani ixcham bo'limlar bilan ayt (yo'q mahsulotlar, sotilmayotganlar, ko'p savollar, savdo).
 - "Shuni kanalga joyla" — post_to_channel (text'ni o'zing mahsulotning haqiqiy ma'lumotidan qisqa va jozibali yoz).
 - "Men 2 kun yo'qman" / "qaytdim" — set_away_mode.
 - "Falonchini blokdan chiqar", "kimlar bloklangan?" — unmute_customer (aldashga urinish yoki haqorat uchun 12 soatga avtomatik to'xtatilgan xaridorlar).
@@ -1437,7 +1484,10 @@ Buyurtma va xizmatlar:
 - Xaridor sotib olmoqchi bo'lsa — shu yerda rasmiylashtirishni taklif qil: mahsulot (variant bo'lsa — rang/xotira), soni, telefon va manzilni (viloyat, tuman, BTS punkti) navbatma-navbat so'ra. Keyin yakuniy ro'yxat va summani ko'rsatib tasdiq so'ra, "ha" desa create_order chaqir va karta + aniq summani yoz.
 - Xaridor rasm yuborib "shundan bormi?" desa — rasmdagi mahsulotni aniqla (brend, model), list_products bilan qidir va bor bo'lsa taklif qil, bo'lmasa eng o'xshashini tavsiya qil yoki rost "yo'q" de.
 - Mahsulot tugagan bo'lsa — "kelganda xabar beraymi?" deb so'ra va rozi bo'lsa notify_when_available chaqir.
-- Xaridor buyurtmasi haqida so'rasa — my_orders.
+- Xaridor buyurtmasi haqida so'rasa — my_orders. To'lanmagan buyurtmani bekor qilmoqchi bo'lsa — "Rostdan bekor qilaymi?" deb so'ra, "ha" desa cancel_my_order. To'langan buyurtmani bekor qilish yoki pulni qaytarish — notify_admin.
+- "Menga nima mos?", "15 mln gacha o'yin uchun noutbuk" — maqsad va byudjetni bil (noma'lum bo'lsa bitta savol), keyin recommend_products va 2-3 ta variantni nega mosligi bilan qisqa ayt.
+- "X yoki Y, qaysi biri yaxshi?" — ikkalasini list_products bilan top, compare_products bilan solishtir: asosiy 2-4 farqni ayt va maqsadiga qarab bittasini tavsiya qil. Natijada yo'q xususiyatni to'qima.
+- Stikerlar (send_sticker): suhbat boshida salomlashganda (hello / hello_reply), buyurtma rasmiylashtirilgach (send_receipt yoki pay_wait), mahsulot tugagan bo'lsa (out_of_stock), xayrlashganda (bye yoki thanks). Ko'pi bilan bitta stiker, har xabarga emas, keyin albatta qisqa matn yoz.
 - Xaridor haqida muhim narsani bilsang (qiziqishi, byudjeti, shahri) — remember_customer bilan saqla; quyidagi eslatmalardan foydalanib suhbatni davom ettir.
 
 Qanday muloqot qilasan:
@@ -1666,7 +1716,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         const id = String(input.user_id);
         const target = (await customerDialogs('all')).find(c => c.id === id);
         if (!target) return { error: "Bu xaridor bilan suhbat topilmadi (u avval yozgan bo'lishi kerak)" };
-        await sendToCustomer(target, input.text);
+        await sendToDialog(target, input.text);
         stats.actions++;
         log(`Xaridorga xabar yuborildi: ${target.name}`);
         return { sent: true };
@@ -1677,7 +1727,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         if (!list.length) return { sent: 0, note: `Bu davrda (${period}) yozishgan xaridor yo'q` };
         const sentTo = [], failed = [];
         for (const t of list) {
-          try { await sendToCustomer(t, input.text); sentTo.push(t.name); }
+          try { await sendToDialog(t, input.text); sentTo.push(t.name); }
           catch (e) { failed.push(t.name); }
           await sleep(1200); // Telegram flood cheklovidan saqlanish
         }
@@ -1717,6 +1767,73 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         await store.addToWaitlist(p.id, chat.id, 'assistant');
         log(`Kutish ro'yxati: ${chat.name} → ${p.name}`);
         return { success: true, product: p.name, note: "Omborga kelishi bilan xabar beriladi" };
+      }
+      case 'recommend_products': {
+        const all = await store.listProducts();
+        const inStock = p => Array.isArray(p.variants) && p.variants.length ? p.variants.some(v => v.stock === null || v.stock === undefined || Number(v.stock) > 0) : (p.stock === null || p.stock === undefined || p.stock === '' || Number(p.stock) > 0);
+        const minPrice = p => Array.isArray(p.variants) && p.variants.length ? Math.min(...p.variants.map(v => Number(v.price) || Infinity)) : finalPrice(p);
+        let list = all.filter(inStock);
+        if (input.category) list = list.filter(p => p.cat === input.category);
+        if (input.type) { const t = list.filter(p => p.type === input.type); if (t.length) list = t; }
+        const words = String(input.purpose || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(w => w.length >= 3);
+        const score = p => {
+          const hay = `${p.name} ${p.brand} ${p.cat} ${p.type || ''} ${p.desc || ''} ${(p.specs || []).map(x => x.join(' ')).join(' ')}`.toLowerCase();
+          return words.reduce((n, w) => n + (hay.includes(w) ? 3 : 0), 0) + Math.min(3, (p.sold || 0) / 3) + (p.discount > 0 ? 1 : 0);
+        };
+        const inBudget = list.filter(p => (!input.budget_max || minPrice(p) <= input.budget_max) && (!input.budget_min || minPrice(p) >= input.budget_min));
+        const pick = (arr) => arr.map(p => ({ p, s: score(p) })).sort((a, b) => b.s - a.s || minPrice(b.p) - minPrice(a.p)).slice(0, 8)
+          .map(({ p }) => ({ ...productDetails(p), from_price: minPrice(p) }));
+        if (inBudget.length) return { count: inBudget.length, candidates: pick(inBudget), note: "Faqat shu ro'yxatdan 2-3 tasini tavsiya qil, sababini haqiqiy xususiyatlardan ayt." };
+        const above = input.budget_max ? list.filter(p => minPrice(p) > input.budget_max).sort((a, b) => minPrice(a) - minPrice(b)).slice(0, 3) : [];
+        return { count: 0, candidates: [], closest_above_budget: above.map(p => ({ ...productDetails(p), from_price: minPrice(p) })),
+          note: above.length ? "Byudjetda mos mahsulot yo'q — buni rost ayt va eng yaqin (biroz qimmatroq) variantlarni taklif qil." : "Mos mahsulot yo'q — rost ayt, notify_admin bilan xaridor nima izlayotganini adminga yetkaz." };
+      }
+      case 'compare_products': {
+        const ids = [...new Set((input.product_ids || []).map(String))].slice(0, 4);
+        if (ids.length < 2) return { error: '2 ta yoki undan ko\'p mahsulot ID si kerak' };
+        const ps = (await Promise.all(ids.map(id => store.getProduct(id)))).filter(Boolean);
+        if (ps.length < 2) return { error: 'Mahsulotlar topilmadi' };
+        const norm = k => String(k).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+        const keys = [];
+        for (const p of ps) for (const [k] of (p.specs || [])) if (!keys.some(x => norm(x) === norm(k))) keys.push(k);
+        return {
+          products: ps.map(p => ({ id: p.id, name: p.name, brand: p.brand, price: finalPrice(p), discount_percent: p.discount || 0,
+            in_stock: !(p.stock !== null && p.stock !== undefined && p.stock !== '' && Number(p.stock) <= 0), rating: p.rating || null, reviews: p.reviews || 0,
+            variants: Array.isArray(p.variants) && p.variants.length ? p.variants.map(v => `${v.name} — ${fmtSum(v.price)}`) : undefined })),
+          specs: keys.map(k => ({ spec: k, values: ps.map(p => { const f = (p.specs || []).find(([kk]) => norm(kk) === norm(k)); return f ? f[1] : "ma'lumot yo'q"; }) })),
+          note: "'ma'lumot yo'q' — bu xususiyat kiritilmagan; uni taxmin qilma.",
+        };
+      }
+      case 'send_sticker': {
+        const key = String(input.sticker || '');
+        if (!STICKER_KEYS[key]) return { error: "Bunday stiker yo'q" };
+        chat.stickers = chat.stickers || {};
+        const now = Date.now();
+        if (now - (chat.lastStickerAt || 0) < 3 * 60e3) return { skipped: true, note: 'Yaqinda stiker yuborilgan — matn bilan davom et' };
+        if (now - (chat.stickers[key] || 0) < 60 * 60e3) return { skipped: true, note: 'Bu stiker yaqinda yuborilgan' };
+        const ok = await sendStickerTo(chat.peer, key).catch(e => { console.warn('Stiker yuborilmadi:', e.message); return false; });
+        if (!ok) return { skipped: true, note: "Stiker to'plami hali tayyor emas — oddiy matn bilan javob ber" };
+        chat.lastStickerAt = now; chat.stickers[key] = now;
+        chat.history.push({ role: 'assistant', content: `[stiker: ${STICKER_KEYS[key]}]` });
+        return { sent: true, note: 'Stiker yuborildi — endi qisqa matnli javobingni yoz (stikerdagi gapni takrorlama)' };
+      }
+      case 'cancel_my_order': {
+        if (chat.role !== 'customer' || !store.cancelOrder) return { error: 'Mavjud emas' };
+        let id = String(input.order || '').replace(/\D/g, '');
+        if (!id) {
+          const mine = Object.entries((await store.listOrders()) || {}).filter(([, o]) => o && String(o.userId) === String(chat.id) && o.status === 'pending');
+          if (mine.length !== 1) return { error: mine.length ? "To'lanmagan buyurtmalar bir nechta — xaridordan qaysi raqamni bekor qilishni so'ra" : "To'lanmagan buyurtma topilmadi" };
+          id = mine[0][0];
+        }
+        const r = await store.cancelOrder(id, chat.id, input.reason || '');
+        if (r.error) return r;
+        stats.actions++;
+        log(`Mijoz buyurtmani bekor qildi: ${r.order} — ${chat.name}`);
+        return { success: true, order: r.order, note: "Xaridorga bekor qilinganini qisqa ayt. Agar pul o'tkazib qo'ygan bo'lsa — notify_admin bilan adminga xabar ber." };
+      }
+      case 'weekly_insights': {
+        if (chat.role !== 'admin' || !store.weeklyInsights) return { error: 'Mavjud emas' };
+        return store.weeklyInsights(Math.min(90, Math.max(1, parseInt(input.days) || 7)));
       }
       case 'remember_customer': {
         const note = cleanNote(input.note);
@@ -1948,7 +2065,36 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     return out.sort((a, b) => b.lastActivity - a.lastActivity);
   }
 
-  async function sendToCustomer(target, text) {
+  // ----- Do'kon stikerlari (bot yaratgan to'plam; yordamchi akkaunt ham undan yuboradi) -----
+  let stickerDocs = null, stickerDocsAt = 0, stickerSetName = '';
+  async function stickerDoc(key) {
+    const info = deps.getStickerSet ? await deps.getStickerSet() : null;   // { name, emojis: { key: emoji } }
+    if (!info || !info.name || !info.emojis || !info.emojis[key] || !client) return null;
+    if (!stickerDocs || stickerSetName !== info.name || Date.now() - stickerDocsAt > 6 * 3600e3) {
+      const r = await client.invoke(new Api.messages.GetStickerSet({ stickerset: new Api.InputStickerSetShortName({ shortName: info.name }), hash: 0 }));
+      const byEmoji = {};
+      for (const pk of r.packs || []) {
+        for (const did of pk.documents || []) {
+          const d = (r.documents || []).find(x => String(x.id) === String(did));
+          if (d && !byEmoji[pk.emoticon]) byEmoji[pk.emoticon] = d;
+        }
+      }
+      stickerDocs = byEmoji; stickerDocsAt = Date.now(); stickerSetName = info.name;
+    }
+    return stickerDocs[info.emojis[key]] || null;
+  }
+  async function sendStickerTo(peer, key) {
+    const d = await stickerDoc(key);
+    if (!d) return false;
+    await client.invoke(new Api.messages.SendMedia({
+      peer: await client.getInputEntity(peer),
+      media: new Api.InputMediaDocument({ id: new Api.InputDocument({ id: d.id, accessHash: d.accessHash, fileReference: d.fileReference }) }),
+      message: '', randomId: bigInt.randBetween('-1000000000000000000', '1000000000000000000'),
+    }));
+    return true;
+  }
+
+  async function sendToDialog(target, text) {
     const msg = String(text).slice(0, 4000);
     await client.sendMessage(target.entity, { message: msg, parseMode: false });
     const c = chats.get(target.id);
@@ -1956,7 +2102,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
   }
 
   // Server (buyurtma jarayoni) uchun: xaridorga yordamchi akkaunt nomidan xabar/rasm yuborish
-  async function sendToCustomer({ userId, username, text, photo }) {
+  async function sendToCustomer({ userId, username, text, photo, sticker }) {
     if (!client || state !== 'connected' || !config.enabled) return false;
     const id = String(userId || '');
     let peer = chats.get(id)?.peer || null;
@@ -1968,6 +2114,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
     }
     if (!peer) return false;
     const msg = String(text || '').slice(0, photo ? 1000 : 4000);
+    if (sticker) await sendStickerTo(peer, sticker).catch(() => false);
     if (photo && Buffer.isBuffer(photo) && photo.length) {
       await client.sendFile(peer, { file: new CustomFile('chek.jpg', photo.length, '', photo), caption: msg, parseMode: false, forceDocument: false });
     } else {

@@ -470,6 +470,24 @@ async function setOrderStatus(orderId, status) {
   return { success: true };
 }
 
+// Xaridor o'zi bekor qiladi (faqat to'lov hali kelmagan buyurtma). Ombor faqat to'lov tasdiqlanganda kamayadi — qaytariladigan narsa yo'q.
+async function cancelOrderByCustomer(orderId, userId, reason = '') {
+  orderId = String(orderId || '').replace(/^#/, '');
+  const order = await firebaseGet(`orders/${orderId}`);
+  if (!order || String(order.userId) !== String(userId)) return { error: 'Buyurtma topilmadi' };
+  if (order.status === 'cancelled') return { error: 'Bu buyurtma allaqachon bekor qilingan' };
+  if (order.status !== 'pending') return { error: "Bu buyurtmaning to'lovi tasdiqlangan — uni faqat admin bekor qila oladi. Adminga xabar qoldiring." };
+  await firebasePatch(`orders/${orderId}`, { status: 'cancelled', cancelledAt: Date.now(), cancelledBy: 'customer', cancelReason: String(reason || '').slice(0, 200) });
+  const p = pendingPayments.find(x => x.orderNum === '#' + orderId);
+  if (p) await deletePendingPaymentFromDb(p);
+  const num = plain(order.orderNum || '#' + orderId);
+  if (botInstance) for (const id of ADMIN_IDS) botInstance.sendMessage(id,
+    `🚫 <b>${escHtml(num)}</b> buyurtmani mijoz bekor qildi\n👤 ${escStored(order.userName || '')}\n📦 ${escStored(order.products || '')}\n💰 ${fmtSom(order.total)}${reason ? `\n💬 Sabab: ${escHtml(String(reason).slice(0, 200))}` : ''}`,
+    { parse_mode: 'HTML' }).catch(() => {});
+  console.log(`🚫 ${num} — mijoz bekor qildi`);
+  return { success: true, order: num };
+}
+
 // ===== BUYURTMANI YETKAZISH JARAYONI (yordamchi admin kuzatadi) =====
 // 1) To'lov tasdiqlanadi → asosiy adminga to'liq ma'lumot + "Buyurtma yuborildi" tugmasi, xaridorga xabar
 // 2) Admin tugmani bosib BTS chekini yuboradi → xaridorga chek bilan "jo'natildi" xabari, fikr so'raladi
@@ -493,7 +511,7 @@ async function messageCustomer(order, { text, html, photoBuffer, photoFileId, st
   if (!order.userId) return false;
   const user = await firebaseGet(`users/${order.userId}`).catch(() => null);
   try {
-    const ok = await assistant.sendToCustomer({ userId: order.userId, username: user?.username || '', text, photo: photoBuffer });
+    const ok = await assistant.sendToCustomer({ userId: order.userId, username: user?.username || '', text, photo: photoBuffer, sticker });
     if (ok) return 'assistant';
   } catch (e) {
     console.warn('Yordamchi orqali xaridorga yozib bo\'lmadi:', e.message);
@@ -1586,43 +1604,44 @@ async function flushFunnel() {
     await firebasePatch(`funnel/${day}`, patch).catch(() => {});
   }
 }
+async function computeFunnel(days) {
+  await flushFunnel();
+  const all = (await firebaseGet('funnel')) || {};
+  const from = tashkentDay(Date.now() - (days - 1) * 86400e3);
+  const agg = {};
+  for (const [day, items] of Object.entries(all)) {
+    if (day < from) continue;
+    for (const [pid, e] of Object.entries(items || {})) {
+      const a = agg[pid] = agg[pid] || { views: 0, carts: 0, orders: 0, sold: 0 };
+      a.views += e.v || 0; a.carts += e.c || 0;
+    }
+  }
+  // Buyurtmalar faqat ko'rishlar hisoblana boshlagan kundan sanaladi (aks holda foizlar ma'nosiz bo'ladi)
+  const firstDay = Object.keys(all).sort()[0];
+  const trackStart = firstDay ? Date.parse(firstDay + 'T00:00:00+05:00') : Date.now();
+  const since = Math.max(Date.now() - days * 86400e3, trackStart);
+  const orders = (await firebaseGet('orders')) || {};
+  const products = await getProducts();
+  for (const o of Object.values(orders)) {
+    if (!o || (o.createdAt || 0) < since || /cancel|reject/i.test(o.status || '')) continue;
+    let items = Array.isArray(o.items) ? o.items : [];
+    if (!items.length) items = String(o.products || '').split(',').map(n => { const p = products.find(x => x.name === n.trim()); return p ? { id: p.id, qty: 1 } : null; }).filter(Boolean);
+    const seen = new Set();
+    for (const it of items) {
+      const pid = String(it.id);
+      const a = agg[pid] = agg[pid] || { views: 0, carts: 0, orders: 0, sold: 0 };
+      if (!seen.has(pid)) { a.orders++; seen.add(pid); }
+      if (['confirmed', 'shipped', 'delivered'].includes(o.status)) a.sold += Math.max(1, Number(it.qty) || 1);
+    }
+  }
+  const rows = products.map(p => ({ id: p.id, name: p.name, ...(agg[String(p.id)] || { views: 0, carts: 0, orders: 0, sold: 0 }) }))
+    .sort((a, b) => b.views - a.views || b.orders - a.orders);
+  const totals = rows.reduce((t, r) => ({ views: t.views + r.views, carts: t.carts + r.carts, orders: t.orders + r.orders }), { views: 0, carts: 0, orders: 0 });
+  return { days, since: firstDay || null, totals, rows };
+}
 app.get('/api/admin/funnel', apiRateLimiter, verifyAdmin, async (req, res) => {
   try {
-    await flushFunnel();
-    const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 30));
-    const all = (await firebaseGet('funnel')) || {};
-    const from = tashkentDay(Date.now() - (days - 1) * 86400e3);
-    const agg = {};
-    for (const [day, items] of Object.entries(all)) {
-      if (day < from) continue;
-      for (const [pid, e] of Object.entries(items || {})) {
-        const a = agg[pid] = agg[pid] || { views: 0, carts: 0, orders: 0, sold: 0 };
-        a.views += e.v || 0; a.carts += e.c || 0;
-      }
-    }
-    // Buyurtmalar faqat ko'rishlar hisoblana boshlagan kundan sanaladi (aks holda foizlar ma'nosiz bo'ladi)
-    const firstDay = Object.keys(all).sort()[0];
-    const trackStart = firstDay ? Date.parse(firstDay + 'T00:00:00+05:00') : Date.now();
-    const since = Math.max(Date.now() - days * 86400e3, trackStart);
-    const orders = (await firebaseGet('orders')) || {};
-    const products = await getProducts();
-    for (const o of Object.values(orders)) {
-      if (!o || (o.createdAt || 0) < since || /cancel|reject/i.test(o.status || '')) continue;
-      let items = Array.isArray(o.items) ? o.items : [];
-      if (!items.length) items = String(o.products || '').split(',').map(n => { const p = products.find(x => x.name === n.trim()); return p ? { id: p.id, qty: 1 } : null; }).filter(Boolean);
-      const seen = new Set();
-      for (const it of items) {
-        const pid = String(it.id);
-        const a = agg[pid] = agg[pid] || { views: 0, carts: 0, orders: 0, sold: 0 };
-        if (!seen.has(pid)) { a.orders++; seen.add(pid); }
-        if (['confirmed', 'shipped', 'delivered'].includes(o.status)) a.sold += Math.max(1, Number(it.qty) || 1);
-      }
-    }
-    const rows = products.map(p => ({ id: p.id, name: p.name, ...(agg[String(p.id)] || { views: 0, carts: 0, orders: 0, sold: 0 }) }))
-      .sort((a, b) => b.views - a.views || b.orders - a.orders);
-    const tot = rows.reduce((t, r) => ({ views: t.views + r.views, carts: t.carts + r.carts, orders: t.orders + r.orders }), { views: 0, carts: 0, orders: 0 });
-    const since0 = Object.keys(all).sort()[0] || null;
-    res.json({ days, since: since0, totals: tot, rows });
+    res.json(await computeFunnel(Math.min(90, Math.max(1, parseInt(req.query.days) || 30))));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 setInterval(() => { flushSearchMisses().catch(() => {}); flushFunnel().catch(() => {}); }, 60000);
@@ -2537,6 +2556,11 @@ const assistant = createAssistant({
   dataDir: VOLUME_DIR ? path.join(VOLUME_DIR, '.data') : null,
   onPaymentText: (text, source, key) => matchPaymentText(text, source, key),
   onSearchMiss: (q, source) => { recordSearchMiss(q, source).catch(() => {}); },
+  onCustomerQuestion: (text) => logCustomerQuestion(text),
+  getStickerSet: async () => {
+    const c = await loadStickerIds();
+    return c && c.name ? { name: c.name, emojis: Object.fromEntries(STORE_STICKERS.map(st => [st.key, st.emoji[0]])) } : null;
+  },
   getPaymentChannel: () => PAYMENT_CHANNEL.id ? chanKey(PAYMENT_CHANNEL.id) : '',
   notifyAdminsViaBot: async (text) => {
     if (!botInstance) return;
@@ -2560,12 +2584,115 @@ const assistant = createAssistant({
     broadcast: (opts) => botFeatures.broadcastText(opts),
     remindPending: (hours) => remindPendingPayments(hours),
     postToChannel: (pid, text) => postProductToChannel(pid, text),
+    cancelOrder: (id, uid, reason) => cancelOrderByCustomer(id, uid, reason),
+    weeklyInsights: (days) => weeklyInsights(days),
     createOrder: async (opts) => { const r = await createOrder(opts); return r.error ? r : { ...r, card: { number: CARD_NUMBER, owner: CARD_OWNER } }; },
     addToWaitlist: (pid, uid, via) => addToWaitlist(pid, uid, via),
     saveChatMemory: (uid, data) => firebasePut(`chatMemory/${uid}`, data),
     loadChatMemory: (uid) => firebaseGet(`chatMemory/${uid}`),
     countNewUsers: async (from, to) => Object.values((await firebaseGet('users')) || {}).filter(u => u && (u.joinedAt || 0) >= from && (u.joinedAt || 0) <= to).length,
   }
+});
+
+// ===== HAFTALIK TAHLIL (yordamchi admin) =====
+// Mijozlar yozgan savollar (faqat matn, 30 kun saqlanadi) — tahlilda eng ko'p beriladigan savollar uchun
+const questionBuf = [];
+function logCustomerQuestion(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+  if (t.length < 4 || /^\/\w+/.test(t)) return;
+  questionBuf.push({ at: Date.now(), t });
+  if (questionBuf.length > 500) questionBuf.splice(0, questionBuf.length - 500);
+}
+async function flushQuestions() {
+  if (!questionBuf.length) return;
+  const batch = questionBuf.splice(0);
+  const patch = {};
+  for (const q of batch) patch[`${q.at}_${Math.random().toString(36).slice(2, 7)}`] = q;
+  await firebasePatch('customerQuestions', patch).catch(() => {});
+}
+setInterval(() => flushQuestions().catch(() => {}), 120000);
+
+async function weeklyInsights(days = 7) {
+  await flushQuestions();
+  const now = Date.now(), from = now - days * 86400e3, prevFrom = from - days * 86400e3;
+  const orders = Object.values((await firebaseGet('orders')) || {}).filter(Boolean);
+  const paidSt = ['confirmed', 'paid', 'shipped', 'delivered'];
+  const sumOf = arr => arr.reduce((t, o) => t + (Number(o.total) || 0), 0);
+  const cur = orders.filter(o => (o.createdAt || 0) >= from), prev = orders.filter(o => (o.createdAt || 0) >= prevFrom && (o.createdAt || 0) < from);
+  const curPaid = cur.filter(o => paidSt.includes(o.status)), prevPaid = prev.filter(o => paidSt.includes(o.status));
+  // Topilmagan qidiruvlar (shu davrda ham so'ralganlar)
+  await flushSearchMisses().catch(() => {});
+  const misses = Object.values((await firebaseGet('searchMisses')) || {}).filter(m => m && (m.lastAt || 0) >= from)
+    .sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, 8).map(m => ({ query: m.q, times: m.count }));
+  // Ko'rilgan, lekin sotilmagan / eng ko'p sotilganlar
+  const f = await computeFunnel(days);
+  const notSelling = f.rows.filter(r => r.views >= 5 && r.sold === 0).sort((a, b) => b.views - a.views).slice(0, 5).map(r => ({ product: r.name, views: r.views, carts: r.carts }));
+  const soldMap = {};
+  for (const o of curPaid) {
+    const items = Array.isArray(o.items) && o.items.length ? o.items : String(o.products || '').split(',').map(n => ({ name: n.trim(), qty: 1 })).filter(i => i.name);
+    for (const it of items) { const k = plainText(it.name || ''); if (k) soldMap[k] = (soldMap[k] || 0) + Math.max(1, Number(it.qty) || 1); }
+  }
+  const best = Object.entries(soldMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([product, sold]) => ({ product, sold }));
+  // Ko'p beriladigan savollar (AI guruhlaydi — faqat haqiqiy xabarlardan)
+  const qs = Object.values((await firebaseGet('customerQuestions')) || {}).filter(q => q && q.at >= from).map(q => q.t);
+  let topQuestions = null;
+  if (qs.length >= 5 && assistant.geminiGenerate) {
+    try {
+      const r = await assistant.geminiGenerate([{ text:
+        `Quyida do'kon mijozlarining ${days} kunlik xabarlari (har qatorda bittasi). Eng ko'p takrorlanadigan 5-7 ta savol/mavzuni aniqla. ` +
+        `Har biri uchun: qisqa mavzu (o'zbekcha) — taxminan nechta xabarda uchragani. Faqat xabarlarda bor narsani yoz, salomlashish va bema'ni xabarlarni hisobga olma. ` +
+        `Format: har qatorda "• mavzu — N ta". Boshqa hech narsa yozma.\n\n` + qs.slice(-400).join('\n') }]);
+      if (r && !r.error && r.text) topQuestions = String(r.text).trim().slice(0, 1200);
+    } catch (_) {}
+  }
+  return {
+    period_days: days,
+    sales: { orders: cur.length, paid_orders: curPaid.length, revenue: sumOf(curPaid), prev_orders: prev.length, prev_paid_orders: prevPaid.length, prev_revenue: sumOf(prevPaid),
+      cancelled: cur.filter(o => o.status === 'cancelled').length },
+    missing_products_customers_asked: misses,
+    viewed_but_not_sold: notSelling,
+    best_sellers: best,
+    customer_questions_count: qs.length,
+    top_questions: topQuestions,
+    tracking_since: f.since,
+    note: "Raqamlar haqiqiy ma'lumotdan. Ko'rishlar statistikasi kuzatuv boshlangan kundan (tracking_since) hisoblanadi.",
+  };
+}
+function weeklyInsightsText(d) {
+  const pct = (a, b) => b ? ` (${a >= b ? '+' : ''}${Math.round((a - b) / b * 100)}%)` : '';
+  const L = [`📈 <b>Haftalik tahlil</b> — oxirgi ${d.period_days} kun`, ''];
+  L.push(`🛒 Buyurtmalar: <b>${d.sales.orders}</b>${pct(d.sales.orders, d.sales.prev_orders)} · to'langan: <b>${d.sales.paid_orders}</b>`);
+  L.push(`💰 Tushum: <b>${fmtSom(d.sales.revenue)}</b>${pct(d.sales.revenue, d.sales.prev_revenue)}`);
+  if (d.sales.cancelled) L.push(`🚫 Mijoz bekor qilgan: ${d.sales.cancelled}`);
+  if (d.best_sellers.length) L.push('', '🏆 <b>Eng ko\'p sotilgan:</b>', ...d.best_sellers.map(b => `• ${escHtml(b.product)} — ${b.sold} ta`));
+  if (d.missing_products_customers_asked.length) L.push('', '🔎 <b>So\'rashdi, lekin do\'konda yo\'q:</b>', ...d.missing_products_customers_asked.map(m => `• ${escHtml(m.query)} — ${m.times} marta`));
+  if (d.viewed_but_not_sold.length) L.push('', '👀 <b>Ko\'p ko\'rilgan, lekin sotilmagan:</b>', ...d.viewed_but_not_sold.map(r => `• ${escHtml(r.product)} — ${r.views} ko'rish, ${r.carts} savat`));
+  if (d.top_questions) L.push('', `💬 <b>Mijozlar ko'p so'ragan (${d.customer_questions_count} xabardan):</b>`, escHtml(d.top_questions));
+  L.push('', '<i>Batafsil: yordamchidan "haftalik tahlil" deb so\'rang.</i>');
+  return L.join('\n');
+}
+// Har dushanba 10:00 (Toshkent) — adminlarga yuboriladi
+async function maybeSendWeeklyInsights() {
+  try {
+    const t = new Date(Date.now() + 5 * 3600e3);
+    if (t.getUTCDay() !== 1 || t.getUTCHours() < 10 || !botInstance || !ADMIN_IDS.length) return;
+    const key = t.toISOString().slice(0, 10);
+    const last = await firebaseGet('meta/weeklyInsightsAt');
+    if (last === key) return;
+    await firebasePut('meta/weeklyInsightsAt', key);
+    const text = weeklyInsightsText(await weeklyInsights(7));
+    for (const id of ADMIN_IDS) await botInstance.sendMessage(id, text, { parse_mode: 'HTML', disable_web_page_preview: true }).catch(() => {});
+    // 30 kundan eski savollarni tozalash
+    const all = (await firebaseGet('customerQuestions')) || {};
+    const old = Object.entries(all).filter(([, q]) => !q || q.at < Date.now() - 30 * 86400e3).map(([k]) => k);
+    if (old.length) await firebasePatch('customerQuestions', Object.fromEntries(old.map(k => [k, null]))).catch(() => {});
+    console.log('📈 Haftalik tahlil yuborildi');
+  } catch (e) { console.warn('Haftalik tahlil xatosi:', e.message); }
+}
+setInterval(maybeSendWeeklyInsights, 30 * 60e3);
+app.get('/api/admin/weekly-insights', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try { const d = await weeklyInsights(Math.min(90, Math.max(1, parseInt(req.query.days) || 7))); res.json({ ...d, text: weeklyInsightsText(d) }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ===== DO'KON STIKERLARI =====
