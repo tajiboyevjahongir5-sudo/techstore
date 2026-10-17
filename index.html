@@ -714,7 +714,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  padding: 0 20px 120px;
+  padding: 0 20px calc(26px + env(safe-area-inset-bottom, 0px));
 }
 
 .prod-card {
