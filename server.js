@@ -48,6 +48,7 @@ let ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).fi
 let CARD_NUMBER = process.env.CARD_NUMBER || "9860 3501 4074 7741";
 let CARD_OWNER = process.env.CARD_OWNER || "Tojiboyev Jahongir";
 let SHOP_CHANNEL = (process.env.SHOP_CHANNEL || '').replace(/^@/, '');
+let SHOP_AUTOPOST = true;   // yangi mahsulot qo'shilganda kanalga avtomatik e'lon
 // To'lovlar kanali: bank xabarlari shu kanalga tushadi, bot va yordamchi faqat shu kanalni kuzatib to'lovni tasdiqlaydi
 let PAYMENT_CHANNEL = { id: String(process.env.PAYMENT_CHANNEL_ID || '').trim(), title: '' };
 const seenChannels = new Map();   // botga kelgan kanallar (admin panelda tanlash uchun taklif)
@@ -828,6 +829,7 @@ async function loadSettingsFromDb() {
       if (settings.card?.number) CARD_NUMBER = settings.card.number;
       if (settings.card?.owner) CARD_OWNER = settings.card.owner;
       if (typeof settings.shop?.channel === 'string') SHOP_CHANNEL = settings.shop.channel;
+      if (typeof settings.shop?.autoPost === 'boolean') SHOP_AUTOPOST = settings.shop.autoPost;
       if (settings.payment && typeof settings.payment.channelId === 'string') PAYMENT_CHANNEL = { id: settings.payment.channelId, title: settings.payment.channelTitle || '' };
       console.log("⚙️ Settings loaded from Firebase");
     }
@@ -928,7 +930,8 @@ app.get('/api/public-settings', apiRateLimiter, (req, res) => {
     },
     assistant: assistant.publicContact(),
     botUsername,
-    channel: SHOP_CHANNEL
+    channel: SHOP_CHANNEL,
+    autoPost: SHOP_AUTOPOST
   });
 });
 
@@ -2107,7 +2110,8 @@ app.post('/api/admin/settings', apiRateLimiter, verifyAdmin, async (req, res) =>
     if (shop && typeof shop.channel === 'string') {
       // https://t.me/kanal, @kanal yoki kanal — hammasi "kanal" ko'rinishiga keltiriladi
       SHOP_CHANNEL = shop.channel.trim().replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 64);
-      updates['settings/shop'] = { channel: SHOP_CHANNEL };
+      if (typeof shop.autoPost === 'boolean') SHOP_AUTOPOST = shop.autoPost;
+      updates['settings/shop'] = { channel: SHOP_CHANNEL, autoPost: SHOP_AUTOPOST };
     }
     
     await firebasePatch('', updates);
@@ -2234,12 +2238,17 @@ function validateAndSanitizeProduct(req, res, next) {
   next();
 }
 
+// Yangi mahsulot (admin panel yoki yordamchi orqali): 3D model navbati + kanalga avtomatik e'lon
+function onProductCreated(pid) {
+  model3d.watch(pid);   // admin o'zi qo'shgan — 3D natijasi haqida xabar beriladi
+  setTimeout(() => { try { model3d.sweep(); } catch (_) {} }, 5000);
+  setTimeout(() => autoPostNewProduct(pid).catch(e => console.warn('📢 Avto e\'lon xatosi:', e.message)), 45000);   // rasmlar qo'shilishiga ulgursin
+}
 async function addProduct(data) {
   const { product, error } = buildProduct(data);
   if (error) return { error };
   await mutateProducts(list => ({ list: [product, ...list.filter(p => p.id !== product.id)] }));
-  model3d.watch(product.id);   // admin o'zi qo'shgan — natija haqida xabar beriladi
-  setTimeout(() => { try { model3d.sweep(); } catch (_) {} }, 5000);   // 3D modelni navbatni kutmasdan boshlaymiz
+  onProductCreated(product.id);
   return { product };
 }
 
@@ -2274,6 +2283,7 @@ app.post('/api/admin/products', apiRateLimiter, verifyAdmin, validateAndSanitize
   const newProduct = req.sanitizedProduct;
   try {
     await mutateProducts(list => ({ list: [newProduct, ...list.filter(p => p.id !== newProduct.id)] }));
+    onProductCreated(newProduct.id);
     res.json({ success: true, product: publicProduct(newProduct, Date.now(), await getRealRatings()) });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2581,6 +2591,52 @@ async function postProductToChannel(pid, text) {
     return { error: `Kanalga yuborib bo'lmadi: ${e.message}. Bot kanalda admin ekanini tekshiring.` };
   }
 }
+
+// ===== YANGI MAHSULOT — KANALGA AVTOMATIK E'LON =====
+// Matnni Gemini faqat mahsulotning haqiqiy ma'lumotlaridan yozadi (o'ylab topilgan xususiyat yo'q); kalit bo'lmasa — shablon.
+async function channelCaption(p) {
+  const specs = (Array.isArray(p.specs) ? p.specs : []).filter(x => Array.isArray(x) && x[0] && x[1]).slice(0, 6);
+  const variants = (Array.isArray(p.variants) ? p.variants : []).map(v => v && v.name).filter(Boolean).slice(0, 6);
+  const facts = [`Nomi: ${plainText(p.name)}`, p.brand ? `Brend: ${plainText(p.brand)}` : '', p.cat ? `Kategoriya: ${p.cat}` : '',
+    p.desc && !/tavsif yo'q/i.test(p.desc) ? `Tavsif: ${plainText(p.desc).slice(0, 500)}` : '',
+    specs.length ? 'Xususiyatlar: ' + specs.map(([a, b]) => `${plainText(a)} — ${plainText(b)}`).join('; ') : '',
+    variants.length ? 'Variantlar: ' + variants.map(plainText).join(', ') : ''].filter(Boolean).join('\n');
+  try {
+    if (typeof assistant !== 'undefined' && assistant.geminiGenerate) {
+      const r = await assistant.geminiGenerate([{ text:
+        `Telegram do'kon kanali uchun yangi mahsulot e'loni yoz (o'zbek tilida, lotin alifbosida).\n${facts}\n\n` +
+        `Qoidalar: FAQAT yuqoridagi ma'lumotlardan foydalan — xususiyat, narx, kafolat, sovg'a yoki aksiya o'ylab topma. ` +
+        `Narx va yetkazib berishni yozma (ular alohida qo'shiladi). 1 qator jozibali sarlavha (emoji bilan, mahsulot nomi bilan), ` +
+        `keyin 2–4 ta qisqa qator asosiy afzalliklar (har biri emoji bilan boshlanadi). Jami 350 belgidan oshmasin. Faqat e'lon matnini qaytar.` }]);
+      const t = r && !r.error && String(r.text || '').trim().replace(/^["'`]+|["'`]+$/g, '');
+      if (t && t.length > 20) return t.slice(0, 600);
+    }
+  } catch (_) {}
+  return `🆕 Yangi: ${plainText(p.name)}\n` + specs.slice(0, 4).map(([a, b]) => `▫️ ${plainText(a)}: ${plainText(b)}`).join('\n');
+}
+async function autoPostNewProduct(pid, { manual = false } = {}) {
+  if (!manual && !SHOP_AUTOPOST) return { skipped: "o'chirilgan" };
+  if (!SHOP_CHANNEL || !botInstance) return { error: 'Kanal sozlanmagan' };
+  const p = (await getProducts()).find(x => String(x.id) === String(pid));
+  if (!p) return { error: 'Mahsulot topilmadi' };
+  if (!manual && p.channelPostedAt) return { skipped: 'allaqachon joylangan' };
+  if (!manual && !hasStock(p)) return { skipped: 'omborda yo\'q' };
+  const r = await postProductToChannel(p.id, await channelCaption(p));
+  const tellAdmins = text => { for (const id of ADMIN_IDS) botInstance.sendMessage(id, text, { disable_web_page_preview: true }).catch(() => {}); };
+  if (r.posted) {
+    await setProductFields(p.id, { channelPostedAt: Date.now(), channelPostLink: r.link });
+    if (!manual) tellAdmins(`📢 Yangi mahsulot kanalga joylandi: ${plainText(p.name)}\n${r.link}`);
+    console.log(`📢 Kanalga e'lon: ${plainText(p.name)} → ${r.link}`);
+  } else if (!manual) tellAdmins(`📢 "${plainText(p.name)}" kanalga avtomatik joylanmadi: ${r.error}`);
+  return r;
+}
+app.post('/api/admin/products/:pid/post-channel', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const r = await autoPostNewProduct(req.params.pid, { manual: true });
+    if (r.error) return res.status(400).json(r);
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Vaqtinchalik chegirma muddati tugasa — narx asl holiga qaytadi
 async function restoreExpiredDiscounts() {

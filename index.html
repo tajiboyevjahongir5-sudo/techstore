@@ -638,6 +638,14 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .i3-success { width: 92px; height: 92px; animation: i3Pop .7s cubic-bezier(.2, 1.5, .4, 1) both; filter: drop-shadow(0 10px 30px rgba(124, 92, 255, 0.6)); }
 .i3-party { position: absolute; width: 46px; height: 46px; right: -20px; top: -16px; animation: i3Pop .6s .35s cubic-bezier(.2, 1.6, .4, 1) both; }
 @keyframes i3Pop { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+.ap-toggle { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0 4px; cursor: pointer; font-size: 13px; line-height: 1.4; }
+.ap-toggle input { display: none; }
+.ap-toggle small { display: block; color: var(--text2); font-size: 11.5px; margin-top: 3px; font-weight: 500; }
+.ap-sw { flex-shrink: 0; width: 42px; height: 24px; border-radius: 12px; background: rgba(255,255,255,0.14); position: relative; transition: background .2s; margin-top: 1px; }
+.ap-sw::after { content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.ap-toggle input:checked + .ap-sw { background: linear-gradient(135deg, #6B7FFF, #A78BFA); }
+.ap-toggle input:checked + .ap-sw::after { transform: translateX(18px); }
+.ch-post-btn.done { color: #34d399; border-color: rgba(52, 211, 153, 0.4); }
 .cat-chip .ci { width: 22px; height: 22px; margin: -4px 7px -4px -4px; vertical-align: middle; filter: drop-shadow(0 2px 6px rgba(124, 92, 255, 0.45)); }
 .hs-ico { width: 28px; height: 28px; margin: -4px 0; filter: drop-shadow(0 3px 8px rgba(124, 92, 255, 0.5)); }
 .slide-badge .bi { width: 18px; height: 18px; margin: -3px 2px -3px 0; vertical-align: middle; }
@@ -5238,6 +5246,7 @@ input, textarea, select, button { font-family: inherit; }
           <div class="settings-section-title">📢 TELEGRAM KANAL</div>
           <div class="form-group" style="margin-bottom:0"><label class="form-label">Kanal username (ixtiyoriy)</label><input class="form-input" id="settChannel" placeholder="@techstore_uz" maxlength="70"></div>
           <div class="as-hint">Bot /start xabarida "Kanalimizga obuna bo'ling" tugmasi chiqadi. Bo'sh qoldirsangiz tugma ko'rinmaydi.</div>
+          <label class="ap-toggle"><input type="checkbox" id="settAutoPost" checked><span class="ap-sw"></span><span><b>Yangi mahsulotlar kanalga avtomatik chiqsin</b><small>Mahsulot qo'shilgach ~1 daqiqada rasm, narx va "Sotib olish" tugmasi bilan e'lon joylanadi. Matnni AI mahsulot ma'lumotlaridan yozadi. Bot kanalda admin bo'lishi kerak.</small></span></label>
           <button class="settings-save-btn btn-purple" onclick="saveChannelSettings()"><i class="ti ti-device-floppy"></i> Saqlash</button>
         </div>
       </div>
@@ -5979,6 +5988,7 @@ async function loadPublicSettingsFromServer() {
       SHOP_CHANNEL = data.channel || '';
       const chEl = document.getElementById('settChannel');
       if (chEl && document.activeElement !== chEl) chEl.value = SHOP_CHANNEL ? '@' + SHOP_CHANNEL : '';
+      const apEl = document.getElementById('settAutoPost'); if (apEl) apEl.checked = data.autoPost !== false;
       if (data.card) {
         CARD_NUMBER = data.card.number || CARD_NUMBER;
         CARD_OWNER = data.card.owner || CARD_OWNER;
@@ -6047,13 +6057,28 @@ async function removePendingPayment(suffix) {}
 function loadSettings() {}
 
 let SHOP_CHANNEL = '';
+async function postToChannel(pid, btn) {
+  const p = products.find(x => x.id === pid);
+  if (!SHOP_CHANNEL) { showToast("Avval Sozlamalar → Telegram kanal'ni kiriting", '⚠️', 'var(--orange)'); return; }
+  if (!(await confirmAsync(`"${p ? p.name : ''}" @${SHOP_CHANNEL} kanaliga joylansinmi?`))) return;
+  btn && btn.classList.add('btn-loading');
+  try {
+    const res = await fetch(`/api/admin/products/${encodeURIComponent(pid)}/post-channel`, { method: 'POST', headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.posted) throw new Error(d.error || 'Joylab bo\'lmadi');
+    if (p) p.channelPostedAt = Date.now();
+    btn && btn.classList.add('done');
+    showToast('Kanalga joylandi', '📤', 'var(--green)');
+  } catch (e) { showToast(e.message, '✗', 'var(--red)'); }
+  finally { btn && btn.classList.remove('btn-loading'); }
+}
 async function saveChannelSettings() {
   const val = document.getElementById('settChannel').value.trim();
   try {
     const res = await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' },
-      body: JSON.stringify({ shop: { channel: val } })
+      body: JSON.stringify({ shop: { channel: val, autoPost: !!document.getElementById('settAutoPost')?.checked } })
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Saqlashda xatolik');
     SHOP_CHANNEL = val.replace(/^https?:\/\/t\.me\//i, '').replace(/^@/, '');
@@ -7978,6 +8003,7 @@ function renderAdminProducts() {
         <div class="admin-prod-meta">${p.brand} · ${(p.price/1000000).toFixed(1)}M · ${p.cat}${(p.stock !== null && p.stock !== undefined && p.stock !== '') ? ` · <span style="color:${Number(p.stock) <= 0 ? 'var(--red)' : Number(p.stock) <= 5 ? 'var(--orange)' : 'var(--green)'}">📦 ${p.stock}</span>` : ''}${p.sold ? ` · 🛒 ${p.sold} sotildi` : ''}</div>
       </div>
       <div class="admin-prod-actions">
+        <div class="admin-edit-btn ch-post-btn${p.channelPostedAt ? ' done' : ''}" title="${p.channelPostedAt ? 'Kanalga joylangan — yana joylash' : 'Kanalga joylash'}" onclick="postToChannel(${p.id}, this)"><i class="ti ti-send"></i></div>
         <div class="admin-edit-btn" onclick="openEditModal(${p.id})"><i class="ti ti-pencil"></i></div>
         <div class="admin-del-btn" onclick="openConfirmDelete(${p.id})"><i class="ti ti-trash"></i></div>
       </div>
