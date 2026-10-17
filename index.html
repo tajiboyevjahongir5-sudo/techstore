@@ -214,9 +214,9 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .logo { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
-.logo-mark { height: 46px; width: auto; flex-shrink: 0; filter: drop-shadow(0 4px 14px rgba(124, 92, 255, 0.45)); }
+.logo-mark { height: 54px; width: auto; flex-shrink: 0; filter: drop-shadow(0 4px 14px rgba(124, 92, 255, 0.45)); }
 /* "TechStore" nomi — logodagidek: Tech oq, Store ko'k→binafsha→pushti; matn bo'lgani uchun fonsiz va har doim tiniq */
-.wm { font-family: 'Plus Jakarta Sans', 'Manrope', sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.035em; line-height: 1.1; white-space: nowrap; filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.35)); }
+.wm { font-family: 'Plus Jakarta Sans', 'Manrope', sans-serif; font-weight: 800; font-size: 28px; letter-spacing: -0.035em; line-height: 1.1; white-space: nowrap; filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.35)); }
 .wm1 { background: linear-gradient(180deg, #ffffff 30%, #d9ddff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .wm2 { background: linear-gradient(90deg, #59a8ff 0%, #7b6cff 30%, #b05cf6 62%, #f45cc6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .pd-sim.hs-card { width: 162px; }
@@ -4193,7 +4193,7 @@ body.modal-open {
   .pd-hero .detail-gallery { aspect-ratio: 1 / 1; height: auto; max-width: min(560px, 62vh); margin: 0 auto; }
 }
 @media (min-width: 1024px) {
-  :root { --dk-max: 1240px; --dk-side: max(32px, calc((100vw - 1240px) / 2)); --dk-nav: 72px; }
+  :root { --dk-max: 1240px; --dk-side: max(32px, calc((100vw - 1240px) / 2)); --dk-nav: 88px; }
   /* Telegram Desktop to'liq ekranda o'z "✕" va "⋮" tugmalarini sahifa ustiga chizadi (o'ng yuqori burchak) —
      menyu paneli ular ostidan boshlanadi, tugmalar ortidagi joy panel foni bilan to'ladi */
   html.tg-fs.tg-desk { --dk-top: max(48px, calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px))); }
@@ -4213,10 +4213,10 @@ body.modal-open {
     align-items: center; justify-content: flex-end; gap: 6px;
     background: rgba(8, 8, 28, 0.78); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
   }
-  .dk-brand { display: flex; align-items: center; gap: 10px; margin-right: 28px; cursor: pointer; flex-shrink: 0; transition: transform .2s ease; }
+  .dk-brand { display: flex; align-items: center; gap: 14px; margin-right: 28px; cursor: pointer; flex-shrink: 0; transition: transform .2s ease; }
   .dk-brand:hover { transform: scale(1.03); }
-  .dk-logo-mark { height: 52px; width: auto; filter: drop-shadow(0 4px 14px rgba(124, 92, 255, 0.45)); }
-  .dk-wm { font-size: 27px; }
+  .dk-logo-mark { height: 72px; width: auto; filter: drop-shadow(0 6px 18px rgba(124, 92, 255, 0.5)); }
+  .dk-wm { font-size: 36px; }
   .dk-search { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 520px; margin-right: auto; height: 44px; padding: 0 16px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--text2); transition: border-color .2s, background .2s; }
   .dk-search:focus-within { border-color: rgba(167, 139, 250, 0.6); background: rgba(255,255,255,0.09); }
   .dk-search input { flex: 1; background: none; border: none; outline: none; color: #fff; font: 500 14px 'Manrope', sans-serif; }
