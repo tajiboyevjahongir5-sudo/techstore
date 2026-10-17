@@ -2791,15 +2791,6 @@ app.get('/api/me/referrals', apiRateLimiter, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 // Taklif havolasi uchun QR-kod (do'stga telefondan ko'rsatish uchun)
-// Dasturchiga oddiy telefon qo'ng'irog'i: Mini App bu sahifani tashqi brauzerda ochadi, u tel: ni telefon qo'ng'iroq oynasiga uzatadi
-app.get('/call', (req, res) => {
-  const tel = '+998888542620';
-  res.set('Cache-Control', 'no-store').type('html').send(`<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Qo'ng'iroq</title>
-<style>body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#0b0d2e;color:#fff;font-family:-apple-system,system-ui,sans-serif}
-a{display:block;padding:18px 34px;border-radius:18px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:20px;font-weight:700;text-decoration:none}p{opacity:.7;margin:0}</style></head>
-<body><p>+998 88 854 26 20</p><a href="tel:${tel}">📞 Qo'ng'iroq qilish</a><script>location.href='tel:${tel}'</script></body></html>`);
-});
-
 app.get('/api/me/ref-qr', apiRateLimiter, async (req, res) => {
   try {
     const uid = String(req.query.u || '').replace(/\D/g, '').slice(0, 20);
