@@ -239,7 +239,14 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
   }
 
   // Adminga natija haqida xabar (bot orqali)
-  function tell(text) { try { notify && Promise.resolve(notify(text)).catch(() => {}); } catch (_) {} }
+  // Faqat admin o'zi qo'shgan/rasmini o'zgartirgan yoki "Qayta yasash" bosgan mahsulotlar haqida yoziladi —
+  // eski mahsulotlar fonda jim tekshiriladi (natijasi Admin → Mahsulotlar → 3D modellar'da ko'rinadi)
+  function tell(text, pid) {
+    if (pid != null) { if (!state[pid] || !state[pid].notify) return; set(pid, { notify: false }); }
+    try { notify && Promise.resolve(notify(text)).catch(() => {}); } catch (_) {}
+  }
+  function watch(pid) { set(pid, { notify: true }); }
+  let lastQuotaTell = 0;
 
   // ---- Bitta mahsulot ----
   async function build(p, { force = false } = {}) {
@@ -260,7 +267,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
         const pc = await precheck(src, mime, p);
         if (pc && pc.suitable === false) {
           set(p.id, { status: 'unsuitable', reason: String(pc.reason || '').slice(0, 300), tries: MAX_TRIES });
-          tell(`🧊 "${p.name}" — rasm 3D model uchun yaroqsiz: ${pc.reason || ''}\nBoshqa rasm yuboring (oq fonda, mahsulot to'liq, 4 tomondan) yoki Admin → Mahsulotlar → 3D modellar'da "Qayta yasash".`);
+          tell(`🧊 "${p.name}" — rasm 3D model uchun yaroqsiz: ${pc.reason || ''}\nBoshqa rasm yuboring (oq fonda, mahsulot to'liq, 4 tomondan) yoki Admin → Mahsulotlar → 3D modellar'da "Qayta yasash".`, p.id);
           console.log(`🧊 3D (${p.id}) rasm yaroqsiz: ${pc.reason}`);
           return;
         }
@@ -290,15 +297,15 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
         ? `🧊 3D model tayyor: "${p.name}" — ${side}, baho ${best.score}/10 ✅\nMijozlar mahsulot sahifasida "3D ko'rinish" tugmasi orqali ko'radi.`
         : status === 'rejected'
           ? `🧊 "${p.name}" uchun 3D model yasaldi, lekin sifati past (${best.score}/10${best.issues ? ': ' + best.issues : ''}) — mijozlarga ko'rsatilmaydi.\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" yoki "Qayta yasash" mumkin.${(best.views || 1) < 4 ? " 4 tomondan rasm qo'shsangiz aniqroq chiqadi." : ''}`
-          : `🧊 3D model tayyor: "${p.name}" — ${side}, lekin avtomatik baholanmadi${/trellis/i.test(best.space || '') ? " (Gemini kaliti yo'q)" : ' (bu model 360° video bermaydi)'}.\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" ni bosing.`);
+          : `🧊 3D model tayyor: "${p.name}" — ${side}, lekin avtomatik baholanmadi${/trellis/i.test(best.space || '') ? " (Gemini kaliti yo'q)" : ' (bu model 360° video bermaydi)'}.\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" ni bosing.`, p.id);
     } catch (e) {
       if (e && e.quota) {
-        if (Date.now() >= pausedUntil) tell(`⏸ 3D model: barcha bepul 3D serverlarda (TRELLIS, Hunyuan3D, SF3D) GPU limiti tugadi yoki ular o'chgan — "${p.name}" navbatda, taxminan 1 soatdan keyin o'zi davom etadi.`);
+        if (Date.now() >= pausedUntil && Date.now() - lastQuotaTell > 24 * 3600e3 && state[p.id] && state[p.id].notify) lastQuotaTell = Date.now(), tell(`⏸ 3D model: barcha bepul 3D serverlarda (TRELLIS, Hunyuan3D, SF3D) GPU limiti tugadi yoki ular o'chgan — "${p.name}" navbatda, taxminan 1 soatdan keyin o'zi davom etadi.`);
         pausedUntil = Date.now() + 60 * 60e3;
         set(p.id, { status: 'queued', error: 'GPU limiti tugadi — keyinroq davom etadi' });
       } else {
         set(p.id, { status: 'failed', error: String(e && e.message || e).slice(0, 300), tries: tries + 1 });
-        if (tries + 1 >= MAX_TRIES || tries === 0) tell(`⚠️ "${p.name}" uchun 3D model yasab bo'lmadi — barcha bepul 3D serverlar sinab ko'rildi:\n${String(e && e.message || e).slice(0, 400)}${tries + 1 < MAX_TRIES ? (isDown(e && e.message) ? "\nServerlar ishga tushishi bilan (30 daqiqadan keyin) o'zi qayta urinadi." : "\n24 soatdan keyin o'zi qayta urinadi.") : ''}`);
+        if (tries + 1 >= MAX_TRIES || tries === 0) tell(`⚠️ "${p.name}" uchun 3D model yasab bo'lmadi — barcha bepul 3D serverlar sinab ko'rildi:\n${String(e && e.message || e).slice(0, 400)}${tries + 1 < MAX_TRIES ? (isDown(e && e.message) ? "\nServerlar ishga tushishi bilan (30 daqiqadan keyin) o'zi qayta urinadi." : "\n24 soatdan keyin o'zi qayta urinadi.") : ''}`, p.id);
       }
     } finally {
       current = null;
@@ -363,7 +370,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
 
   function action(pid, act) {
     const s = state[pid];
-    if (act === 'rebuild') { set(pid, { status: 'rebuild', tries: 0, error: null, force: true }); setTimeout(sweep, 1000); return true; }
+    if (act === 'rebuild') { set(pid, { status: 'rebuild', tries: 0, error: null, force: true, notify: true }); setTimeout(sweep, 1000); return true; }
     if (!s) return false;
     if (act === 'hide') set(pid, { hidden: true });
     else if (act === 'show') set(pid, { hidden: false, approved: true });
@@ -371,7 +378,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
     return true;
   }
 
-  return { start, sweep, list, action, publicInfo, fileFor };
+  return { start, sweep, list, action, publicInfo, fileFor, watch };
 }
 
 module.exports = { createModel3D };
