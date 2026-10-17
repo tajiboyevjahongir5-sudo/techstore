@@ -4288,6 +4288,10 @@ body.modal-open {
   #detail .pd-thumbs { grid-column: 1; grid-row: 3; padding: 14px 0 0; align-self: start; }
   #detail .pd-body { grid-column: 2; grid-row: 2 / 4; align-self: start; margin-top: 0; border-radius: 30px; border: 1px solid rgba(167, 139, 250, 0.22); min-height: 0; padding: 30px; }
   .pd-hero .detail-gallery { height: min(560px, calc(100vh - 220px)); }
+  /* Pastdagi "Savatga qo'shish" paneli kontentni yopmasin; chapdagi rasm aylantirganda ham ko'rinib tursin */
+  #detail .pd-body { padding-bottom: 130px; }
+  #detail .pd-hero, body.in-tg #detail .pd-hero { position: sticky; top: 64px; z-index: 1; }
+  #detail .pd-thumbs { position: sticky; top: calc(64px + min(560px, calc(100vh - 220px)) + 14px); }
   .pd-thumb { width: 72px; height: 72px; }
   .detail-actions-fixed { left: auto; right: var(--dk-side); transform: none; bottom: 24px; width: calc((min(100vw - 64px, var(--dk-max)) - 40px) * 0.488); max-width: none; }
   .pd-similar { scroll-snap-type: none; }
