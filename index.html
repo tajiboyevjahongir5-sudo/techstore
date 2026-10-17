@@ -3119,10 +3119,10 @@ input[type="datetime-local"].form-input::-webkit-datetime-edit { padding: 0; }
 /* TOAST */
 .toast {
   position: fixed;
-  top: 24px;
+  top: calc(12px + max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(10, 10, 20, 0.9);
+  background: rgba(16, 18, 52, 0.97);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--glass-border);
