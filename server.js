@@ -2779,9 +2779,37 @@ app.get('/api/me/referrals', apiRateLimiter, async (req, res) => {
   if (!user) return res.status(401).json({ error: 'auth' });
   try {
     const users = (await firebaseGet('users')) || {};
-    const count = Object.values(users).filter(u => u && String(u.referredBy || '') === String(user.id)).length;
-    res.json({ count });
+    const invited = Object.entries(users).filter(([, u]) => u && String(u.referredBy || '') === String(user.id)).map(([id]) => String(id));
+    const orders = (await firebaseGet('orders')) || {};
+    const buyers = new Set(Object.values(orders).filter(o => o && invited.includes(String(o.userId))).map(o => String(o.userId)));
+    res.json({ count: invited.length, buyers: buyers.size });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// Taklif havolasi uchun QR-kod (do'stga telefondan ko'rsatish uchun)
+app.get('/api/me/ref-qr', apiRateLimiter, async (req, res) => {
+  try {
+    const uid = String(req.query.u || '').replace(/\D/g, '').slice(0, 20);
+    const link = `https://t.me/${botUsername || 'Tech_uzbot'}${uid ? `?start=ref_${uid}` : ''}`;
+    const png = await require('qrcode').toBuffer(link, { width: 480, margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b0d2b', light: '#ffffff' } });
+    res.setHeader('Content-Type', 'image/png'); res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.end(png);
+  } catch (e) { res.status(500).end(); }
+});
+// Do'stga yuboriladigan tayyor xabar: banner rasm + matn + "Do'konni ochish" tugmasi (shaxsiy havola bilan)
+app.post('/api/me/ref-share', apiRateLimiter, async (req, res) => {
+  const user = userFromInitData(req);
+  if (!user) return res.status(401).json({ error: 'auth' });
+  if (!botInstance || !botUsername) return res.status(503).json({ error: 'Bot ishlamayapti' });
+  try {
+    const link = `https://t.me/${botUsername}?start=ref_${user.id}`;
+    const caption = `🛍 <b>TechStore</b> — original texnika onlayn do'koni\n\n📱 Smartfon, 💻 noutbuk, 🎧 quloqchin va boshqa gadjetlar\n🚚 O'zbekiston bo'ylab BTS orqali tekin yetkazib berish\n🛡 Xavfsiz to'lov · avtomatik tasdiqlash\n💬 24/7 yordamchi\n\n${escHtml(user.first_name || "Do'stingiz")} sizga tavsiya qildi 👇`;
+    const img = `${APP_URL}/welcome.jpg`;
+    const result = { type: 'photo', id: `ref${user.id}`, photo_url: img, thumbnail_url: img, caption, parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: [[{ text: "🛍 Do'konni ochish", url: link }]] } };
+    const prepared = await botInstance._request('savePreparedInlineMessage', { form: {
+      user_id: user.id, result: JSON.stringify(result), allow_user_chats: true, allow_group_chats: true, allow_channel_chats: true, allow_bot_chats: false } });
+    res.json({ id: prepared.id, link });
+  } catch (e) { res.status(500).json({ error: "Ulashishni tayyorlab bo'lmadi" }); }
 });
 
 app.post('/api/me/waitlist/:pid', apiRateLimiter, async (req, res) => {
