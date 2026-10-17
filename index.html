@@ -352,6 +352,9 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 }
 
 .slider-banner .dk-only { display: none; }
+.slide-som { font-size: .62em; font-weight: 700; opacity: .85; }
+.slide-old { font-size: 11px; color: rgba(255,255,255,0.45); text-decoration: line-through; font-weight: 500; white-space: nowrap; }
+.slide-price { white-space: nowrap; }
 .slider-banner {
   height: 200px;
   border-radius: 28px;
@@ -4245,7 +4248,8 @@ body.modal-open {
   .slider-banner { height: 380px; border-radius: 32px; }
   .slide-text { padding-left: 32px; padding-right: 46%; }
   .slide-title { font-size: 40px; line-height: 1.12; margin-bottom: 14px; letter-spacing: -0.8px; }
-  .slide-price { font-size: 24px; margin-bottom: 26px; }
+  .slide-price { font-size: 26px; margin-bottom: 26px; }
+  .slide-old { font-size: 15px; margin-left: 6px; }
   .slide-cta { font-size: 15px; padding: 14px 26px; }
   .slide-badge { font-size: 12px; }
   .slide-img { width: 42%; height: 86%; right: 4%; }
@@ -10225,8 +10229,9 @@ function buildSlides() {
 
   tops.forEach((p, i) => {
     const theme = SLIDE_THEMES[i % SLIDE_THEMES.length];
-    const priceM = (p.price/1000000).toFixed(1);
-    const oldM = p.discount > 0 ? (p.price/1000000/(1-p.discount/100)).toFixed(1) : null;
+    const fmtN = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
+    const priceM = fmtN(p.price);
+    const oldM = p.discount > 0 ? fmtN(Number(p.regularPrice) > p.price ? p.regularPrice : Math.round(p.price / (1 - p.discount / 100) / 1000) * 1000) : null;
     const fallbackEmoji = p.emoji || '📦';
     
     // Robust image loader — prefer bannerImage (transparent PNG) for slider
@@ -10265,7 +10270,7 @@ function buildSlides() {
         </div>
         <div class="slide-title">${p.name.length>36?p.name.substring(0,36)+'…':p.name}</div>
         <div class="slide-price" style="color:${theme.priceColor}">
-          ${priceM}M so'm ${oldM?`<span style="font-size:11px;color:rgba(255,255,255,0.4);text-decoration:line-through;font-weight:400">${oldM}M</span>`:''}
+          ${priceM} <small class="slide-som">so'm</small> ${oldM?`<span class="slide-old">${oldM}</span>`:''}
         </div>
         ${slideDesc(p) ? `<div class="slide-desc dk-only">${escText(slideDesc(p))}</div>` : ''}
         ${slideSpecs(p).length ? `<div class="slide-specs dk-only">${slideSpecs(p).map(([a, b]) => `<span><small>${escText(a)}</small>${escText(b)}</span>`).join('')}</div>` : ''}
