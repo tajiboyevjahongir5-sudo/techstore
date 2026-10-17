@@ -2614,7 +2614,8 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .dv-sheet { text-align: left; }
 .dv-hero { position: relative; text-align: center; padding: 22px 16px 18px; margin: 4px 0 14px; border-radius: 24px; overflow: hidden;
   background: radial-gradient(120% 120% at 0% 0%, rgba(107,127,255,.45), transparent 60%), radial-gradient(120% 120% at 100% 100%, rgba(244,114,182,.32), transparent 60%), #151a52; border: 1px solid rgba(167,139,250,.35); }
-.dv-ava { position: relative; width: 84px; height: 84px; margin: 0 auto 12px; border-radius: 50%; padding: 3px; background: conic-gradient(from 200deg, #59a8ff, #a78bfa, #f472b6, #59a8ff); box-shadow: 0 10px 30px rgba(124,92,255,.5); }
+.dv-ava img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid #0f1240; }
+.dv-ava { position: relative; width: 104px; height: 104px; margin: 0 auto 12px; border-radius: 50%; padding: 3px; background: conic-gradient(from 200deg, #59a8ff, #a78bfa, #f472b6, #59a8ff); box-shadow: 0 10px 30px rgba(124,92,255,.5); }
 .dv-ava span { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 50%; background: #0f1240; font: 800 28px 'Manrope', sans-serif; letter-spacing: -.02em; }
 .dv-ava i { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#6B7FFF,#A78BFA); border: 3px solid #151a52; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; }
 .dv-name { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
@@ -5606,13 +5607,13 @@ input, textarea, select, button { font-family: inherit; }
     <div class="modal-sheet dv-sheet">
       <div class="modal-handle"></div>
       <div class="dv-hero">
-        <div class="dv-ava"><span>TJ</span><i class="ti ti-code"></i></div>
+        <div class="dv-ava"><img src="dev.webp" alt="Tojiboyev Jahongir"><i class="ti ti-code"></i></div>
         <div class="dv-name">Tojiboyev Jahongir</div>
         <div class="dv-role">Full-stack dasturchi · TechStore muallifi</div>
       </div>
       <div class="dv-actions">
         <a class="dv-btn dv-btn-main" href="https://t.me/+998888542620" onclick="return openDevLink(this.href)"><i class="ti ti-brand-telegram"></i>Telegram'da yozish</a>
-        <a class="dv-btn" href="tel:+998888542620"><img class="i3" src="icons/phone.webp" alt="">Qo'ng'iroq</a>
+        <a class="dv-btn" href="tel:+998888542620" onclick="return callDevPhone()"><img class="i3" src="icons/phone.webp" alt="">Qo'ng'iroq</a>
       </div>
       <div class="dv-contact" onclick="copyDevPhone()"><img class="i3" src="icons/phone.webp" alt=""><div><small>Telefon raqami</small><b>+998 88 854 26 20</b></div><i class="ti ti-copy"></i></div>
       <div class="dv-title">Ilovada nimalar bor</div>
@@ -7654,6 +7655,12 @@ function openDevModal() {
   openModal('devModal');
 }
 function openDevLink(url) { try { if (tg && tg.openTelegramLink) { tg.openTelegramLink(url); return false; } } catch (e) {} return true; }
+// Telegram ichida tel: havolasi ishlamaydi yoki Telegram qo'ng'irog'iga o'tadi —
+// tashqi brauzer orqali ochamiz, u telefonning oddiy qo'ng'iroq oynasini chiqaradi
+function callDevPhone() {
+  try { if (tg && tg.openLink && tg.initData) { tg.openLink(location.origin + '/call'); return false; } } catch (e) {}
+  return true;
+}
 function copyDevPhone() {
   const v = '+998888542620';
   (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => showToast('Raqam nusxalandi', '✓', 'var(--green)'), () => {});
