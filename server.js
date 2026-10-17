@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const compression = require('compression');
 const { createAssistant, CATEGORY_ENUM } = require('./assistant');
+const PRODUCT_TYPES = require('./product-types');
 const { createModel3D } = require('./model3d');
 
 // ===== SAQLASH JOYI =====
@@ -2171,6 +2172,9 @@ function buildProduct(body) {
   if (!cat || !CATEGORY_ENUM.includes(cat)) {
     return { error: "Noto'g'ri mahsulot kategoriyasi!" };
   }
+  // Mahsulot turi (ixtiyoriy): kategoriyaga mos bo'lmasa saqlanmaydi
+  const pType = body.type && PRODUCT_TYPES.typeOf(String(body.type));
+  const type = pType && pType.cat === cat ? pType.key : null;
 
   // Ombordagi soni: bo'sh — cheklanmagan (hisob yuritilmaydi)
   let stock = null;
@@ -2214,6 +2218,7 @@ function buildProduct(body) {
       price: parsedPrice,
       discount: parsedDiscount,
       cat: cat,
+      type,
       desc: sanitizeInput(desc || 'Tavsif yo\'q.'),
       rating: Number(body.rating) || 5.0,
       reviews: Number(body.reviews) || 0,

@@ -7,6 +7,7 @@
 <style>html, body { background: #040529; }</style>
 <link rel="icon" href="logo.jpg">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="product-types.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
 <style>
 * {
@@ -4698,6 +4699,9 @@ input, textarea, select, button { font-family: inherit; }
       <div class="cat-chip" onclick="filterCat(this,'O\'yinlar')"><img class="ci" src="icons/games.webp" alt="">O'yinlar</div>
       <div class="cat-chip" onclick="filterCat(this,'Dronlar')"><img class="ci" src="icons/drones.webp" alt="">Dronlar</div>
       <div class="cat-chip" onclick="filterCat(this,'Smart TV')"><img class="ci" src="icons/tv.webp" alt="">Smart TV</div>
+      <div class="cat-chip" data-opt-cat="PC qismlari" style="display:none" onclick="filterCat(this,'PC qismlari')"><img class="ci" src="icons/box.webp" alt="">PC qismlari</div>
+      <div class="cat-chip" data-opt-cat="Periferiya" style="display:none" onclick="filterCat(this,'Periferiya')"><img class="ci" src="icons/box.webp" alt="">Periferiya</div>
+      <div class="cat-chip" data-opt-cat="Mebel" style="display:none" onclick="filterCat(this,'Mebel')"><img class="ci" src="icons/box.webp" alt="">Mebel</div>
     </div>
     <div id="homeSections"></div>
     <button class="cmp-fab" id="cmpFab" onclick="openCompare()" style="display:none"><img class="i3 i3-btn" src="icons/compare.webp" alt=""> Solishtirish <b id="cmpFabCount">0</b></button>
@@ -5430,17 +5434,21 @@ input, textarea, select, button { font-family: inherit; }
             <i class="ti ti-chevron-down"></i>
           </div>
           <div class="custom-select-dropdown" id="prodCatDropdown">
-            <div class="custom-select-option selected" onclick="selectCatOption('prodCatSelect','Telefonlar')">Telefonlar</div>
-            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Kompyuterlar')">Kompyuterlar</div>
-            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Audio')">Audio</div>
-            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Aksessuarlar')">Aksessuarlar</div>
-            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Kameralar')">Kameralar</div>
-            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','O\'yinlar')">O'yinlar</div>
-            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Dronlar')">Dronlar</div>
-            <div class="custom-select-option" onclick="selectCatOption('prodCatSelect','Smart TV')">Smart TV</div>
+            <!-- product-types.js dagi CATEGORIES dan to'ldiriladi -->
           </div>
         </div>
         <input type="hidden" id="prodCat" value="Telefonlar">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="ti ti-tag" style="color:var(--accent);margin-right:6px"></i>Mahsulot turi</label>
+        <div class="custom-select" id="prodTypeSelect">
+          <div class="custom-select-trigger" onclick="toggleCustomSelect('prodTypeSelect')">
+            <span id="prodTypeLabel">Smartfon</span>
+            <i class="ti ti-chevron-down"></i>
+          </div>
+          <div class="custom-select-dropdown" id="prodTypeDropdown"></div>
+        </div>
+        <input type="hidden" id="prodType" value="smartfon">
       </div>
       <div class="form-group">
         <label class="form-label"><i class="ti ti-file-description" style="color:var(--accent);margin-right:6px"></i>Tavsif</label>
@@ -5448,7 +5456,7 @@ input, textarea, select, button { font-family: inherit; }
       </div>
       <!-- DINAMIK SPECS (kategoriyaga qarab) -->
       <div id="prodSpecsSection">
-        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-list-details" style="color:var(--accent);font-size:14px"></i> 📋 Mahsulot xususiyatlari</div>
+        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-list-details" style="color:var(--accent);font-size:14px"></i> 📋 <span id="prodSpecsTitle">Mahsulot xususiyatlari</span></div>
         <div id="prodSpecsFields" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
       <div class="form-group">
@@ -6694,7 +6702,8 @@ function editDistLe1(a, b) {
   return diff + (a.length - i) + (b.length - j) <= 1;
 }
 function productMatchesQuery(p, q) {
-  const hay = normSearch(`${p.name} ${p.brand} ${p.cat} ${(p.specs || []).map(x => x[1]).join(' ')}`);
+  const pt = p.type && window.PRODUCT_TYPES ? PRODUCT_TYPES.typeOf(p.type) : null;
+  const hay = normSearch(`${p.name} ${p.brand} ${p.cat} ${pt ? pt.name + ' ' + pt.key.replace(/-/g, ' ') : ''} ${(p.specs || []).map(x => x[1]).join(' ')}`);
   const words = hay.split(' ');
   return normSearch(q).split(' ').filter(Boolean).every(w0 => {
     const w = SEARCH_ALIASES[w0] || w0;
@@ -6703,7 +6712,15 @@ function productMatchesQuery(p, q) {
   });
 }
 
+// Yangi kategoriyalar (PC qismlari, Periferiya, Mebel) — mahsulot qo'shilgandagina ko'rinadi
+function updateOptCatChips() {
+  document.querySelectorAll('.cat-chip[data-opt-cat]').forEach(ch => {
+    ch.style.display = products.some(p => p.cat === ch.dataset.optCat) ? '' : 'none';
+  });
+}
+
 function filterProducts(quick) {
+  updateOptCatChips();
   const q = document.getElementById('searchInput').value;
   const filtered = products.filter(p => {
     const matchCat = currentCat==='all' || p.cat===currentCat;
@@ -8288,12 +8305,8 @@ function openAddModal() {
   document.getElementById('prodImgInput').value = '';
   selectedEmoji = '📱';
   // Default kategoriya Telefonlar — specs render
-  document.getElementById('prodCat').value = 'Telefonlar';
-  document.getElementById('prodCatLabel').textContent = 'Telefonlar';
-  document.querySelectorAll('#prodCatDropdown .custom-select-option').forEach(o=>{
-    o.classList.toggle('selected', o.textContent.trim()==='Telefonlar');
-  });
-  renderSpecsFields('Telefonlar');
+  renderCatOptions();
+  selectCatOption('prodCatSelect', 'Telefonlar');
   openModal('addModal');
 }
 function closeAddModal(){closeModal('addModal')}
@@ -8305,9 +8318,10 @@ async function saveProduct() {
   const discount = parseInt(document.getElementById('prodDiscount').value) || 0;
   const cat = document.getElementById('prodCat').value;
   const desc = document.getElementById('prodDesc').value.trim();
+  const type = document.getElementById('prodType').value || null;
   const specs = getSpecsFromFields();
   if(!specs.length) specs.push(['Narx',(price/1000000).toFixed(1)+'M so\'m'],['Brend',brand]);
-  const catEmojis = {'Telefonlar':'📱','Kompyuterlar':'💻','Audio':'🎧','Aksessuarlar':'⌚','Kameralar':'📷',"O'yinlar":'🎮','Dronlar':'🚁','Smart TV':'📺'};
+  const catEmojis = {'Telefonlar':'📱','Kompyuterlar':'💻','PC qismlari':'🖥️','Periferiya':'⌨️','Audio':'🎧','Aksessuarlar':'⌚','Kameralar':'📷',"O'yinlar":'🎮','Dronlar':'🚁','Smart TV':'📺','Mebel':'🪑'};
   const stockVal = document.getElementById('prodQty').value.trim();
   const discUntilVal = document.getElementById('prodDiscUntil').value;
   const newProd = {
@@ -8318,7 +8332,7 @@ async function saveProduct() {
     emoji: newProdImages.length ? null : (catEmojis[cat]||'📦'),
     image: newProdImages[0] || null,
     images: [...newProdImages],
-    cat, rating:null, reviews:0, desc: desc||'Yangi mahsulot.',
+    cat, type, rating:null, reviews:0, desc: desc||'Yangi mahsulot.',
     specs
   };
 
@@ -10235,7 +10249,7 @@ function selectCatOption(selectId, value) {
   sel.classList.remove('open');
   
   if(selectId === 'prodCatSelect') {
-    renderSpecsFields(value);
+    renderTypeOptions(value);
   } else if (selectId === 'addrCitySelect') {
     onViloyatChange(value);
   } else if (selectId === 'addrDistrictSelect') {
@@ -10492,14 +10506,46 @@ const CAT_SPECS = {
   ],
 };
 
-function renderSpecsFields(cat) {
+// Mahsulot turi (product-types.js): tur tanlanganda faqat shu turga tegishli xususiyatlar so'raladi
+const PT = window.PRODUCT_TYPES || { CATEGORIES: Object.keys(CAT_SPECS), TYPES: [], typeOf: () => null, typesOf: () => [] };
+
+function renderCatOptions() {
+  const dd = document.getElementById('prodCatDropdown');
+  if(!dd || dd.children.length) return;
+  dd.innerHTML = PT.CATEGORIES.map(c => `<div class="custom-select-option" data-val="${escHtml(c)}">${escHtml(c)}</div>`).join('');
+  dd.querySelectorAll('.custom-select-option').forEach(o => o.onclick = () => selectCatOption('prodCatSelect', o.dataset.val));
+}
+
+function renderTypeOptions(cat) {
+  const dd = document.getElementById('prodTypeDropdown');
+  if(!dd) return;
+  const types = PT.typesOf(cat);
+  dd.innerHTML = types.map(t => `<div class="custom-select-option" data-key="${t.key}">${escHtml(t.name)}</div>`).join('')
+    + `<div class="custom-select-option" data-key="">Boshqa</div>`;
+  dd.querySelectorAll('.custom-select-option').forEach(o => o.onclick = () => selectTypeOption(o.dataset.key));
+  selectTypeOption(types[0] ? types[0].key : '');
+}
+
+function selectTypeOption(key) {
+  const t = PT.typeOf(key);
+  document.getElementById('prodType').value = t ? t.key : '';
+  document.getElementById('prodTypeLabel').textContent = t ? t.name : 'Boshqa';
+  document.querySelectorAll('#prodTypeDropdown .custom-select-option').forEach(o => o.classList.toggle('selected', o.dataset.key === (t ? t.key : '')));
+  document.getElementById('prodTypeSelect').classList.remove('open');
+  const title = document.getElementById('prodSpecsTitle');
+  if(title) title.textContent = t ? `${t.name} xususiyatlari` : 'Mahsulot xususiyatlari';
+  renderSpecsFields(document.getElementById('prodCat').value, t);
+}
+
+function renderSpecsFields(cat, type) {
   const container = document.getElementById('prodSpecsFields');
   if(!container) return;
-  const fields = CAT_SPECS[cat] || [];
+  const fields = type ? type.specs.map(([label, ex], i) => ({ key: 's' + i, label, placeholder: 'masalan: ' + ex }))
+    : (CAT_SPECS[cat] || [{key:'s0',label:'Xususiyat 1',placeholder:''},{key:'s1',label:'Xususiyat 2',placeholder:''},{key:'s2',label:'Xususiyat 3',placeholder:''}]);
   container.innerHTML = fields.map(f => `
     <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:12px;padding:8px 12px">
-      <div style="font-size:11px;color:var(--text2);font-weight:600;min-width:110px;letter-spacing:0.3px">${f.label}</div>
-      <input class="form-input" data-spec-key="${f.key}" placeholder="${f.placeholder}"
+      <div style="font-size:11px;color:var(--text2);font-weight:600;min-width:110px;letter-spacing:0.3px">${escHtml(f.label)}</div>
+      <input class="form-input" data-spec-key="${f.key}" placeholder="${escHtml(f.placeholder)}"
         style="flex:1;padding:6px 10px;font-size:13px;border-radius:9px;border:1px solid rgba(255,255,255,0.08)">
     </div>`).join('');
 }
@@ -11184,7 +11230,7 @@ async function initFirebaseAndLoad() {
 }
 
 // ===== RUS TILI: mijoz ekranlaridagi matnlar lug'at orqali tarjima qilinadi =====
-const I18N_RU = {"Asosiy": "Главная", "Savat": "Корзина", "Profil": "Профиль", "Barchasi": "Все", "Ilovada nimalar bor": "Что есть в приложении", "Telegram'da yozish": "Написать в Telegram", "Qo'ng'iroq": "Позвонить", "Telefon raqami": "Номер телефона", "AI yordamchi admin": "AI-помощник", "Telegram Mini App do'kon": "Магазин в Telegram", "To'lovni avtomatik tekshirish": "Автопроверка оплаты", "3D ko'rinish": "3D вид", "Xato yoki taklif bormi? Yozing — tezda ko'rib chiqamiz.": "Нашли ошибку или есть идея? Напишите — быстро рассмотрим.", "Full-stack dasturchi · TechStore muallifi": "Full-stack разработчик · автор TechStore", "Jarayonda": "В процессе", "Jarayondagi buyurtma yo'q": "Нет активных заказов", "Barchasini ko'rish": "Показать все", "Audio": "Аудио", "Yangi qo'shilganlar": "Новинки", "Ko'p sotilganlar": "Хиты продаж", "Yaqinda ko'rganlaringiz": "Вы недавно смотрели", "Chegirma tugayapti": "Скидка заканчивается", "Ko'p sotilgan": "Хит продаж", "Do'kon tavsiyasi": "Рекомендуем", "Mahsulotlar": "Товары", "Topilmadi": "Не найдено", "Tavsiya": "Рекомендуем", "📱 Telefonlar": "📱 Телефоны", "Telefonlar": "Телефоны", "Kompyuterlar": "Компьютеры", "Aksessuarlar": "Аксессуары", "Kameralar": "Камеры", "O'yinlar": "Игры", "Dronlar": "Дроны", "Planshetlar": "Планшеты", "Soatlar": "Часы", "Telegram foydalanuvchi": "Пользователь Telegram", "3D ko'rinish": "3D вид", "Barmoq bilan aylantiring": "Вращайте пальцем", "💻 Kompyuterlar": "💻 Компьютеры", "🎧 Audio": "🎧 Аудио", "⌨️ Aksessuarlar": "⌨️ Аксессуары", "📷 Kameralar": "📷 Камеры", "🎮 O'yinlar": "🎮 Игры", "🚁 Dronlar": "🚁 Дроны", "📺 Smart TV": "📺 Smart TV", "🆕 Yangi qo'shilganlar": "🆕 Новинки", "🔥 Ko'p sotilganlar": "🔥 Хиты продаж", "👀 Yaqinda ko'rganlaringiz": "👀 Вы недавно смотрели", "⏰ Chegirma tugayapti": "⏰ Скидка заканчивается", "Ko'rish": "Смотреть", "Hali baholanmagan": "Пока без оценок", "Hali baholanmagan — xarid qilib birinchi bo'lib baho bering": "Пока без оценок — купите и оцените первым", "Tekin": "Бесплатная", "yetkazish": "доставка", "Xavfsiz": "Безопасная", "to'lov": "оплата", "Savol": "Задать", "berish": "вопрос", "Do'stlarga ulashish": "Поделиться с друзьями", "Rasm va havola bilan chiroyli xabar": "Красивое сообщение с фото и ссылкой", "Solishtirishga qo'shish": "Добавить к сравнению", "Solishtirish": "Сравнение", "Tavsif": "Описание", "Xususiyatlar": "Характеристики", "O'xshash mahsulotlar": "Похожие товары", "Mijozlar fikri": "Отзывы покупателей", "Ko'proq o'qish": "Читать далее", "Savatga qo'shish": "В корзину", "Savatga o'tish": "Перейти в корзину", "Variantni tanlang": "Выберите вариант", "Omborda bor": "Есть в наличии", "Tugagan": "Нет в наличии", "🔔 Kelganda xabar bering": "🔔 Сообщить о поступлении", "Kelganda xabar bering": "Сообщить о поступлении", "Kelganda xabar beramiz ✓": "Сообщим о поступлении ✓", "Xarid qilgan": "Купил(а)", "Savat bo'sh": "Корзина пуста", "Hali hech narsa qo'shmadingiz. Mahsulotlarni ko'ring va savatga qo'shing.": "Вы ещё ничего не добавили. Посмотрите товары и добавьте в корзину.", "Xarid qilish": "За покупками", "Yetkazib berish": "Доставка", "Bepul": "Бесплатно", "Jami": "Итого", "Manzil kiritish": "Указать адрес", "Yetkazib berish 🚚": "Доставка 🚚", "Manzil ma'lumotlari": "Данные адреса", "Viloyat": "Область", "Tuman": "Район", "BTS topshirish punkti": "Пункт выдачи BTS", "Telefon raqami": "Номер телефона", "Tuman tanlang": "Выберите район", "Avval viloyatni tanlang": "Сначала выберите область", "Avval tumanni tanlang": "Сначала выберите район", "To'lovga o'tish": "Перейти к оплате", "To'lov": "Оплата", "Karta ma'lumotlari": "Данные карты", "Karta raqami": "Номер карты", "Nusxa": "Копировать", "To'lov summasi": "Сумма оплаты", "DIQQAT! AYNAN SHU SUMMANI O'TKAZING": "ВНИМАНИЕ! ПЕРЕВЕДИТЕ ИМЕННО ЭТУ СУММУ", "To'lovingiz avtomatik tasdiqlanishi uchun kartaga aynan yuqoridagi summani o'tkazishingiz kerak.": "Чтобы оплата подтвердилась автоматически, переведите на карту точно указанную сумму.", "To'lovni qildim, buyurtmani tasdiqlash": "Я оплатил(а), подтвердить заказ", "Buyurtma qabul qilindi!": "Заказ принят!", "Bot to'lovingizni avtomatik ravishda tekshirmoqda. To'lov tasdiqlangandan so'ng sizga Telegram orqali xabar boradi.": "Бот автоматически проверяет оплату. После подтверждения вы получите сообщение в Telegram.", "Holati": "Статус", "To'lov kutilmoqda (Avto-tekshirish)": "Ожидается оплата (автопроверка)", "Bosh sahifaga qaytish": "На главную", "Buyurtma": "Заказы", "Sevimli": "Избранное", "Do'stlar": "Друзья", "Buyurtmalarim": "Мои заказы", "Sevimlilar": "Избранное", "Admin bilan bog'lanish": "Связаться с админом", "Mahsulot sotmoqchi yoki taklifingiz bormi?": "Хотите продать товар или есть предложение?", "Do'stlarni taklif qilish": "Пригласить друзей", "Shaxsiy havolangizni ulashing": "Поделитесь личной ссылкой", "Bosh ekranga qo'shish": "Добавить на главный экран", "Do'konni ilovadek bir bosishda oching": "Открывайте магазин в одно касание", "To'liq ekran rejimi": "Полноэкранный режим", "Oddiy rejimga qaytish": "Обычный режим", "Dasturchi haqida": "О разработчике", "Til / Язык": "Til / Язык", "Sevimlilar bo'sh": "Избранное пусто", "Yoqtirgan mahsulotlaringizni yurak belgisini bosib sevimlilarga qo'shing.": "Добавляйте понравившиеся товары, нажимая на сердечко.", "Mahsulotlarga o'tish": "К товарам", "Filtr va saralash": "Фильтры и сортировка", "Tozalash": "Сбросить", "Saralash": "Сортировка", "Arzonroq": "Дешевле", "Qimmatroq": "Дороже", "Reyting": "Рейтинг", "Yangilar": "Новинки", "Chegirma": "Скидки", "Narx (mln so'm)": "Цена (млн сум)", "Brend": "Бренд", "Faqat chegirmadagilar": "Только со скидкой", "Chegirmasi bor mahsulotlar": "Товары со скидкой", "Faqat mavjudlari": "Только в наличии", "Tugagan mahsulotlarni yashirish": "Скрыть отсутствующие", "3 mln gacha": "до 3 млн", "3–10 mln": "3–10 млн", "10–20 mln": "10–20 млн", "20 mln+": "20 млн+", "Do'stlaringizni taklif qiling": "Пригласите друзей", "Do'stlaringizga TechStore'ni tavsiya qiling — ular ham original texnikani ishonchli va qulay xarid qilsin.": "Порекомендуйте TechStore друзьям — пусть тоже покупают оригинальную технику надёжно и удобно.", "Nusxa olish": "Копировать", "Ulashish": "Поделиться", "do'stingiz sizning havolangiz orqali qo'shildi": "друзей пришли по вашей ссылке", "Mahsulotni baholang": "Оцените товар", "Baholang": "Оцените", "Rasm qo'shish": "Добавить фото", "Fikrni yuborish": "Отправить отзыв", "Yomon": "Плохо", "O'rtacha emas": "Ниже среднего", "Yaxshi": "Хорошо", "Juda yaxshi": "Очень хорошо", "Ajoyib! 😍": "Отлично! 😍", "Berildi": "Оформлен", "Tasdiqlandi": "Подтверждён", "Yo'lda": "В пути", "Yetdi": "Доставлен", "Jami to'lov": "Итого к оплате", "Sizning bahoingiz": "Ваша оценка", "Tekshirilmoqda": "Проверяется", "Yo'lda 🚚": "В пути 🚚", "Yetib keldi": "Доставлен", "Rad etildi": "Отклонён", "BTS cheki": "Чек BTS", "Baholash": "Оценить", "To'lov tekshirilmoqda": "Оплата проверяется", "Jo'natishga tayyorlanmoqda": "Готовится к отправке", "Buyurtmangiz yo'lda": "Ваш заказ в пути", "To'lov tasdiqlanmadi": "Оплата не подтверждена", "BTS orqali jo'natilgach, chek shu yerda ko'rinadi.": "После отправки через BTS здесь появится чек.", "Qo'lingizga tekkach, \"Yetib keldi\" tugmasini bosing.": "Когда получите, нажмите «Доставлен».", "Buyurtmalar yo'q": "Заказов нет", "Siz hali hech narsa buyurtma bermagansiz.": "Вы ещё ничего не заказывали.", "Yopish": "Закрыть", "Narx": "Цена", "Omborda": "Наличие", "Kategoriya": "Категория", "Qo'shish": "Добавить", "Hali baho yo'q": "Пока без оценки", "Bor": "Есть", "Mahsulot qidirish...": "Поиск товаров...", "Mahsulot sizga yoqdimi? Fikringizni yozing...": "Понравился товар? Напишите отзыв...", "dan": "от", "gacha": "до", "Savatga qo'shildi": "Добавлено в корзину", "Savatdan olib tashlandi": "Удалено из корзины", "Rang yoki xotira hajmini tanlang": "Выберите цвет или объём памяти", "Bu mahsulot hozircha tugagan": "Этого товара пока нет в наличии", "Bu variant hozircha tugagan": "Этого варианта пока нет"};
+const I18N_RU = {"Asosiy": "Главная", "Savat": "Корзина", "Profil": "Профиль", "Barchasi": "Все", "Ilovada nimalar bor": "Что есть в приложении", "Telegram'da yozish": "Написать в Telegram", "Qo'ng'iroq": "Позвонить", "Telefon raqami": "Номер телефона", "AI yordamchi admin": "AI-помощник", "Telegram Mini App do'kon": "Магазин в Telegram", "To'lovni avtomatik tekshirish": "Автопроверка оплаты", "3D ko'rinish": "3D вид", "Xato yoki taklif bormi? Yozing — tezda ko'rib chiqamiz.": "Нашли ошибку или есть идея? Напишите — быстро рассмотрим.", "Full-stack dasturchi · TechStore muallifi": "Full-stack разработчик · автор TechStore", "Jarayonda": "В процессе", "Jarayondagi buyurtma yo'q": "Нет активных заказов", "Barchasini ko'rish": "Показать все", "Audio": "Аудио", "Yangi qo'shilganlar": "Новинки", "Ko'p sotilganlar": "Хиты продаж", "Yaqinda ko'rganlaringiz": "Вы недавно смотрели", "Chegirma tugayapti": "Скидка заканчивается", "Ko'p sotilgan": "Хит продаж", "Do'kon tavsiyasi": "Рекомендуем", "Mahsulotlar": "Товары", "Topilmadi": "Не найдено", "Tavsiya": "Рекомендуем", "📱 Telefonlar": "📱 Телефоны", "Telefonlar": "Телефоны", "Kompyuterlar": "Компьютеры", "Aksessuarlar": "Аксессуары", "Kameralar": "Камеры", "O'yinlar": "Игры", "Dronlar": "Дроны", "PC qismlari": "Комплектующие ПК", "Periferiya": "Периферия", "Mebel": "Мебель", "Planshetlar": "Планшеты", "Soatlar": "Часы", "Telegram foydalanuvchi": "Пользователь Telegram", "3D ko'rinish": "3D вид", "Barmoq bilan aylantiring": "Вращайте пальцем", "💻 Kompyuterlar": "💻 Компьютеры", "🎧 Audio": "🎧 Аудио", "⌨️ Aksessuarlar": "⌨️ Аксессуары", "📷 Kameralar": "📷 Камеры", "🎮 O'yinlar": "🎮 Игры", "🚁 Dronlar": "🚁 Дроны", "📺 Smart TV": "📺 Smart TV", "🆕 Yangi qo'shilganlar": "🆕 Новинки", "🔥 Ko'p sotilganlar": "🔥 Хиты продаж", "👀 Yaqinda ko'rganlaringiz": "👀 Вы недавно смотрели", "⏰ Chegirma tugayapti": "⏰ Скидка заканчивается", "Ko'rish": "Смотреть", "Hali baholanmagan": "Пока без оценок", "Hali baholanmagan — xarid qilib birinchi bo'lib baho bering": "Пока без оценок — купите и оцените первым", "Tekin": "Бесплатная", "yetkazish": "доставка", "Xavfsiz": "Безопасная", "to'lov": "оплата", "Savol": "Задать", "berish": "вопрос", "Do'stlarga ulashish": "Поделиться с друзьями", "Rasm va havola bilan chiroyli xabar": "Красивое сообщение с фото и ссылкой", "Solishtirishga qo'shish": "Добавить к сравнению", "Solishtirish": "Сравнение", "Tavsif": "Описание", "Xususiyatlar": "Характеристики", "O'xshash mahsulotlar": "Похожие товары", "Mijozlar fikri": "Отзывы покупателей", "Ko'proq o'qish": "Читать далее", "Savatga qo'shish": "В корзину", "Savatga o'tish": "Перейти в корзину", "Variantni tanlang": "Выберите вариант", "Omborda bor": "Есть в наличии", "Tugagan": "Нет в наличии", "🔔 Kelganda xabar bering": "🔔 Сообщить о поступлении", "Kelganda xabar bering": "Сообщить о поступлении", "Kelganda xabar beramiz ✓": "Сообщим о поступлении ✓", "Xarid qilgan": "Купил(а)", "Savat bo'sh": "Корзина пуста", "Hali hech narsa qo'shmadingiz. Mahsulotlarni ko'ring va savatga qo'shing.": "Вы ещё ничего не добавили. Посмотрите товары и добавьте в корзину.", "Xarid qilish": "За покупками", "Yetkazib berish": "Доставка", "Bepul": "Бесплатно", "Jami": "Итого", "Manzil kiritish": "Указать адрес", "Yetkazib berish 🚚": "Доставка 🚚", "Manzil ma'lumotlari": "Данные адреса", "Viloyat": "Область", "Tuman": "Район", "BTS topshirish punkti": "Пункт выдачи BTS", "Telefon raqami": "Номер телефона", "Tuman tanlang": "Выберите район", "Avval viloyatni tanlang": "Сначала выберите область", "Avval tumanni tanlang": "Сначала выберите район", "To'lovga o'tish": "Перейти к оплате", "To'lov": "Оплата", "Karta ma'lumotlari": "Данные карты", "Karta raqami": "Номер карты", "Nusxa": "Копировать", "To'lov summasi": "Сумма оплаты", "DIQQAT! AYNAN SHU SUMMANI O'TKAZING": "ВНИМАНИЕ! ПЕРЕВЕДИТЕ ИМЕННО ЭТУ СУММУ", "To'lovingiz avtomatik tasdiqlanishi uchun kartaga aynan yuqoridagi summani o'tkazishingiz kerak.": "Чтобы оплата подтвердилась автоматически, переведите на карту точно указанную сумму.", "To'lovni qildim, buyurtmani tasdiqlash": "Я оплатил(а), подтвердить заказ", "Buyurtma qabul qilindi!": "Заказ принят!", "Bot to'lovingizni avtomatik ravishda tekshirmoqda. To'lov tasdiqlangandan so'ng sizga Telegram orqali xabar boradi.": "Бот автоматически проверяет оплату. После подтверждения вы получите сообщение в Telegram.", "Holati": "Статус", "To'lov kutilmoqda (Avto-tekshirish)": "Ожидается оплата (автопроверка)", "Bosh sahifaga qaytish": "На главную", "Buyurtma": "Заказы", "Sevimli": "Избранное", "Do'stlar": "Друзья", "Buyurtmalarim": "Мои заказы", "Sevimlilar": "Избранное", "Admin bilan bog'lanish": "Связаться с админом", "Mahsulot sotmoqchi yoki taklifingiz bormi?": "Хотите продать товар или есть предложение?", "Do'stlarni taklif qilish": "Пригласить друзей", "Shaxsiy havolangizni ulashing": "Поделитесь личной ссылкой", "Bosh ekranga qo'shish": "Добавить на главный экран", "Do'konni ilovadek bir bosishda oching": "Открывайте магазин в одно касание", "To'liq ekran rejimi": "Полноэкранный режим", "Oddiy rejimga qaytish": "Обычный режим", "Dasturchi haqida": "О разработчике", "Til / Язык": "Til / Язык", "Sevimlilar bo'sh": "Избранное пусто", "Yoqtirgan mahsulotlaringizni yurak belgisini bosib sevimlilarga qo'shing.": "Добавляйте понравившиеся товары, нажимая на сердечко.", "Mahsulotlarga o'tish": "К товарам", "Filtr va saralash": "Фильтры и сортировка", "Tozalash": "Сбросить", "Saralash": "Сортировка", "Arzonroq": "Дешевле", "Qimmatroq": "Дороже", "Reyting": "Рейтинг", "Yangilar": "Новинки", "Chegirma": "Скидки", "Narx (mln so'm)": "Цена (млн сум)", "Brend": "Бренд", "Faqat chegirmadagilar": "Только со скидкой", "Chegirmasi bor mahsulotlar": "Товары со скидкой", "Faqat mavjudlari": "Только в наличии", "Tugagan mahsulotlarni yashirish": "Скрыть отсутствующие", "3 mln gacha": "до 3 млн", "3–10 mln": "3–10 млн", "10–20 mln": "10–20 млн", "20 mln+": "20 млн+", "Do'stlaringizni taklif qiling": "Пригласите друзей", "Do'stlaringizga TechStore'ni tavsiya qiling — ular ham original texnikani ishonchli va qulay xarid qilsin.": "Порекомендуйте TechStore друзьям — пусть тоже покупают оригинальную технику надёжно и удобно.", "Nusxa olish": "Копировать", "Ulashish": "Поделиться", "do'stingiz sizning havolangiz orqali qo'shildi": "друзей пришли по вашей ссылке", "Mahsulotni baholang": "Оцените товар", "Baholang": "Оцените", "Rasm qo'shish": "Добавить фото", "Fikrni yuborish": "Отправить отзыв", "Yomon": "Плохо", "O'rtacha emas": "Ниже среднего", "Yaxshi": "Хорошо", "Juda yaxshi": "Очень хорошо", "Ajoyib! 😍": "Отлично! 😍", "Berildi": "Оформлен", "Tasdiqlandi": "Подтверждён", "Yo'lda": "В пути", "Yetdi": "Доставлен", "Jami to'lov": "Итого к оплате", "Sizning bahoingiz": "Ваша оценка", "Tekshirilmoqda": "Проверяется", "Yo'lda 🚚": "В пути 🚚", "Yetib keldi": "Доставлен", "Rad etildi": "Отклонён", "BTS cheki": "Чек BTS", "Baholash": "Оценить", "To'lov tekshirilmoqda": "Оплата проверяется", "Jo'natishga tayyorlanmoqda": "Готовится к отправке", "Buyurtmangiz yo'lda": "Ваш заказ в пути", "To'lov tasdiqlanmadi": "Оплата не подтверждена", "BTS orqali jo'natilgach, chek shu yerda ko'rinadi.": "После отправки через BTS здесь появится чек.", "Qo'lingizga tekkach, \"Yetib keldi\" tugmasini bosing.": "Когда получите, нажмите «Доставлен».", "Buyurtmalar yo'q": "Заказов нет", "Siz hali hech narsa buyurtma bermagansiz.": "Вы ещё ничего не заказывали.", "Yopish": "Закрыть", "Narx": "Цена", "Omborda": "Наличие", "Kategoriya": "Категория", "Qo'shish": "Добавить", "Hali baho yo'q": "Пока без оценки", "Bor": "Есть", "Mahsulot qidirish...": "Поиск товаров...", "Mahsulot sizga yoqdimi? Fikringizni yozing...": "Понравился товар? Напишите отзыв...", "dan": "от", "gacha": "до", "Savatga qo'shildi": "Добавлено в корзину", "Savatdan olib tashlandi": "Удалено из корзины", "Rang yoki xotira hajmini tanlang": "Выберите цвет или объём памяти", "Bu mahsulot hozircha tugagan": "Этого товара пока нет в наличии", "Bu variant hozircha tugagan": "Этого варианта пока нет"};
 const I18N_RU_PATTERNS = [[/^-(\d+)% chegirma$/, "-$1% скидка"],[/^(\d+) ta qoldi$/, "осталось $1 шт"],[/^🔥 -(\d+)% chegirma$/, "🔥 -$1% скидка"],[/^🔥 (\d+) ta qoldi$/, "🔥 осталось $1 шт"],[/^(\d+) ta sharh$/, "отзывов: $1"],[/^Mahsulotlar \((\d+)\)$/, "Товары ($1)"],[/^(\d+) ta mahsulotni ko'rsatish$/, "Показать $1 товаров"],[/^Buyurtma (#\d+)$/, "Заказ $1"],[/^Omborda faqat (\d+) ta bor$/, "В наличии только $1 шт"],[/^Shoshiling! Faqat (\d+) ta qoldi$/, "Спешите! Осталось $1 шт"],[/^(\d+) dona · (.+)$/, "$1 шт · $2"],[/^Chegirma tugashiga:$/, "До конца скидки:"]];
 let uiLang = (() => { try { return localStorage.getItem('ts_lang') || 'uz'; } catch (e) { return 'uz'; } })();
 const I18N_SKIP = '#admin, #adminLock, #addModal, #editModal, #chekModal, #confirmModal, script, style, .prod-name, .prod-brand, .pd-sim-name, .detail-name, .cart-item-name, .oc-item-name, .pd-rev-text, .pd-desc';

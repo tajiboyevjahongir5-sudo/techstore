@@ -157,6 +157,7 @@ function productSummary(p) {
     name: p.name,
     brand: p.brand,
     category: p.cat,
+    type: p.type || undefined,
     price: p.price,
     discount_percent: p.discount || 0,
     old_price_before_discount: oldPrice(p) || undefined,
@@ -214,7 +215,11 @@ async function imageToBuffer(src) {
 }
 
 // ---------- Asboblar (tools) ----------
-const CATEGORY_ENUM = ['Telefonlar', 'Kompyuterlar', 'Audio', 'Aksessuarlar', 'Kameralar', "O'yinlar", 'Dronlar', 'Smart TV'];
+const PRODUCT_TYPES = require('./product-types');
+const CATEGORY_ENUM = PRODUCT_TYPES.CATEGORIES;
+const TYPE_ENUM = PRODUCT_TYPES.TYPES.map(t => t.key);
+// Promptga: har bir tur uchun so'raladigan xususiyatlar (kategoriya bo'yicha guruhlangan)
+const TYPES_GUIDE = CATEGORY_ENUM.map(c => `${c}: ` + PRODUCT_TYPES.typesOf(c).map(t => `${t.key} (${t.specs.map(s => s[0]).join(', ')})`).join('; ')).join('\n');
 
 const SPECS_SCHEMA = {
   type: 'array',
@@ -456,6 +461,7 @@ const TOOL_DEFS = {
         price: { type: 'integer', description: "Xaridor to'laydigan sotuv narxi, so'mda (butun son). Admin aytgan narx aynan shu." },
         discount: { type: 'integer', description: "Chegirma foizi 0-99 (standart 0). Faqat ko'rsatish uchun: ilovada eski narx price/(1-discount/100) bo'lib chizilgan holda chiqadi, sotuv narxi o'zgarmaydi." },
         category: { type: 'string', enum: CATEGORY_ENUM },
+        type: { type: 'string', enum: TYPE_ENUM, description: "Mahsulot turi (kategoriyaga mos), masalan ssd, blok-pitaniya, chexol, kreslo" },
         description: { type: 'string', description: "O'zbek tilida 1-3 jumlali jozibali tavsif" },
         specs: SPECS_SCHEMA,
         image_ids: { type: 'array', items: { type: 'string' }, description: 'Rasm ID lari (max 5), birinchisi asosiy rasm' },
@@ -480,6 +486,7 @@ const TOOL_DEFS = {
         price: { type: 'integer' },
         discount: { type: 'integer' },
         category: { type: 'string', enum: CATEGORY_ENUM },
+        type: { type: 'string', enum: TYPE_ENUM },
         description: { type: 'string' },
         specs: SPECS_SCHEMA,
         image_ids: { type: 'array', items: { type: 'string' } },
@@ -1388,11 +1395,13 @@ ${common}
 
 Admin bilan ishlash qoidalari:
 - Admin mahsulot rasmini yuborsa (yoki "shu mahsulotni qo'sh" desa) — mahsulot qo'shish TARTIBI (qadamma-qadam, har biri qisqa xabar):
-  1) Ma'lumotlar: rasmga qarab mahsulotni aniqla (nom, brend, kategoriya) va BITTA xabarda tasdiq hamda yetishmaganini so'ra: narxi (majburiy), omborda nechta, chegirma bormi, variantlari (xotira/rang — har birining narxi). Masalan: "📱 iPhone 16 Pro Max (Apple, Telefonlar) — to'g'rimi? Narxi, omborda soni, chegirma va variantlari (bo'lsa) qanday?" Admin aytgan narsalarni qayta so'rama.
+  1) Ma'lumotlar: rasmga/nomga qarab mahsulotni aniqla (nom, brend, kategoriya va TURI — quyidagi ro'yxatdan) va BITTA xabarda tasdiq hamda yetishmaganini so'ra: narxi (majburiy), omborda nechta, chegirma bormi, variantlari (xotira/rang — har birining narxi) va SHU TURGA tegishli xususiyatlar (ro'yxatdagi qavs ichidagilar; rasmdan yoki nomdan aniq bilganlaringni tasdiqlash uchun yozib ko'rsat, bilmaganlaringni so'ra). Masalan SSD uchun: "💾 Samsung 990 Pro 1TB (PC qismlari → SSD) — to'g'rimi? Narxi, omborda soni? Xususiyatlari: interfeys (NVMe/SATA), o'qish/yozish tezligi, form-faktor, kafolat?" Kreslo uchun esa material, maks. yuk, qo'ltiqlar va h.k. so'raladi — telefon xususiyatlari emas. Admin aytgan narsalarni qayta so'rama. Xususiyatni hech qachon o'ylab topma — admin "bilmayman" desa, o'sha xususiyatni yozma.
+  Mahsulot turlari va ularning xususiyatlari:
+${TYPES_GUIDE}
   2) 3D model uchun rasmlar: ma'lumot olingach, so'ra: "3D model uchun mahsulotni 4 tomondan suratga olib yuboring: old, orqa, chap yon, o'ng yon 📸 (oq yoki bir xil fonda, yorug' joyda, mahsulot kadrga to'liq sig'sin). 4 ta alohida rasm yoki 4 tomoni bitta rasmda (kollaj) — ikkalasi ham bo'ladi. Hozir imkon bo'lmasa — 'keyin' deb yozing."
   - Rasm o'lchami: do'konda barcha rasmlar 1:1 kvadrat ramkada ko'rinadi. Asosiy rasm tik/yotiq bo'lsa (mahsulot qirqilib qoladi) — bir marta eslat: "Ideal o'lcham — 1200×1200 kvadrat, mahsulot o'rtada, atrofida biroz bo'sh joy bilan". Kvadrat bo'lsa — hech narsa dema.
   - Kollaj (bir rasmda bir nechta ko'rinish) kelsa — uni o'zing bo'lma: rasmning o'zini qo'sh, tizim 3D uchun avtomatik ko'rinishlarga ajratadi. Do'konda kollaj ko'rinadi, banner uchun asosiy ko'rinish olinadi. Rasmlar kelsa (bir yoki bir nechta xabarda) — hammasini yig'.
-  3) Qo'shish: add_product ni chaqir; image_ids = birinchi yuborilgan rasm + 4 tomondan rasmlar (jami 5 tagacha, birinchisi asosiy). Tavsif (o'zbekcha, 1-3 jumla) va 4-6 ta xususiyatni o'zing yoz (faqat aniq bilganlaringni). Natijani bitta qatorda ayt va "3D model rasmlardan avtomatik tayyorlanadi" deb qo'sh.
+  3) Qo'shish: add_product ni chaqir; image_ids = birinchi yuborilgan rasm + 4 tomondan rasmlar (jami 5 tagacha, birinchisi asosiy). Tavsif (o'zbekcha, 1-3 jumla) yoz; type maydonini to'ldir; xususiyatlar — tur ro'yxatidagi nomlar bilan, faqat admin aytgan yoki aniq bilganlaring. Natijani bitta qatorda ayt va "3D model rasmlardan avtomatik tayyorlanadi" deb qo'sh.
   - Admin "keyin" desa — bitta rasm bilan qo'sh va "4 tomondan rasmlarni keyin yuborsangiz, 3D model aniqroq chiqadi" de. Keyinroq admin shu mahsulot uchun rasmlar yuborsa (masalan "iPhone uchun 3D rasmlar") — update_product add_image_ids bilan qo'sh (jami 5 tagacha).
   - Admin ma'lumotlarni birdan yuborsa (narx + ma'lumot) — 1-qadamni o'tkazib yubor va darhol qo'sh; lekin 4 tomondan rasmlar hali kelmagan bo'lsa, qo'shgandan keyin ularni ALBATTA so'ra (2-qadam).
 - Narx majburiy. Admin narxni aytmagan bo'lsa, qo'shishdan oldin faqat narxni so'ra — narxni hech qachon o'zing o'ylab topma. "18.5 mln" = 18500000 so'm. Dollarda aytilsa, so'mdagi narxni so'ra.
@@ -1541,6 +1550,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
           price: input.price,
           discount: input.discount || 0,
           cat: input.category,
+          type: input.type || null,
           desc: input.description,
           specs: specsFromInput(input.specs) || [],
           emoji: input.emoji || null,
@@ -1568,6 +1578,7 @@ Mavzudan tashqari, bema'ni, haqoratli yoki masxara qiluvchi xabarlar (odamlar ha
         if (input.price) patch.price = input.price;
         if (typeof input.discount === 'number') patch.discount = input.discount;
         if (input.category) patch.cat = input.category;
+        if (input.type) patch.type = input.type;
         if (input.description) patch.desc = input.description;
         if (Number.isInteger(input.stock)) patch.stock = input.stock < 0 ? null : input.stock;
         if (Array.isArray(input.variants)) {
