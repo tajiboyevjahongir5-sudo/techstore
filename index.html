@@ -11990,7 +11990,7 @@ async function shareRefCard() {
 function shareRefStory() {
   try {
     if (!tg || !tg.shareToStory || (tg.isVersionAtLeast && !tg.isVersionAtLeast('7.8'))) throw new Error('old');
-    tg.shareToStory(location.origin + '/ref-story.jpg?v=2', { text: "Original texnikani shu yerdan olaman — sizga ham tavsiya qilaman 📱💜", widget_link: { url: refLink(), name: "TechStore'ni ochish" } });
+    tg.shareToStory(location.origin + '/ref-story.mp4?v=1', { text: "Original texnikani shu yerdan olaman — sizga ham tavsiya qilaman 📱💜", widget_link: { url: refLink(), name: "TechStore'ni ochish" } });
   } catch (e) { showToast("Story bu qurilmada ishlamaydi", 'ℹ️', 'var(--text2)'); }
 }
 function toggleRefQr() {
