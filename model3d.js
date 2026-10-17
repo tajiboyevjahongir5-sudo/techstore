@@ -9,6 +9,11 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_SPACES = ['trellis-community/TRELLIS', 'JeffreyXiang/TRELLIS'];
+// TRELLIS ishlamasa (Space o'chgan / limit) — boshqa ochiq kodli modellar (GitHub: Tencent Hunyuan3D-2, Stability AI SF3D/TripoSR).
+// Ularning API'si har xil, shuning uchun endpoint va parametrlar Space'ning o'zidan (view_api) avtomatik aniqlanadi.
+const FALLBACK_SPACES = ['tencent/Hunyuan3D-2mv', 'tencent/Hunyuan3D-2', 'stabilityai/stable-fast-3d', 'stabilityai/TripoSR'];
+const isQuota = m => /quota|zerogpu|exceeded|rate.?limit|too many|gpu.{0,20}(limit|time)/i.test(String(m));
+const isDown = m => /\b50[234]\b|sleeping|paused|not running|runtime error|could not resolve app config|fetch failed|ECONN|ENOTFOUND|timeout/i.test(String(m));
 const PASS_SCORE = 7;
 const MAX_TRIES = 3;                 // bitta rasm uchun jami muvaffaqiyatsiz urinishlar
 const RETRY_FAILED_MS = 24 * 3600e3; // xatodan keyin qayta urinish
@@ -137,7 +142,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
             }));
             console.log(`🧊 TRELLIS: ${imgs.length} ta rasmdan (ko'p rasm rejimi)`);
           } catch (e) {
-            if (/quota|zerogpu|exceeded|rate.?limit|too many/i.test(String(e && (e.message || e)))) throw e;
+            if (isQuota(String(e && (e.message || e)))) throw e;
             console.warn("🧊 TRELLIS ko'p rasm rejimi ishlamadi, bitta rasm bilan:", String(e && (e.message || e)).slice(0, 200));
             gen = null;
           }
@@ -161,10 +166,76 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
         lastErr = e;
         const msg = String(e && (e.message || e));
         console.warn(`🧊 TRELLIS (${space}):`, msg.slice(0, 300));
-        if (/quota|zerogpu|exceeded|rate.?limit|too many/i.test(msg)) { const err = new Error(msg); err.quota = true; throw err; }
+        if (isQuota(msg)) { const err = new Error(msg); err.quota = true; throw err; }
       }
     }
     throw lastErr || new Error('TRELLIS ishlamadi');
+  }
+
+  // ---- Boshqa ochiq modellar (Hunyuan3D-2 / -2mv, Stable Fast 3D, TripoSR) ----
+  const PREFERRED_EPS = ['/generation_all', '/shape_generation', '/run_button', '/generate', '/run', '/predict', '/image_to_3d'];
+  const prmName = x => String(x.parameter_name || x.label || '').toLowerCase();
+  const isImageParam = x => /image/i.test(String(x.component || '')) || /image/.test(prmName(x));
+  async function otherSpace(space, imgs, seed) {
+    const { Client, handle_file } = await loadGradio();
+    const app = await Client.connect(space, { token: token(), events: ['data', 'status'] });
+    const api = await app.view_api();
+    const eps = api.named_endpoints || {};
+    let name = PREFERRED_EPS.find(n => eps[n] && (eps[n].parameters || []).some(isImageParam));
+    if (!name) name = Object.keys(eps).find(n => (eps[n].parameters || []).some(isImageParam));
+    if (!name) throw new Error(`${space}: rasm qabul qiladigan API topilmadi`);
+    const views = { front: imgs[0], back: imgs[1], left: imgs[2], right: imgs[3] };
+    const file = b => (b ? handle_file(new Blob([b])) : null);
+    let usedViews = 1;
+    const args = (eps[name].parameters || []).map(x => {
+      const n = prmName(x);
+      if (isImageParam(x)) {
+        const side = ['back', 'left', 'right', 'front'].find(k => n.includes(k));
+        if (side && side !== 'front') { if (views[side]) usedViews++; return file(views[side]); }
+        return file(views.front);
+      }
+      if (/seed/.test(n) && !/random/.test(n)) return seed;
+      if (/random/.test(n)) return false;
+      if (/rembg|remove|backgr|\bbg\b/.test(n)) return true;
+      if (/caption|prompt|text/.test(n)) return x.parameter_has_default ? x.parameter_default : '';
+      return x.parameter_has_default ? x.parameter_default : null;
+    });
+    const out = await app.predict(name, args);
+    // Bir nechta .glb qaytsa (Hunyuan3D: oq shakl + teksturali) — teksturalisi olinadi
+    const all = [];
+    const walk = v => { if (v == null) return; if (typeof v === 'string') { if (/\.glb$/i.test(v.split('?')[0])) all.push(v); return; }
+      if (Array.isArray(v)) return v.forEach(walk); if (typeof v === 'object') { if (typeof v.url === 'string' && /\.glb$/i.test(v.url.split('?')[0])) { all.push(v.url); return; } Object.values(v).forEach(walk); } };
+    walk(out.data);
+    const glbUrl = all.find(u => /textur|color|paint/i.test(u)) || all[all.length - 1];
+    if (!glbUrl) throw new Error(`${space}: .glb qaytmadi`);
+    const glb = await download(glbUrl);
+    if (glb.length < 1000 || glb.slice(0, 4).toString() !== 'glTF') throw new Error(`${space}: GLB fayl buzuq`);
+    console.log(`🧊 ${space} (${name}): model yasaldi, ${usedViews} ta rasmdan`);
+    return { glb, video: null, space, views: usedViews };
+  }
+
+  // Navbat bilan: TRELLIS → Hunyuan3D-2mv (2+ rasm bo'lsa) → Hunyuan3D-2 → SF3D → TripoSR.
+  // Hammasi limitga yetsa — kutish rejimi; boshqa xatolarda keyingisiga o'tiladi.
+  async function generate(imgs, seed) {
+    imgs = (Array.isArray(imgs) ? imgs : [imgs]).filter(Boolean).slice(0, 4);
+    const errors = []; let quotaHits = 0, tried = 0;
+    const custom = (process.env.MODEL3D_SPACES || '').split(',').map(x => x.trim()).filter(Boolean);
+    try { tried++; return await trellis(imgs, seed); }
+    catch (e) { if (e && e.quota) quotaHits++; errors.push('TRELLIS: ' + String(e && e.message || e).slice(0, 120)); }
+    const others = (custom.length ? custom : FALLBACK_SPACES).filter(sp => !(/2mv/i.test(sp) && imgs.length < 2));
+    for (const sp of others) {
+      tried++;
+      try { return await otherSpace(sp, imgs, seed); }
+      catch (e) {
+        const msg = String(e && (e.message || e));
+        console.warn(`🧊 ${sp}:`, msg.slice(0, 300));
+        if (isQuota(msg)) quotaHits++;
+        errors.push(`${sp.split('/').pop()}: ${msg.slice(0, 100)}`);
+      }
+    }
+    const err = new Error(errors.join(' | ').slice(0, 600));
+    if (quotaHits && quotaHits >= Math.ceil(tried / 2)) err.quota = true;
+    throw err;
   }
 
   // Adminga natija haqida xabar (bot orqali)
@@ -197,13 +268,13 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
       let best = null;
       for (let attempt = 0; attempt < 2; attempt++) {
         const seed = attempt === 0 ? 0 : Math.floor(Math.random() * 2147483647);
-        const r = await trellis(all, seed);
+        const r = await generate(all, seed);
         let verdict = r.video ? await judge(src, mime, r.video, p) : null;
         const score = verdict && Number.isFinite(Number(verdict.score)) ? Math.max(1, Math.min(10, Math.round(Number(verdict.score)))) : null;
         const cand = { ...r, score, issues: verdict ? String(verdict.issues || '').slice(0, 300) : null };
         if (!best || (cand.score || 0) > (best.score || 0)) best = cand;
         console.log(`🧊 3D (${p.id}) urinish ${attempt + 1}: baho ${score ?? '—'} ${cand.issues || ''}`);
-        if (score === null || score >= PASS_SCORE + 1) break;  // juda yaxshi yoki baholab bo'lmadi
+        if (score === null || score >= PASS_SCORE + 1) break;  // juda yaxshi yoki baholab bo'lmadi (video faqat TRELLIS'da)
         if (score >= PASS_SCORE && attempt === 0) break;
       }
       const file = path.basename(glbPath(p.id, key.slice(-12)));
@@ -214,20 +285,20 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
       const status = best.score === null ? 'unchecked' : best.score >= PASS_SCORE ? 'ready' : 'rejected';
       set(p.id, { status, score: best.score, reason: best.issues, file, space: best.space, size: best.glb.length, views: best.views || 1, tries: 0, force: false });
       console.log(`🧊 3D (${p.id}) tayyor: ${status}, baho ${best.score ?? '—'}`);
-      const side = (best.views || 1) > 1 ? `${best.views} tomondan` : 'bitta rasmdan';
+      const side = ((best.views || 1) > 1 ? `${best.views} tomondan` : 'bitta rasmdan') + `, ${String(best.space || '').split('/').pop()}`;
       tell(status === 'ready'
         ? `🧊 3D model tayyor: "${p.name}" — ${side}, baho ${best.score}/10 ✅\nMijozlar mahsulot sahifasida "3D ko'rinish" tugmasi orqali ko'radi.`
         : status === 'rejected'
           ? `🧊 "${p.name}" uchun 3D model yasaldi, lekin sifati past (${best.score}/10${best.issues ? ': ' + best.issues : ''}) — mijozlarga ko'rsatilmaydi.\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" yoki "Qayta yasash" mumkin.${(best.views || 1) < 4 ? " 4 tomondan rasm qo'shsangiz aniqroq chiqadi." : ''}`
-          : `🧊 3D model tayyor: "${p.name}" — ${side}, lekin avtomatik baholanmadi (Gemini kaliti yo'q).\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" ni bosing.`);
+          : `🧊 3D model tayyor: "${p.name}" — ${side}, lekin avtomatik baholanmadi${/trellis/i.test(best.space || '') ? " (Gemini kaliti yo'q)" : ' (bu model 360° video bermaydi)'}.\nAdmin → Mahsulotlar → 3D modellar'da ko'rib "Ko'rsatish" ni bosing.`);
     } catch (e) {
       if (e && e.quota) {
-        if (Date.now() >= pausedUntil) tell(`⏸ 3D model: Hugging Face bepul GPU limiti tugadi — "${p.name}" navbatda, taxminan 1 soatdan keyin o'zi davom etadi.`);
+        if (Date.now() >= pausedUntil) tell(`⏸ 3D model: barcha bepul 3D serverlarda (TRELLIS, Hunyuan3D, SF3D) GPU limiti tugadi yoki ular o'chgan — "${p.name}" navbatda, taxminan 1 soatdan keyin o'zi davom etadi.`);
         pausedUntil = Date.now() + 60 * 60e3;
         set(p.id, { status: 'queued', error: 'GPU limiti tugadi — keyinroq davom etadi' });
       } else {
         set(p.id, { status: 'failed', error: String(e && e.message || e).slice(0, 300), tries: tries + 1 });
-        if (tries + 1 >= MAX_TRIES || tries === 0) tell(`⚠️ "${p.name}" uchun 3D model yasab bo'lmadi: ${String(e && e.message || e).slice(0, 200)}${tries + 1 < MAX_TRIES ? "\n24 soatdan keyin o'zi qayta urinadi." : ''}`);
+        if (tries + 1 >= MAX_TRIES || tries === 0) tell(`⚠️ "${p.name}" uchun 3D model yasab bo'lmadi — barcha bepul 3D serverlar sinab ko'rildi:\n${String(e && e.message || e).slice(0, 400)}${tries + 1 < MAX_TRIES ? (isDown(e && e.message) ? "\nServerlar ishga tushishi bilan (30 daqiqadan keyin) o'zi qayta urinadi." : "\n24 soatdan keyin o'zi qayta urinadi.") : ''}`);
       }
     } finally {
       current = null;
@@ -240,7 +311,7 @@ function createModel3D({ dir, getProducts, imageKey, loadImageSource, loadImages
     const s = state[p.id];
     if (!s || s.key !== key) return true;
     if (s.status === 'queued' || s.status === 'rebuild') return true;
-    if (s.status === 'failed' && (s.tries || 0) < MAX_TRIES && Date.now() - (s.updatedAt || 0) > RETRY_FAILED_MS) return true;
+    if (s.status === 'failed' && (s.tries || 0) < MAX_TRIES && Date.now() - (s.updatedAt || 0) > (isDown(s.error) ? 30 * 60e3 : RETRY_FAILED_MS)) return true;
     return false;
   }
 
