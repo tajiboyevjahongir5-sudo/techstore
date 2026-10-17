@@ -4260,11 +4260,6 @@ body.modal-open {
   .slide-perks { display: flex !important; gap: 18px; font-size: 13px; font-weight: 650; color: rgba(255, 255, 255, 0.8); }
   .slide-perks span { display: flex; align-items: center; gap: 6px; }
   .slide-perks .i3 { width: 22px; height: 22px; }
-  .slide-wm { position: absolute; right: 2%; bottom: -4%; z-index: 1; font: 900 150px/1 'Manrope', sans-serif; letter-spacing: -0.05em; color: rgba(255, 255, 255, 0.055); pointer-events: none; white-space: nowrap; max-width: 60%; overflow: hidden; }
-  .slide-stage { position: absolute; right: 8%; top: 50%; width: 34%; aspect-ratio: 1; transform: translateY(-50%); z-index: 1; pointer-events: none; }
-  .slide-stage::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05) 45%, transparent 70%); }
-  .slide-stage i { position: absolute; inset: 8%; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 0 60px rgba(255, 255, 255, 0.08) inset; }
-  .slide-stage::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: 2%; height: 9%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, 0.45), transparent); }
   .slide-shadow { width: 60%; height: 18px; }
   .cats-wrap { padding: 0 0 26px; flex-wrap: wrap; overflow: visible; }
   .cat-chip:hover { border-color: rgba(167, 139, 250, 0.5); color: #fff; }
@@ -10277,8 +10272,6 @@ function buildSlides() {
         <div class="slide-actions"><div class="slide-cta" style="background:${theme.cta}">Ko'rish <i class="ti ti-arrow-right" style="font-size:12px"></i></div>
           <div class="slide-perks dk-only"><span><img class="i3" src="icons/truck.webp" alt="">Tekin yetkazish</span><span><img class="i3" src="icons/shield.webp" alt="">Xavfsiz to'lov</span></div></div>
       </div>
-      ${p.brand ? `<div class="slide-wm dk-only">${escText(String(p.brand).toUpperCase())}</div>` : ''}
-      <div class="slide-stage dk-only"><i></i></div>
       ${imgHtml}`;
     slide.addEventListener('click', () => { openDetail(p.id); });
     // Rasm 8 soniyada yuklanmasa — bu mahsulotni bannerdan olamiz (bo'sh slayd turmasin)
