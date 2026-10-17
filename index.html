@@ -7,7 +7,7 @@
 <style>html, body { background: #040529; }</style>
 <link rel="icon" href="logo.jpg">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
 <style>
 * {
   margin: 0;
@@ -38,7 +38,7 @@
 
 body {
   background: var(--bg);
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text);
   overflow-x: hidden;
   min-height: 100vh;
@@ -216,7 +216,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .logo { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
 .logo-mark { height: 46px; width: auto; flex-shrink: 0; filter: drop-shadow(0 4px 14px rgba(124, 92, 255, 0.45)); }
 /* "TechStore" nomi — logodagidek: Tech oq, Store ko'k→binafsha→pushti; matn bo'lgani uchun fonsiz va har doim tiniq */
-.wm { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.035em; line-height: 1.1; white-space: nowrap; filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.35)); }
+.wm { font-family: 'Plus Jakarta Sans', 'Manrope', sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.035em; line-height: 1.1; white-space: nowrap; filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.35)); }
 .wm1 { background: linear-gradient(180deg, #ffffff 30%, #d9ddff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .wm2 { background: linear-gradient(90deg, #59a8ff 0%, #7b6cff 30%, #b05cf6 62%, #f45cc6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .pd-sim.hs-card { width: 162px; }
@@ -2546,11 +2546,11 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .hs-disc { position: absolute; top: 6px; left: 6px; font-size: 10px; font-weight: 800; color: #fff; background: var(--red); padding: 2px 6px; border-radius: 6px; }
 .hs-rank { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #ffd166, #f5a623); color: #3a2400; font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(245,166,35,0.45); }
 .hs-card.is-out { opacity: .5; }
-.cmp-fab { position: fixed; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 60; display: flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px; border-radius: 21px; border: none; background: var(--grad); color: #fff; font: 800 13px 'Plus Jakarta Sans', sans-serif; box-shadow: 0 8px 24px rgba(107,127,255,0.45); cursor: pointer; animation: fabIn .45s cubic-bezier(0.34,1.56,0.64,1); }
+.cmp-fab { position: fixed; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 60; display: flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px; border-radius: 21px; border: none; background: var(--grad); color: #fff; font: 800 13px 'Manrope', sans-serif; box-shadow: 0 8px 24px rgba(107,127,255,0.45); cursor: pointer; animation: fabIn .45s cubic-bezier(0.34,1.56,0.64,1); }
 .cmp-fab b { background: rgba(255,255,255,0.25); border-radius: 10px; padding: 1px 7px; }
 @keyframes fabIn { from { transform: translateY(20px) scale(.8); opacity: 0; } }
 #home:not(.active) ~ .cmp-fab, .screen:not(#home) .cmp-fab { display: none; }
-.pd-cmp-btn { width: 100%; height: 46px; border-radius: 16px; border: 1px dashed var(--glass-border); background: transparent; color: var(--text2); font: 700 13px 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; cursor: pointer; }
+.pd-cmp-btn { width: 100%; height: 46px; border-radius: 16px; border: 1px dashed var(--glass-border); background: transparent; color: var(--text2); font: 700 13px 'Manrope', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; cursor: pointer; }
 .pd-cmp-btn.on { border-style: solid; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .cmp-sheet { max-height: 88vh; }
 .cmp-wrap { overflow-x: auto; margin: 10px -20px 0; padding: 0 20px 6px; }
@@ -2571,7 +2571,7 @@ button:active, .tab-btn:active, .cat-chip:active, .filter-btn:active, .back-btn:
 .cmp-foot .ot-btn { width: 100%; }
 .ref-hero { font-size: 54px; text-align: center; margin: 4px 0 6px; animation: fabIn .6s cubic-bezier(0.34,1.56,0.64,1); }
 .ref-sub { text-align: center; font-size: 13px; color: var(--text2); line-height: 1.5; margin: -4px 0 16px; }
-.ref-link { font: 700 13px 'Plus Jakarta Sans', monospace; text-align: center; padding: 14px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px dashed var(--glass-border); word-break: break-all; color: var(--accent); }
+.ref-link { font: 700 13px 'Manrope', monospace; text-align: center; padding: 14px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px dashed var(--glass-border); word-break: break-all; color: var(--accent); }
 .ref-actions { display: flex; gap: 8px; margin-top: 12px; }
 .ref-stat { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(34,216,126,0.08); font-size: 12px; color: var(--text2); }
 .ref-stat b { font-size: 22px; color: var(--green); }
@@ -2599,7 +2599,7 @@ input[type="datetime-local"].form-input::-webkit-datetime-edit { padding: 0; }
 .pd-variants { margin: -2px 0 16px; }
 .pd-variants-title { font-size: 12px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
 .pd-variant-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.pd-variant { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 13px; border-radius: 14px; border: 1.5px solid var(--glass-border); background: #161a58; color: var(--text); font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all .2s; min-width: 92px; }
+.pd-variant { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 13px; border-radius: 14px; border: 1.5px solid var(--glass-border); background: #161a58; color: var(--text); font-family: 'Manrope', sans-serif; cursor: pointer; transition: all .2s; min-width: 92px; }
 .pd-variant b { font-size: 13px; font-weight: 700; }
 .pd-variant small { font-size: 11px; color: var(--text2); font-weight: 600; }
 .pd-variant.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, #161a58); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
@@ -2615,14 +2615,14 @@ input[type="datetime-local"].form-input::-webkit-datetime-edit { padding: 0; }
 .pd-countdown { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; font-weight: 700; color: #ff7a45; }
 .pd-countdown b { font-variant-numeric: tabular-nums; background: rgba(255,122,69,0.14); padding: 3px 7px; border-radius: 7px; }
 .filter-count { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px var(--bg, #0b0d24); }
-.sort-pill { margin-left: auto; display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid var(--glass-border); background: var(--card); color: var(--text2); font: 700 12px 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+.sort-pill { margin-left: auto; display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid var(--glass-border); background: var(--card); color: var(--text2); font: 700 12px 'Manrope', sans-serif; cursor: pointer; }
 .sort-pill.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .sort-pill i { font-size: 14px; }
 .fs-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.fs-reset { background: none; border: none; color: var(--accent); font: 700 13px 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+.fs-reset { background: none; border: none; color: var(--accent); font: 700 13px 'Manrope', sans-serif; cursor: pointer; }
 .fs-label { font-size: 12px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin: 16px 0 8px; }
 .fs-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.fs-chip { height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: var(--text); font: 600 13px 'Plus Jakarta Sans', sans-serif; cursor: pointer; transition: all .2s; }
+.fs-chip { height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: var(--text); font: 600 13px 'Manrope', sans-serif; cursor: pointer; transition: all .2s; }
 .fs-chip.on { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(107,127,255,0.35); }
 .fs-range { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .fs-range .form-input { margin: 0; height: 42px; }
@@ -2737,7 +2737,7 @@ input[type="datetime-local"].form-input::-webkit-datetime-edit { padding: 0; }
 .ot-review b { color: #f5a623; letter-spacing: 1px; }
 .ot-review div { margin-top: 4px; font-style: italic; }
 .ot-actions { display: flex; gap: 8px; margin-top: 12px; }
-.ot-btn { flex: 1; height: 42px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: var(--text); font: 700 13px 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.ot-btn { flex: 1; height: 42px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: var(--text); font: 700 13px 'Manrope', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
 .ot-btn-main { background: var(--grad); border: none; color: #fff; box-shadow: 0 4px 14px rgba(107,127,255,0.35); }
 .rv-product { text-align: center; font-size: 13px; color: var(--text2); margin: -4px 0 10px; }
 .rv-stars { display: flex; justify-content: center; gap: 6px; }
@@ -2801,7 +2801,7 @@ input[type="datetime-local"].form-input::-webkit-datetime-edit { padding: 0; }
 .oc-total b { font-size: 18px; font-weight: 800; color: #a5b4fc; }
 .oc-total b span { font-size: 12px; font-weight: 700; color: var(--text2); }
 .oc-actions { display: flex; gap: 8px; flex: 1; justify-content: flex-end; }
-.oc-btn { height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: var(--text); font: 700 13px 'Plus Jakarta Sans', sans-serif; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+.oc-btn { height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: var(--text); font: 700 13px 'Manrope', sans-serif; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
 .oc-btn i { font-size: 16px; }
 .oc-btn-main { background: var(--grad); border: none; color: #fff; box-shadow: 0 4px 14px rgba(107,127,255,0.35); }
 .oc-rejected { opacity: .85; }
@@ -4184,7 +4184,7 @@ body.modal-open {
   .dk-wm { font-size: 27px; }
   .dk-search { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 520px; margin-right: auto; height: 44px; padding: 0 16px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--text2); transition: border-color .2s, background .2s; }
   .dk-search:focus-within { border-color: rgba(167, 139, 250, 0.6); background: rgba(255,255,255,0.09); }
-  .dk-search input { flex: 1; background: none; border: none; outline: none; color: #fff; font: 500 14px 'Plus Jakarta Sans', sans-serif; }
+  .dk-search input { flex: 1; background: none; border: none; outline: none; color: #fff; font: 500 14px 'Manrope', sans-serif; }
   .dk-search .ti { font-size: 18px; }
   .tab-btn { flex: 0 0 auto; flex-direction: row; gap: 8px; font-size: 14px; padding: 10px 16px; border-radius: 14px; color: rgba(255,255,255,0.7); }
   .tab-btn i { font-size: 19px; }
@@ -4292,6 +4292,29 @@ body.modal-open {
 @media (min-width: 1024px) and (hover: hover) {
   .cat-chip, .profile-menu-item, .pd-sim, .prod-card, .tab-btn { cursor: pointer; }
 }
+
+/* ===== TIPOGRAFIKA: bitta shrift (Manrope — lotin va kirill bir xil), aniq o'lchamlar tizimi ===== */
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; font-feature-settings: 'ss01', 'cv11'; }
+input, textarea, select, button { font-family: inherit; }
+.section-title, .hs-title { font-size: 19px; font-weight: 800; letter-spacing: -0.025em; color: #f4f5ff; }
+.hs-title { gap: 10px; }
+.slide-title { font-weight: 800; letter-spacing: -0.03em; line-height: 1.12; }
+.slide-price { font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.slide-badge { font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; width: max-content; max-width: 100%; }
+.cat-chip { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.cat-chip.active { font-weight: 750; }
+.prod-brand { font-weight: 700; letter-spacing: 0.1em; font-size: 10.5px; }
+.prod-name, .pd-sim-name { font-weight: 700; letter-spacing: -0.015em; color: #eef0ff; }
+.prod-name { font-size: 14px; line-height: 1.3; }
+.pd-sim-name { font-size: 13px; line-height: 1.28; height: 33px; }
+.prod-price, .pd-sim-price { font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  background: linear-gradient(90deg, #c7d2ff, #a5b4fc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.prod-price { font-size: 15px; }
+.pd-sim-price { font-size: 14px; }
+.prod-price span, .pd-sim-price small { -webkit-text-fill-color: rgba(199, 210, 254, 0.7); font-weight: 600; letter-spacing: 0; }
+.search-bar input, .dk-search input { font-weight: 500; letter-spacing: -0.005em; }
+.tab-btn { font-weight: 700; letter-spacing: -0.005em; }
+.detail-name, .pd-title { letter-spacing: -0.025em; }
 </style>
 
 <!-- ===== KIRISH INTROSI (~3.3 s): bo'sh quti chiqadi → mahsulotlar qutiga tushadi → "TechStore" yozuvi ko'tariladi ===== -->
@@ -4318,7 +4341,7 @@ body.modal-open {
 #intro .in-text { display: block; transform: translateY(105%); filter: blur(10px); opacity: 0; }
 #intro .in-text .wm { font-size: 46px; font-size: 16.5cqw; filter: drop-shadow(0 0 16px rgba(167, 139, 250, 0.4)); }
 #intro .in-shine { position: absolute; top: -20%; bottom: -20%; width: 26%; left: -40%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); mix-blend-mode: overlay; }
-#intro .in-tag { margin-top: 2.2%; font: 600 clamp(10px, 1.6vh, 14px)/1 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif; letter-spacing: .34em; text-transform: uppercase; color: rgba(210,205,255,.8); opacity: 0; transform: translateY(8px); white-space: nowrap; }
+#intro .in-tag { margin-top: 2.2%; font: 600 clamp(10px, 1.6vh, 14px)/1 'Manrope', system-ui, sans-serif; letter-spacing: .34em; text-transform: uppercase; color: rgba(210,205,255,.8); opacity: 0; transform: translateY(8px); white-space: nowrap; }
 @media (min-width: 760px) { #intro .in-stage { width: min(70vw, 66vh, 640px); } }
 #intro .in-side { width: 100%; display: flex; flex-direction: column; align-items: center; }
 /* Kompyuter: katta quti chapda, yozuv o'ngda */
@@ -4331,7 +4354,7 @@ body.modal-open {
   #intro .in-floor { height: 50%; }
   #intro .in-skip { font-size: 13px; }
 }
-#intro .in-skip { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font: 500 12px/1 'DM Sans', system-ui, sans-serif; color: rgba(255,255,255,.35); letter-spacing: .05em; opacity: 0; animation: inFade .4s 1s forwards; }
+#intro .in-skip { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font: 500 12px/1 'Manrope', system-ui, sans-serif; color: rgba(255,255,255,.35); letter-spacing: .05em; opacity: 0; animation: inFade .4s 1s forwards; }
 
 #intro.go .in-aur { animation: inAur 3s ease-out forwards; }
 #intro.go .in-floor { animation: inFade .8s .1s ease-out forwards; }
@@ -4809,7 +4832,7 @@ body.modal-open {
           <div style="font-size:11px;color:#ffa1a1;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-weight:800;display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">⚠️</span> DIQQAT! AYNAN SHU SUMMANI O'TKAZING
           </div>
-          <div id="uniqueAmountVal" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;font-weight:900;color:#ef4444;text-shadow:0 0 10px rgba(239,68,68,0.3)">—</div>
+          <div id="uniqueAmountVal" style="font-family:'Manrope',sans-serif;font-size:32px;font-weight:900;color:#ef4444;text-shadow:0 0 10px rgba(239,68,68,0.3)">—</div>
           <div style="font-size:12px;color:#ffffff;font-weight:700;margin-top:8px;line-height:1.45">
             To'lovingiz avtomatik tasdiqlanishi uchun kartaga aynan yuqoridagi summani o'tkazishingiz kerak.
           </div>
@@ -5369,13 +5392,13 @@ body.modal-open {
     </div>
     <div style="padding:20px;padding-bottom:80px">
       <div class="profile-head-card" style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
-        <div id="profileAvatar" style="width:64px;height:64px;border-radius:20px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#fff;box-shadow:0 6px 20px rgba(107,127,255,0.35);overflow:hidden;flex-shrink:0"></div>
-        <div><div id="profileName" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:700;margin-bottom:3px">—</div><div id="profileUsername" style="font-size:12px;color:var(--text2)"></div></div>
+        <div id="profileAvatar" style="width:64px;height:64px;border-radius:20px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Manrope',sans-serif;font-size:22px;font-weight:800;color:#fff;box-shadow:0 6px 20px rgba(107,127,255,0.35);overflow:hidden;flex-shrink:0"></div>
+        <div><div id="profileName" style="font-family:'Manrope',sans-serif;font-size:18px;font-weight:700;margin-bottom:3px">—</div><div id="profileUsername" style="font-size:12px;color:var(--text2)"></div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">
-        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="showOrdersHistory()"><div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileOrderCount">0</div><div style="font-size:10px;color:var(--text2)">Buyurtma</div></div>
-        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="showFavorites()"><div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileFavCount">0</div><div style="font-size:10px;color:var(--text2)">Sevimli</div></div>
-        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="openReferral()"><div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileRefCount">0</div><div style="font-size:10px;color:var(--text2)">Do'stlar</div></div>
+        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="showOrdersHistory()"><div style="font-family:'Manrope',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileOrderCount">0</div><div style="font-size:10px;color:var(--text2)">Buyurtma</div></div>
+        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="showFavorites()"><div style="font-family:'Manrope',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileFavCount">0</div><div style="font-size:10px;color:var(--text2)">Sevimli</div></div>
+        <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:10px;text-align:center;cursor:pointer;backdrop-filter:var(--blur)" onclick="openReferral()"><div style="font-family:'Manrope',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="profileRefCount">0</div><div style="font-size:10px;color:var(--text2)">Do'stlar</div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div class="profile-menu-item" onclick="showOrdersHistory()">
@@ -5437,14 +5460,14 @@ body.modal-open {
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <div style="width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">👨‍💼</div>
           <div>
-            <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700" id="adminContactName">TechStore Admin</div>
+            <div style="font-family:'Manrope',sans-serif;font-size:14px;font-weight:700" id="adminContactName">TechStore Admin</div>
             <div style="font-size:11px;color:rgba(41,168,235,0.9)" id="adminContactHandle">@Jahongir_1220</div>
           </div>
         </div>
         <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:12px;border-left:3px solid rgba(41,168,235,0.5)">
           💬 Adminga faqat mahsulot sotmoqchi bo'lsangiz yoki takliflar bo'lsa yozing
         </div>
-        <button onclick="openTelegramAdmin()" style="width:100%;height:46px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.35)">
+        <button onclick="openTelegramAdmin()" style="width:100%;height:46px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Manrope',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.35)">
           <i class="ti ti-brand-telegram" style="font-size:16px"></i> Telegram orqali yozish
         </button>
       </div>
@@ -5458,7 +5481,7 @@ body.modal-open {
       <!-- Avatar -->
       <div style="width:80px;height:80px;border-radius:24px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px;box-shadow:0 8px 24px rgba(107,127,255,0.4)">👨‍💻</div>
       <!-- Title -->
-      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px">Tojiboyev Jahongir</div>
+      <div style="font-family:'Manrope',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px">Tojiboyev Jahongir</div>
       <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:20px;letter-spacing:0.5px">Dasturchi & Ilova muallifi</div>
       <!-- Info card -->
       <div style="background:rgba(107,127,255,0.07);border:1px solid rgba(107,127,255,0.18);border-radius:18px;padding:16px;margin-bottom:16px;text-align:left">
@@ -5483,7 +5506,7 @@ body.modal-open {
         🚀 TechStore v1.0
       </div>
       <!-- Close button -->
-      <button onclick="closeDevModal()" style="width:100%;height:46px;border-radius:14px;background:var(--grad);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(107,127,255,0.35)">Yopish</button>
+      <button onclick="closeDevModal()" style="width:100%;height:46px;border-radius:14px;background:var(--grad);border:none;color:#fff;font-family:'Manrope',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(107,127,255,0.35)">Yopish</button>
     </div>
   </div>
 
@@ -5531,7 +5554,7 @@ body.modal-open {
       <div class="confirm-sub">Bu mahsulot ro'yxatdan o'chiriladi. Bu amalni bekor qilib bo'lmaydi.</div>
       <div class="confirm-actions">
         <button class="btn-cancel" onclick="closeConfirm()">Bekor</button>
-        <button class="btn-reject" id="confirmDelBtn" style="height:46px;border-radius:13px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer">O'chirish</button>
+        <button class="btn-reject" id="confirmDelBtn" style="height:46px;border-radius:13px;font-family:'Manrope',sans-serif;font-size:13px;font-weight:700;cursor:pointer">O'chirish</button>
       </div>
     </div>
   </div>
@@ -5603,7 +5626,7 @@ body.modal-open {
       `;
       block.innerHTML = `
         <div style="font-size: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(107,127,255,0.45))">🔒</div>
-        <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 12px; font-family: 'Plus Jakarta Sans', sans-serif;">Kirish taqiqlangan</h1>
+        <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 12px; font-family: 'Manrope', sans-serif;">Kirish taqiqlangan</h1>
         <p style="font-size: 13px; color: #a0a0b5; line-height: 1.6; max-width: 300px; margin-bottom: 24px;">
           Xavfsizlik nuqtai nazaridan, ushbu do'kondan faqat rasmiy <b>Telegram Mini App</b> orqali foydalanish mumkin!
         </p>
@@ -7421,7 +7444,7 @@ async function renderUsersList() {
       if(usersList.length === 0) {
         list.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text2)">
           <div style="font-size:48px;margin-bottom:12px;opacity:0.35">👥</div>
-          <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Foydalanuvchilar yo'q</div>
+          <div style="font-family:'Manrope',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Foydalanuvchilar yo'q</div>
           <div style="font-size:12px;line-height:1.6">Telegram Mini Appni ochgan<br>foydalanuvchilar bu yerda ko'rinadi</div>
         </div>`;
         return;
@@ -7436,7 +7459,7 @@ async function renderUsersList() {
 
         const avaHtml = u.photo_url
           ? `<img src="${u.photo_url}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
-          : `<span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800">${initials}</span>`;
+          : `<span style="font-family:'Manrope',sans-serif;font-weight:800">${initials}</span>`;
 
         const joinDate = u.joinedAt
           ? new Date(u.joinedAt).toLocaleDateString('uz-UZ', {day:'2-digit',month:'2-digit',year:'numeric'})
@@ -8428,10 +8451,10 @@ function openChek(name, prod, price, time, status, userId, chekImg, userUsername
         <button class="btn-approve" id="shipBtn" style="width:100%" onclick="shipFromPanel('${extra.id}')"><i class="ti ti-truck"></i> Jo'natildi — xaridorga xabar berish</button>
       </div>` : ''}
       ${extra?.order?.shipProof ? `<button class="ot-btn" style="width:100%;margin-bottom:10px;height:46px" onclick="openZoomFromSrc('${extra.order.shipProof}')"><i class="ti ti-file-invoice"></i> BTS chekini ko'rish</button>` : ''}
-      ${uid ? `<button onclick="openTgUserDirect('${uid}','${uname||''}')" style="width:100%;height:50px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.4);margin-bottom:10px">
+      ${uid ? `<button onclick="openTgUserDirect('${uid}','${uname||''}')" style="width:100%;height:50px;border-radius:14px;background:linear-gradient(135deg,#29a8eb,#0088cc);border:none;color:#fff;font-family:'Manrope',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(0,136,204,0.4);margin-bottom:10px">
         <i class="ti ti-brand-telegram" style="font-size:18px"></i> Telegram orqali bog'lanish
       </button>` : ''}
-      <button onclick="closeModal('chekModal')" style="width:100%;height:44px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text2);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Yopish</button>`;
+      <button onclick="closeModal('chekModal')" style="width:100%;height:44px;border-radius:14px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text2);font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Yopish</button>`;
   }
   openModal('chekModal');
 }
