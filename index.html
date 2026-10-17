@@ -4006,7 +4006,10 @@ body.in-tg .pd-topbar-title { padding-left: 4px; }
 .pd-more { background: none; border: none; color: var(--accent2); font-size: 13px; font-weight: 700; padding: 6px 0 0; }
 
 .pd-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.pd-spec { padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); min-width: 0; }
+.pd-spec { display: flex; align-items: center; gap: 11px; padding: 12px; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); min-width: 0; }
+.pd-spec > div { min-width: 0; flex: 1; }
+.pd-spec-ic { width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 26%, transparent); }
+.pd-spec-ic svg { width: 20px; height: 20px; }
 .pd-spec small { display: block; font-size: 11px; color: var(--text3); margin-bottom: 4px; }
 .pd-spec b { display: block; font-size: 13.5px; font-weight: 750; word-break: break-word; }
 .pd-spec.wide { grid-column: span 2; }
@@ -6945,9 +6948,16 @@ function fillDetailInfo(p, allImgs) {
   // Xususiyatlar — plitkalar
   const specsEl = document.getElementById('detailSpecs');
   const specs = Array.isArray(p.specs) ? p.specs.filter(x => x && x[0]) : [];
+  // Uzun qiymat — butun qator; qatorda yolg'iz qolgan plitka ham butun qatorga cho'ziladi
+  const wides = specs.map(([, v]) => String(v).length > 13);
+  for (let i = 0, col = 0; i < specs.length; i++) {
+    if (wides[i]) { col = 0; continue; }
+    if (col === 0 && (i === specs.length - 1 || wides[i + 1])) { wides[i] = true; continue; }
+    col = col ? 0 : 1;
+  }
   specsEl.innerHTML = specs.map(([k, v], i) => {
-    const wide = String(v).length > 18 || (specs.length % 2 === 1 && i === specs.length - 1);
-    return `<div class="pd-spec${wide ? ' wide' : ''}"><small>${escText(k)}</small><b>${escText(v)}</b></div>`;
+    const wide = wides[i];
+    return `<div class="pd-spec${wide ? ' wide' : ''}">${specIcon(k)}<div><small>${escText(k)}</small><b>${escText(v)}</b></div></div>`;
   }).join('');
   document.getElementById('pdSpecsSection').style.display = specs.length ? '' : 'none';
 
@@ -10872,6 +10882,60 @@ const SVG_ICONS = {
   'message-circle': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l1.3-3.9A8 8 0 1112 20a8 8 0 01-4.6-1.4L3 20"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg>',
   'circle-plus': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0"/><path d="M9 12l6 0"/><path d="M12 9l0 6"/></svg>',
 };
+
+// Xususiyat nomiga qarab chiziqli ikonka va rang (Ekran, Protsessor, Xotira, Kamera, Batareya ...)
+const SPEC_SVG = {
+  screen: '<rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+  cpu: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  memory: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+  camera: '<path d="M5 7h1a2 2 0 0 0 2-2 1 1 0 0 1 1-1h6a1 1 0 0 1 1 1 2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2"/><circle cx="12" cy="13" r="3.2"/>',
+  battery: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/><path d="M7 10v4M10.5 10v4"/>',
+  bolt: '<path d="M13 3v7h6l-8 11v-7H5l8-11"/>',
+  palette: '<path d="M12 21a9 9 0 1 1 0-18c4.97 0 9 3.58 9 8 0 2.5-2.2 4-4.5 4H14a2 2 0 0 0-1 3.75A1.3 1.3 0 0 1 12 21"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/>',
+  weight: '<circle cx="12" cy="6" r="3"/><path d="M6.8 9h10.4a2 2 0 0 1 1.96 1.6l1.6 8A2 2 0 0 1 18.8 21H5.2a2 2 0 0 1-1.96-2.4l1.6-8A2 2 0 0 1 6.8 9"/>',
+  plug: '<path d="M9 7V3M15 7V3"/><path d="M6 7h12v4a6 6 0 0 1-12 0z"/><path d="M12 17v4"/>',
+  video: '<path d="M15 10l4.55-2.28A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.9L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/>',
+  sound: '<path d="M15 8a5 5 0 0 1 0 8"/><path d="M17.7 5a9 9 0 0 1 0 14"/><path d="M6 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2l3.5-4.5A.8.8 0 0 1 11 5v14a.8.8 0 0 1-1.5.5z"/>',
+  apps: '<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M12 19h4.5a3.5 3.5 0 0 0 0-7h-8a3.5 3.5 0 0 1 0-7H12"/>',
+  ruler: '<path d="M5 4h14a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-7a1 1 0 0 0-1 1v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1"/><path d="M4 8h2M4 12h3M4 16h2M8 4v2M12 4v3M16 4v2"/>',
+  drop: '<path d="M7.5 10.5L12 4l4.5 6.5a5.5 5.5 0 1 1-9 0"/>',
+  shield: '<path d="M12 3a12 12 0 0 0 8.5 3A12 12 0 0 1 12 21 12 12 0 0 1 3.5 6 12 12 0 0 0 12 3"/><path d="M9 12l2 2 4-4"/>',
+  gauge: '<path d="M3.5 17a9 9 0 1 1 17 0"/><path d="M12 13l3.5-3.5"/><circle cx="12" cy="13" r="1.2"/>',
+  link: '<path d="M9 15l6-6"/><path d="M11 6l.46-.54a5 5 0 0 1 7.07 7.07L18 13"/><path d="M13 18l-.4.53a5.07 5.07 0 0 1-7.13 0 5 5 0 0 1 0-7.07L6 11"/>',
+  gpu: '<rect x="2" y="6" width="20" height="11" rx="2"/><circle cx="9" cy="11.5" r="2.5"/><circle cx="16" cy="11.5" r="2.5"/><path d="M5 17v3"/>',
+  box: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
+  info: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8-4.3-4.1 5.9-.9z"/>',
+};
+const SPEC_RULES = [
+  [/videokarta|grafik|gpu/, 'gpu', '#4ade80'],
+  [/ekran|diagonal|displey|monitor|matritsa turi/, 'screen', '#60a5fa'],
+  [/protsessor|chip|cpu|soket|yadro|chipset/, 'cpu', '#a78bfa'],
+  [/ram|xotira|hajm|ssd|hdd|kesh|storage/, 'memory', '#f472b6'],
+  [/kamera|megapiksel|foto|obyektiv|optika|linza|matritsa|sensor/, 'camera', '#fbbf24'],
+  [/batareya|sig'im|sig‘im|akkumulyator|uchish|parvoz vaqti/, 'battery', '#4ade80'],
+  [/quvvat|watt|sertifikat|zaryad/, 'bolt', '#facc15'],
+  [/rang|podsvetka/, 'palette', '#f472b6'],
+  [/og'irlik|og‘irlik|yuk|vazn/, 'weight', '#94a3b8'],
+  [/ulanish|bluetooth|wi-?fi|interfeys|port|ulagich|shina|chiqish|sim\b/, 'plug', '#38bdf8'],
+  [/video|kadr/, 'video', '#fb7185'],
+  [/audio|dinamik|drayver|anc|ovoz|mikrofon/, 'sound', '#c084fc'],
+  [/\bos\b|platforma|smart|tizim/, 'apps', '#60a5fa'],
+  [/yorqinlik|hdr/, 'sun', '#fbbf24'],
+  [/masofa|uchish/, 'route', '#38bdf8'],
+  [/suv/, 'drop', '#38bdf8'],
+  [/kafolat|himoya/, 'shield', '#4ade80'],
+  [/chastota|tezlik|aylanish|taymin|hz/, 'gauge', '#fb923c'],
+  [/moslik|mos /, 'link', '#a78bfa'],
+  [/material|korpus|format|o'lcham|o‘lcham|uzunlik|balandlik|qalinlik|form-faktor/, 'ruler', '#94a3b8'],
+  [/komplekt|turi|versiya/, 'box', '#a78bfa'],
+];
+function specIcon(label) {
+  const k = String(label || '').toLowerCase();
+  const r = SPEC_RULES.find(([re]) => re.test(k)) || [null, 'info', '#a78bfa'];
+  return `<span class="pd-spec-ic" style="--c:${r[2]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${SPEC_SVG[r[1]]}</svg></span>`;
+}
 
 function applyIconFallback(root) {
   root = root || document;
