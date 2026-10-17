@@ -489,7 +489,7 @@ function orderLines(order, orderId) {
 }
 
 // Xaridorga xabar: avval yordamchi akkaunt orqali, bo'lmasa bot orqali
-async function messageCustomer(order, { text, html, photoBuffer, photoFileId }) {
+async function messageCustomer(order, { text, html, photoBuffer, photoFileId, sticker }) {
   if (!order.userId) return false;
   const user = await firebaseGet(`users/${order.userId}`).catch(() => null);
   try {
@@ -500,6 +500,7 @@ async function messageCustomer(order, { text, html, photoBuffer, photoFileId }) 
   }
   if (!botInstance) return false;
   try {
+    if (sticker) await sendStoreSticker(order.userId, sticker);
     if (photoFileId) await botInstance.sendPhoto(order.userId, photoFileId, { caption: html, parse_mode: 'HTML' });
     else if (photoBuffer) await botInstance.sendPhoto(order.userId, photoBuffer, { caption: html, parse_mode: 'HTML' }, { filename: 'chek.jpg', contentType: 'image/jpeg' });
     else await botInstance.sendMessage(order.userId, html, { parse_mode: 'HTML' });
@@ -559,7 +560,7 @@ async function handleConfirmedOrder(orderId) {
       `📦 <b>${escStored(o.num)}</b> buyurtmangiz haqidagi ma'lumot adminga jo'natildi. Tez orada buyurtmangiz <b>BTS pochta</b> orqali siz tanlagan manzilga yetib boradi.` +
       (o.addr ? `\n📍 ${escStored(o.addr)}` : '') +
       `\n\n<i>TechStore — ishonchli xarid</i> 💜`;
-    const via = await messageCustomer(order, { text, html });
+    const via = await messageCustomer(order, { text, html, sticker: 'accepted' });
 
     await firebasePatch(`orders/${orderId}`, {
       fulfillment: { ...(order.fulfillment || {}), adminNotifiedAt: Date.now(), adminMessages, customerNotifiedVia: via || null },
@@ -660,7 +661,7 @@ async function shipOrder(orderId, { photoFileId = null, buffer = null, imgData =
     (o.addr ? `\n📍 ${escStored(o.addr)}` : '') +
     (note ? `\n📝 ${escStored(note)}` : '') +
     `\n\nBuyurtmangiz yetib borgach, iltimos, mahsulot rasmini va qisqa fikringizni yozib yuboring 🙏\n\n<i>TechStore'ni tanlaganingiz uchun rahmat!</i> 💜`;
-  const via = await messageCustomer(order, { text, html, photoBuffer: buffer, photoFileId });
+  const via = await messageCustomer(order, { text, html, photoBuffer: buffer, photoFileId, sticker: 'shipping' });
 
   await firebasePatch(`orders/${orderId}`, {
     status: 'shipped',
@@ -2567,30 +2568,147 @@ const assistant = createAssistant({
   }
 });
 
+// ===== DO'KON STIKERLARI =====
+// stickers/*.png (512×512) bot orqali Telegram stiker to'plamiga aylantiriladi; egasi — birinchi admin.
+// Bot xaridorga muhim paytlarda (salom, buyurtma qabul qilindi, yo'lda, yetkazildi) shu stikerlarni yuboradi.
+const STORE_STICKERS = [
+  { key: 'hello', file: '01-salom.png', emoji: ['👋', '😊'] },
+  { key: 'new', file: '02-yangi.png', emoji: ['🆕', '📱'] },
+  { key: 'sale', file: '03-chegirma.png', emoji: ['🔥', '💸'] },
+  { key: 'accepted', file: '04-qabul.png', emoji: ['📦', '✅'] },
+  { key: 'shipping', file: '05-yolda.png', emoji: ['🚚', '📦'] },
+  { key: 'congrats', file: '06-muborak.png', emoji: ['🎉', '🥳'] },
+  { key: 'thanks', file: '07-rahmat.png', emoji: ['🙏', '💜'] },
+  { key: 'good', file: '08-zor.png', emoji: ['👍', '🔥'] },
+  { key: 'soon', file: '09-tezorada.png', emoji: ['⏳', '⌚'] },
+  { key: 'logo', file: '10-logo.png', emoji: ['🛍', '💜'] },
+];
+let stickerCache = null;   // { name, ids: { key: file_id } }
+const stickerSetName = () => `techstore_by_${String(botUsername || '').toLowerCase()}`;
+async function loadStickerIds() {
+  if (stickerCache) return stickerCache;
+  const saved = await firebaseGet('meta/stickers').catch(() => null);
+  stickerCache = saved && saved.ids ? saved : { name: '', ids: {} };
+  return stickerCache;
+}
+async function buildStickerSet() {
+  if (!botInstance || !botUsername) return { error: 'Bot ishlamayapti' };
+  const owner = Number(ADMIN_IDS[0]);
+  if (!owner) return { error: 'ADMIN_IDS sozlanmagan' };
+  const name = stickerSetName();
+  let set = await botInstance._request('getStickerSet', { qs: { name } }).catch(() => null);
+  const have = new Set(((set && set.stickers) || []).map(s => s.emoji));
+  const ids = {};
+  for (const st of STORE_STICKERS) {
+    const p = path.join(__dirname, 'stickers', st.file);
+    if (!fs.existsSync(p)) continue;
+    const input = { emoji_list: st.emoji, keywords: [st.key, 'techstore'] };
+    if (!set) {
+      const up = await botInstance.uploadStickerFile(owner, fs.createReadStream(p), 'static', {}, { filename: st.file, contentType: 'image/png' });
+      await botInstance._request('createNewStickerSet', { qs: { user_id: owner, name, title: 'TechStore', sticker_type: 'regular', stickers: JSON.stringify([{ ...input, sticker: up.file_id, format: 'static' }]) } });
+      set = await botInstance._request('getStickerSet', { qs: { name } });
+      have.add(st.emoji[0]);
+      continue;
+    }
+    if (have.has(st.emoji[0])) continue;
+    const up = await botInstance.uploadStickerFile(owner, fs.createReadStream(p), 'static', {}, { filename: st.file, contentType: 'image/png' });
+    await botInstance._request('addStickerToSet', { qs: { user_id: owner, name, sticker: JSON.stringify({ ...input, sticker: up.file_id, format: 'static' }) } });
+    have.add(st.emoji[0]);
+  }
+  set = await botInstance._request('getStickerSet', { qs: { name } });
+  for (const st of STORE_STICKERS) { const s = set.stickers.find(x => x.emoji === st.emoji[0]); if (s) ids[st.key] = s.file_id; }
+  stickerCache = { name, ids, builtAt: Date.now() };
+  await firebasePut('meta/stickers', stickerCache);
+  return { ok: true, count: set.stickers.length, link: `https://t.me/addstickers/${name}` };
+}
+async function sendStoreSticker(chatId, key) {
+  try {
+    if (!botInstance || !chatId) return;
+    const c = await loadStickerIds();
+    if (c.ids[key]) await botInstance.sendSticker(chatId, c.ids[key]);
+  } catch (_) {}
+}
+app.post('/api/admin/stickers/build', apiRateLimiter, verifyAdmin, async (req, res) => {
+  try {
+    const r = await buildStickerSet();
+    if (r.error) return res.status(400).json(r);
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/admin/stickers', apiRateLimiter, verifyAdmin, async (req, res) => {
+  const c = await loadStickerIds();
+  res.json({ ready: Object.keys(c.ids).length > 0, count: Object.keys(c.ids).length, link: c.name ? `https://t.me/addstickers/${c.name}` : null });
+});
+
 // ===== KANALGA MAHSULOT POSTI =====
+// Tuzilma kod bilan quriladi (faqat haqiqiy ma'lumot): sarlavha, qisqa matn, xususiyatlar, variantlar, narx, heshteglar
+const CHANNEL_CAT_EMOJI = { 'Telefonlar': '📱', 'Kompyuterlar': '💻', 'PC qismlari': '🖥', 'Periferiya': '⌨️', 'Audio': '🎧', 'Aksessuarlar': '🔌', 'Kameralar': '📷', "O'yinlar": '🎮', 'Dronlar': '🚁', 'Smart TV': '📺', 'Mebel': '🪑' };
+const CHANNEL_SPEC_EMOJI = [
+  [/videokarta|grafik|gpu/, '🎮'], [/ekran|diagonal|displey|monitor|tashqi/, '🖥'], [/protsessor|chip|cpu|soket|yadro|chipset/, '⚙️'],
+  [/ram|xotira|hajm|ssd|hdd|kesh/, '💾'], [/kamera|megapiksel|foto|obyektiv|optik|linza|matritsa|sensor/, '📸'],
+  [/batareya|sig'im|akkumulyator|parvoz vaqti/, '🔋'], [/quvvat|watt|sertifikat|zaryad|tdp|blok pitaniya/, '⚡'],
+  [/rang|podsvetka/, '🎨'], [/og'irlik|yuk|vazn/, '⚖️'], [/ulanish|bluetooth|wi-?fi|interfeys|port|ulagich|shina/, '🔗'],
+  [/video|kadr/, '🎬'], [/audio|dinamik|drayver|ovoz|mikrofon|anc|shovqin/, '🔊'], [/\bos\b|platforma|smart|tizim/, '📲'],
+  [/suv/, '💧'], [/kafolat|himoya/, '🛡'], [/chastota|tezlik|aylanish|hz/, '🚀'], [/kuler|ventilyator|radiator/, '❄️'],
+  [/masofa/, '📡'], [/material|korpus|o'lcham|uzunl|baland|qalinlik|format/, '📐'],
+];
+const specEmoji = label => { const k = String(label || '').toLowerCase().replace(/[‘’`]/g, "'"); const r = CHANNEL_SPEC_EMOJI.find(([re]) => re.test(k)); return r ? r[1] : '▫️'; };
+const hashTag = s => '#' + String(s || '').replace(/[^\p{L}\p{N}]+/gu, '');
+
+function buildChannelCaption(p, hook) {
+  const name = plainText(p.name);
+  const lines = [];
+  lines.push(`${p.discount > 0 ? '🔥 <b>CHEGIRMA</b>' : '🆕 <b>YANGI MAHSULOT</b>'}`, '');
+  lines.push(`${CHANNEL_CAT_EMOJI[p.cat] || '✨'} <b>${escHtml(name)}</b>`);
+  if (hook) lines.push(`<i>${escHtml(plainText(hook)).slice(0, 350)}</i>`);
+  const specs = (Array.isArray(p.specs) ? p.specs : []).filter(x => Array.isArray(x) && x[0] && x[1]).slice(0, 7);
+  if (specs.length) {
+    lines.push('', '<b>📋 Xususiyatlari:</b>');
+    lines.push('<blockquote>' + specs.map(([k, v]) => `${specEmoji(k)} ${escHtml(plainText(k))}: <b>${escHtml(plainText(v))}</b>`).join('\n') + '</blockquote>');
+  }
+  const variants = (Array.isArray(p.variants) ? p.variants : []).filter(v => v && v.name && Number(v.price) > 0).slice(0, 6);
+  if (variants.length) {
+    lines.push('<b>🎨 Variantlar:</b>');
+    variants.forEach(v => lines.push(`• ${escHtml(plainText(v.name))} — <b>${fmtSom(v.price)}</b>`));
+  }
+  lines.push('');
+  const old = p.discount > 0 ? Math.round(Number(p.regularPrice) > p.price ? Number(p.regularPrice) : p.price / (1 - p.discount / 100)) : 0;
+  lines.push(`💰 Narxi: <b>${variants.length ? fmtSom(Math.min(...variants.map(v => Number(v.price)))) + ' dan' : fmtSom(p.price)}</b>${old && !variants.length ? `  <s>${fmtSom(old)}</s>  (−${p.discount}%)` : ''}`);
+  if (p.discount > 0 && p.discountUntil && p.discountUntil > Date.now()) {
+    const d = new Date(p.discountUntil + 5 * 3600e3);
+    lines.push(`⏳ Chegirma ${d.getUTCDate()}.${String(d.getUTCMonth() + 1).padStart(2, '0')} gacha amal qiladi`);
+  }
+  const st = p.stock === null || p.stock === undefined || p.stock === '' ? null : Number(p.stock);
+  if (st !== null && st > 0 && st <= 5) lines.push(`📦 Omborda atigi <b>${st} ta</b> qoldi`);
+  lines.push("🚚 BTS orqali butun O'zbekiston bo'ylab yetkazib berish");
+  lines.push('', '👇 Buyurtma berish uchun tugmani bosing');
+  const tags = [p.cat ? hashTag(p.cat) : '', p.brand ? hashTag(p.brand) : '', '#TechStore'].filter(t => t.length > 1);
+  lines.push('', tags.join(' '));
+  let cap = lines.join('\n');
+  // Telegram rasm izohi chegarasi — 1024 belgi (teglardan tashqari matn bo'yicha)
+  if (cap.replace(/<[^>]+>/g, '').length > 1000 && hook) return buildChannelCaption(p, '');
+  return cap;
+}
+
 async function postProductToChannel(pid, text) {
   if (!botInstance) return { error: 'Bot ishlamayapti' };
   if (!SHOP_CHANNEL) return { error: "Kanal sozlanmagan: admin panel → Sozlamalar → Telegram kanal'ga kanal username'ini kiriting va botni kanalga admin qiling" };
   const p = (await getProducts()).find(x => String(x.id) === String(pid));
   if (!p) return { error: 'Mahsulot topilmadi' };
   const name = plainText(p.name);
-  const old = p.discount > 0 ? Math.round(p.price / (1 - p.discount / 100)) : 0;
-  const caption =
-    (text ? escHtml(plainText(text)).slice(0, 700) + '\n\n' : `<b>${escHtml(name)}</b>\n\n`) +
-    `💰 <b>${fmtSom(p.price)}</b>${old ? ` <s>${fmtSom(old)}</s> (−${p.discount}%)` : ''}\n` +
-    `🚚 BTS orqali yetkazib berish\n\n👇 Buyurtma berish uchun tugmani bosing`;
-  const markup = { inline_keyboard: [[{ text: '🛍 Sotib olish', url: `https://t.me/${botUsername}?start=p_${p.id}` }]] };
+  let caption = buildChannelCaption(p, text || '');
+  if (caption.replace(/<[^>]+>/g, '').length > 1020) caption = buildChannelCaption({ ...p, specs: (p.specs || []).slice(0, 4), variants: (p.variants || []).slice(0, 3) }, '');
+  const markup = { inline_keyboard: [
+    [{ text: '🛍 Sotib olish', url: `https://t.me/${botUsername}?start=p_${p.id}` }],
+    [{ text: "🏪 Barcha mahsulotlar", url: `https://t.me/${botUsername}?start=shop` }],
+  ] };
   const src = (Array.isArray(p.images) && p.images[0]) || p.image;
   const chat = '@' + SHOP_CHANNEL;
   try {
     let msg;
-    if (src) {
-      const buf = await loadImageSource(src).catch(() => null);
-      msg = buf ? await botInstance.sendPhoto(chat, buf, { caption, parse_mode: 'HTML', reply_markup: markup }, { filename: 'mahsulot.jpg', contentType: 'image/jpeg' })
-        : await botInstance.sendMessage(chat, caption, { parse_mode: 'HTML', reply_markup: markup });
-    } else {
-      msg = await botInstance.sendMessage(chat, caption, { parse_mode: 'HTML', reply_markup: markup });
-    }
+    const buf = src ? await loadImageSource(src).catch(() => null) : null;
+    msg = buf ? await botInstance.sendPhoto(chat, buf, { caption, parse_mode: 'HTML', reply_markup: markup }, { filename: 'mahsulot.jpg', contentType: 'image/jpeg' })
+      : await botInstance.sendMessage(chat, caption, { parse_mode: 'HTML', reply_markup: markup, disable_web_page_preview: true });
     return { posted: true, product: name, link: `https://t.me/${SHOP_CHANNEL}/${msg.message_id}` };
   } catch (e) {
     return { error: `Kanalga yuborib bo'lmadi: ${e.message}. Bot kanalda admin ekanini tekshiring.` };
@@ -2600,24 +2718,22 @@ async function postProductToChannel(pid, text) {
 // ===== YANGI MAHSULOT — KANALGA AVTOMATIK E'LON =====
 // Matnni Gemini faqat mahsulotning haqiqiy ma'lumotlaridan yozadi (o'ylab topilgan xususiyat yo'q); kalit bo'lmasa — shablon.
 async function channelCaption(p) {
+  // Faqat 1–2 jumlali qisqa jozibali matn; xususiyat/narx ro'yxatini kod o'zi chiqaradi
   const specs = (Array.isArray(p.specs) ? p.specs : []).filter(x => Array.isArray(x) && x[0] && x[1]).slice(0, 6);
-  const variants = (Array.isArray(p.variants) ? p.variants : []).map(v => v && v.name).filter(Boolean).slice(0, 6);
   const facts = [`Nomi: ${plainText(p.name)}`, p.brand ? `Brend: ${plainText(p.brand)}` : '', p.cat ? `Kategoriya: ${p.cat}` : '',
     p.desc && !/tavsif yo'q/i.test(p.desc) ? `Tavsif: ${plainText(p.desc).slice(0, 500)}` : '',
-    specs.length ? 'Xususiyatlar: ' + specs.map(([a, b]) => `${plainText(a)} — ${plainText(b)}`).join('; ') : '',
-    variants.length ? 'Variantlar: ' + variants.map(plainText).join(', ') : ''].filter(Boolean).join('\n');
+    specs.length ? 'Xususiyatlar: ' + specs.map(([a, b]) => `${plainText(a)} — ${plainText(b)}`).join('; ') : ''].filter(Boolean).join('\n');
   try {
     if (typeof assistant !== 'undefined' && assistant.geminiGenerate) {
       const r = await assistant.geminiGenerate([{ text:
-        `Telegram do'kon kanali uchun yangi mahsulot e'loni yoz (o'zbek tilida, lotin alifbosida).\n${facts}\n\n` +
+        `Telegram do'kon kanalidagi mahsulot e'loni uchun 1–2 jumlali qisqa jozibali kirish matni yoz (o'zbek tilida, lotin alifbosida).\n${facts}\n\n` +
         `Qoidalar: FAQAT yuqoridagi ma'lumotlardan foydalan — xususiyat, narx, kafolat, sovg'a yoki aksiya o'ylab topma. ` +
-        `Narx va yetkazib berishni yozma (ular alohida qo'shiladi). 1 qator jozibali sarlavha (emoji bilan, mahsulot nomi bilan), ` +
-        `keyin 2–4 ta qisqa qator asosiy afzalliklar (har biri emoji bilan boshlanadi). Jami 350 belgidan oshmasin. Faqat e'lon matnini qaytar.` }]);
+        `Mahsulot nomini, narxni, yetkazib berishni va xususiyatlar ro'yxatini yozma (ular alohida chiqadi). Emoji ishlatma. 160 belgidan oshmasin. Faqat matnni qaytar.` }]);
       const t = r && !r.error && String(r.text || '').trim().replace(/^["'`]+|["'`]+$/g, '');
-      if (t && t.length > 20) return t.slice(0, 600);
+      if (t && t.length > 15) return t.slice(0, 220);
     }
   } catch (_) {}
-  return `🆕 Yangi: ${plainText(p.name)}\n` + specs.slice(0, 4).map(([a, b]) => `▫️ ${plainText(a)}: ${plainText(b)}`).join('\n');
+  return p.desc && !/tavsif yo'q/i.test(p.desc) ? plainText(p.desc).slice(0, 200) : '';
 }
 async function autoPostNewProduct(pid, { manual = false } = {}) {
   if (!manual && !SHOP_AUTOPOST) return { skipped: "o'chirilgan" };
@@ -2854,7 +2970,9 @@ app.post('/api/me/orders/:id/delivered', apiRateLimiter, async (req, res) => {
   try {
     const r = await ownOrder(req, res); if (!r) return;
     if (!['shipped', 'delivered'].includes(r.order.status)) return res.status(400).json({ error: "Buyurtma hali jo'natilmagan" });
+    const was = r.order.status;
     await botFeatures.markDelivered(r.order, req.params.id);
+    if (was !== 'delivered') sendStoreSticker(r.order.userId, 'congrats');
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3029,7 +3147,15 @@ function initializeTelegramBot() {
         return;
       }
 
-      botFeatures.sendWelcome(chatId, firstName).catch(e => console.warn('/start xatosi:', e.message));
+      sendStoreSticker(chatId, 'hello').finally(() => botFeatures.sendWelcome(chatId, firstName).catch(e => console.warn('/start xatosi:', e.message)));
+    });
+
+    bot.onText(/^\/(stikerlar|stickers)\b/, async (msg) => {
+      if (!ADMIN_IDS.includes(String(msg.from?.id || ''))) return;
+      bot.sendMessage(msg.chat.id, '🎨 Stiker to\'plami tayyorlanmoqda…').catch(() => {});
+      const r = await buildStickerSet().catch(e => ({ error: e.message }));
+      if (r.error) return bot.sendMessage(msg.chat.id, `❌ ${r.error}`).catch(() => {});
+      bot.sendMessage(msg.chat.id, `✅ TechStore stikerlari tayyor (${r.count} ta):\n${r.link}`).catch(() => {});
     });
 
     bot.onText(/\/admin/, (msg) => {

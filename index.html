@@ -5351,6 +5351,12 @@ input, textarea, select, button { font-family: inherit; }
           <label class="ap-toggle"><input type="checkbox" id="settAutoPost" checked><span class="ap-sw"></span><span><b>Yangi mahsulotlar kanalga avtomatik chiqsin</b><small>Mahsulot qo'shilgach ~1 daqiqada rasm, narx va "Sotib olish" tugmasi bilan e'lon joylanadi. Matnni AI mahsulot ma'lumotlaridan yozadi. Bot kanalda admin bo'lishi kerak.</small></span></label>
           <button class="settings-save-btn btn-purple" onclick="saveChannelSettings()"><i class="ti ti-device-floppy"></i> Saqlash</button>
         </div>
+        <div class="settings-section card-purple" style="margin-top:14px;margin-bottom:0">
+          <div class="settings-section-title">🎨 DO'KON STIKERLARI</div>
+          <div class="as-hint" style="margin-top:0">10 ta TechStore stikeri Telegram to'plamiga aylantiriladi. Bot ularni xaridorga o'zi yuboradi: /start — "Salom!", to'lov tasdiqlansa — "Qabul qilindi", jo'natilsa — "Yo'lda!", yetib kelsa — "Muborak!".</div>
+          <div id="stkStatus" class="as-hint"></div>
+          <button class="settings-save-btn btn-purple" id="stkBtn" onclick="buildStickers(this)">🎨 Stiker to'plamini yaratish</button>
+        </div>
       </div>
     </div>
   </div>
@@ -6104,6 +6110,7 @@ async function loadPublicSettingsFromServer() {
       const chEl = document.getElementById('settChannel');
       if (chEl && document.activeElement !== chEl) chEl.value = SHOP_CHANNEL ? '@' + SHOP_CHANNEL : '';
       const apEl = document.getElementById('settAutoPost'); if (apEl) apEl.checked = data.autoPost !== false;
+      loadStickerStatus();
       if (data.card) {
         CARD_NUMBER = data.card.number || CARD_NUMBER;
         CARD_OWNER = data.card.owner || CARD_OWNER;
@@ -6187,6 +6194,28 @@ async function postToChannel(pid, btn) {
   } catch (e) { showToast(e.message, '✗', 'var(--red)'); }
   finally { btn && btn.classList.remove('btn-loading'); }
 }
+async function loadStickerStatus() {
+  try {
+    const r = await fetch('/api/admin/stickers', { headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    const d = await r.json(); const el = document.getElementById('stkStatus'); if (!el) return;
+    el.innerHTML = d.ready ? `✅ Tayyor: ${d.count} ta stiker · <a href="${d.link}" onclick="openStickerLink(event,this.href)" style="color:#c4b5fd">to'plamni ochish</a>` : 'Hali yaratilmagan';
+    const b = document.getElementById('stkBtn'); if (b && d.ready) b.innerHTML = '<i class="ti ti-refresh"></i> Yangilash';
+  } catch (e) {}
+}
+function openStickerLink(e, url) { try { if (tg && tg.openTelegramLink) { e.preventDefault(); tg.openTelegramLink(url); } } catch (_) {} }
+async function buildStickers(btn) {
+  btn.disabled = true; const old = btn.innerHTML; btn.innerHTML = 'Yaratilmoqda… (~30 soniya)';
+  try {
+    const r = await fetch('/api/admin/stickers/build', { method: 'POST', headers: { 'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || '' } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Xatolik');
+    showToast(`Stikerlar tayyor: ${d.count} ta`, '✓', 'var(--green)');
+    loadStickerStatus();
+    if (d.link && tg && tg.openTelegramLink) tg.openTelegramLink(d.link);
+  } catch (e) { showToast(e.message, '✗', 'var(--red)'); }
+  btn.disabled = false; if (btn.innerHTML.startsWith('Yaratil')) btn.innerHTML = old;
+}
+
 async function saveChannelSettings() {
   const val = document.getElementById('settChannel').value.trim();
   try {
